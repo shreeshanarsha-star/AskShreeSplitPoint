@@ -6,7 +6,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const RESEND_API_URL = "https://api.resend.com/emails";
-const FROM_ADDRESS = process.env.TALENT_EMAIL_FROM || "Talent.ai <noreply@simplenow.ai>";
+const FROM_ADDRESS = process.env.TALENT_EMAIL_FROM || "Talent.ai <noreply@askshree.com>";
 
 export type SendEmailResult = { ok: boolean; error?: string };
 

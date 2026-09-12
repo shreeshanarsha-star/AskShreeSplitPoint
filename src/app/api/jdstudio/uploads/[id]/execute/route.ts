@@ -127,7 +127,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         mode: upload.mode,
         status: upload.mode === "auto" ? "responded" : "pending_review",
         recipient_name: null,
-        recipient_email: user.email || "self@simplenow.ai",
+        recipient_email: user.email || "self@askshree.com",
         department,
         job_title: jobTitle,
         questions_snapshot: questionsSnapshot,

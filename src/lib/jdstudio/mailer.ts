@@ -1,7 +1,7 @@
 import { sendEmail } from "@/lib/email";
 
-const FROM_ADDRESS = process.env.JDSTUDIO_EMAIL_FROM || "JD Studio.ai <noreply@simplenow.ai>";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://simplenow.ai";
+const FROM_ADDRESS = process.env.JDSTUDIO_EMAIL_FROM || "JD Studio.ai <noreply@askshree.com>";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://askshree.com";
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
@@ -15,7 +15,7 @@ function shell(title: string, bodyHtml: string): string {
     <h1 style="font-size:19px;margin:0 0 12px;color:#1f2430;">${escapeHtml(title)}</h1>
     ${bodyHtml}
   </div>
-  <div style="font-size:12px;color:#9a9484;margin-top:16px;">Sent by SimpleNow.ai · JD Studio.ai</div>
+  <div style="font-size:12px;color:#9a9484;margin-top:16px;">Sent by Askshree.com · JD Studio.ai</div>
 </div>
 </body></html>`;
 }
