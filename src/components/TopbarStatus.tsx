@@ -401,6 +401,14 @@ export default function TopbarStatus() {
                     </div>
                     <div className="flex flex-col gap-1 text-[11.5px]">
                       <Link
+                        href="/candidate/status"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="px-2 py-1.5 rounded-lg hover:bg-page text-ink flex items-center gap-2 font-medium transition-colors"
+                      >
+                        <Icon name="check" className="w-3.5 h-3.5 text-brand" />
+                        <span>My Applications</span>
+                      </Link>
+                      <Link
                         href="/recruiter"
                         onClick={() => setUserMenuOpen(false)}
                         className="px-2 py-1.5 rounded-lg hover:bg-page text-ink flex items-center gap-2 font-medium transition-colors"

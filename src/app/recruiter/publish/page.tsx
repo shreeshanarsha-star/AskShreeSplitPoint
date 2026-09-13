@@ -160,12 +160,12 @@ export default function SocialMediaPublishPage() {
 
         <div className="flex items-center gap-3">
           <Link
-            href="/careers"
+            href="/"
             target="_blank"
-            className="text-xs text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 flex items-center gap-1 transition-colors"
+            className="text-xs text-ink-muted hover:text-brand flex items-center gap-1 transition-colors"
           >
             <Icon name="external" size={13} />
-            View Live Careers Board
+            <span>View Live Open Roles</span>
           </Link>
           <span className="w-px h-5 bg-border flex-shrink-0" />
           <TopbarStatus />

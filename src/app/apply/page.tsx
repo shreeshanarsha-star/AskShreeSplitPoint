@@ -26,11 +26,8 @@ export default async function ApplyPage() {
     <div className="min-h-screen bg-page">
       <header className="border-b border-border bg-surface">
         <div className="max-w-[1000px] mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex flex-col items-start gap-0.5">
-            <Logo height={26} />
-            <small className="block font-medium text-[10.5px] text-ink-muted tracking-wide">
-              CAREERS
-            </small>
+          <Link href="/" className="flex items-center hover:opacity-90 transition-opacity">
+            <Logo height={28} showPunchline={true} />
           </Link>
           <TopbarStatus />
         </div>

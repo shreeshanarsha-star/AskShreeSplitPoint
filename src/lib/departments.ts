@@ -43,7 +43,7 @@ export const DEPARTMENTS: Department[] = [
     tools: [
       { n: "Recruiter Console", s: "live", group: "Talent Acquisition", href: "/recruiter", bundled: true },
       { n: "Talent.ai", s: "live", group: "Talent Acquisition", href: "/tools/talent-ai" },
-      { n: "Careers Portal (Public)", s: "live", group: "Talent Acquisition", href: "/careers", bundled: true },
+      { n: "Open Roles & AI Studio", s: "live", group: "Talent Acquisition", href: "/", bundled: true },
       { n: "Interview.ai", s: "live", group: "Talent Acquisition", href: "/schedule", bundled: true },
       { n: "Offer.ai", s: "live", group: "Talent Acquisition", href: "/tools/offer-ai" },
       { n: "Job Postings.ai", s: "live", group: "Talent Acquisition", href: "/tools/job-postings-ai" },

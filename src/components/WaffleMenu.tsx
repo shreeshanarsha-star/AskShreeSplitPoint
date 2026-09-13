@@ -67,8 +67,8 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
 
   // TALENT & RECRUITMENT
   {
-    name: "Careers Portal",
-    desc: "Live job openings, role discovery & fast-track apply",
+    name: "Open Roles & AI Studio",
+    desc: "Live job openings, role discovery & AI candidate studio",
     href: "/",
     category: "talent",
     icon: "users",

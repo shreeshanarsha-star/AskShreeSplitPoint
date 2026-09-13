@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     // 3. Assemble Site Data Context
     const siteContext = contextJob
       ? `Selected Open Requisition: "${contextJob.title}" | Department: ${contextJob.department || "Engineering"} | Location: ${contextJob.location || "Remote"} | Compensation: ${contextJob.salary_range || "Competitive"} | Overview: ${contextJob.description || ""}`
-      : "General Careers Portal: AskShree is currently hiring across Engineering, Product, Sales, and Operations.";
+      : "AskShree: Currently hiring across Engineering, Product, Sales, and Operations.";
 
     // 4. Assemble Uploaded Documents Context
     const docContext =

@@ -410,11 +410,11 @@ function buildAppDestinations(): AppDestination[] {
   });
 
   destinations.push({
-    key: "careers-portal",
-    label: "Careers Portal",
-    href: "/careers",
+    key: "open-roles",
+    label: "Open Roles & AI Studio",
+    href: "/",
     featureKey: null,
-    hint: "Open the public careers portal, job openings, voice Shree avatar, or apply page.",
+    hint: "Open job openings, role discovery, Shree AI avatar, or quick apply.",
   });
 
   destinations.push({

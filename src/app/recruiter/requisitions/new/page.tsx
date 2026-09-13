@@ -633,7 +633,7 @@ export default function NewRequisitionPage() {
                   Live Public Preview
                 </span>
                 <span className="text-[10px] px-2 py-0.5 rounded-md font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                  Careers Portal Card
+                  Public Job Card
                 </span>
               </div>
 

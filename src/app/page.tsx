@@ -5,7 +5,6 @@ import Link from "next/link";
 import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
 import TopbarStatus from "@/components/TopbarStatus";
-import { createClient } from "@/lib/supabase/client";
 
 type SpeechRecognitionLike = {
   lang: string;
@@ -46,13 +45,12 @@ const SUGGESTED_QUESTIONS = [
   "What is the hiring timeline & compensation band?",
 ];
 
-export default function CareersLandingPage() {
+export default function HomePage() {
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [search, setSearch] = useState("");
   const [selectedJob, setSelectedJob] = useState<JobPosting | null>(null);
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [rightPanelTab, setRightPanelTab] = useState<"chat" | "specs">("chat");
-  const [user, setUser] = useState<{ email?: string; id?: string } | null>(null);
 
   // Shree AI Avatar & Conversational State
   const [messages, setMessages] = useState<Array<{ role: "assistant" | "user"; text: string }>>([
@@ -118,12 +116,6 @@ export default function CareersLandingPage() {
   const [submittedInterviewToken, setSubmittedInterviewToken] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check user auth state for Track Status gating
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user);
-    });
-
     // Load live job postings
     async function loadJobs() {
       try {
@@ -252,32 +244,9 @@ export default function CareersLandingPage() {
           <Link href="/" className="flex items-center hover:opacity-90 transition-opacity">
             <Logo height={28} showPunchline={true} />
           </Link>
-          <span className="text-border hidden sm:inline select-none">/</span>
-          <span className="font-semibold text-[13.5px] sm:text-[14.5px] text-ink-2 hidden sm:inline font-display">
-            Careers Portal
-          </span>
         </div>
 
         <div className="flex items-center gap-3 text-xs">
-          {user ? (
-            <Link
-              href="/candidate/status"
-              className="text-ink-muted hover:text-ink font-semibold transition-colors flex items-center gap-1.5"
-            >
-              <Icon name="check" size={13} />
-              <span>My Application Status</span>
-            </Link>
-          ) : (
-            <Link
-              href="/login?next=/candidate/status"
-              className="text-ink-muted hover:text-brand font-semibold transition-colors flex items-center gap-1.5"
-              title="Registered candidates only"
-            >
-              <Icon name="user" size={13} />
-              <span>Track Status (Sign in)</span>
-            </Link>
-          )}
-          <span className="w-px h-5 bg-border flex-shrink-0" />
           <TopbarStatus />
         </div>
       </header>
