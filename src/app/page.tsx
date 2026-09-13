@@ -531,49 +531,6 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Context Sub-Header with Specs Link & Quick Apply */}
-            <div className="px-4 py-2 border-b border-border bg-page/50 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-1.5 truncate max-w-[65%]">
-                <span className="text-ink-muted text-[11px]">Context:</span>
-                {selectedJob ? (
-                  <span className="font-semibold text-ink truncate text-[11.5px]">
-                    {selectedJob.title}
-                  </span>
-                ) : (
-                  <span className="text-ink-muted italic text-[11px]">All Open Jobs</span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                {selectedJob && (
-                  <>
-                    <JobShareButton
-                      job={{
-                        id: selectedJob.id,
-                        title: selectedJob.title,
-                        company: selectedJob.department,
-                        location: selectedJob.location,
-                      }}
-                      variant="pill"
-                    />
-                    <Link
-                      href={`/jobs/${selectedJob.id}`}
-                      className="text-xs font-semibold text-brand hover:underline flex items-center gap-0.5"
-                    >
-                      <span>View Specs</span>
-                      <Icon name="chevronRight" size={11} />
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => setShowApplyModal(true)}
-                      className="px-2.5 py-1 rounded-lg text-xs font-bold bg-brand hover:bg-brand-dark text-white shadow-button transition-all"
-                    >
-                      Quick Apply
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
 
             {/* Conversational Studio Body */}
             <div className="flex-1 flex flex-col overflow-hidden bg-page">
