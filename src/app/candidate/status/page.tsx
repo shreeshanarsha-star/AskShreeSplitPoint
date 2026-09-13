@@ -70,26 +70,25 @@ function CandidateStatusContent() {
   }
 
   return (
-    <div className="min-h-screen bg-page text-ink py-10 px-4 sm:px-6">
-      <div className="max-w-3xl mx-auto space-y-6">
-        {/* Brand Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-border">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="group">
-              <Logo height={28} showPunchline={true} />
-            </Link>
-            <span className="text-border">/</span>
-            <span className="font-bold text-sm text-ink tracking-tight font-display">
-              Talent Portal
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-ink-muted hidden md:inline">
-              Never Wonder Where You Stand
-            </span>
-            <TopbarStatus />
-          </div>
+    <div className="min-h-screen bg-page text-ink flex flex-col">
+      {/* Brand Header */}
+      <header className="px-6 py-3.5 bg-surface border-b border-border flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link href="/" className="group">
+            <Logo height={28} showPunchline={true} />
+          </Link>
+          <span className="text-border">/</span>
+          <span className="font-bold text-sm text-ink tracking-tight font-display">
+            Talent Portal
+          </span>
+          <span className="text-xs text-ink-muted hidden md:inline ml-2 pl-2 border-l border-border">
+            Never Wonder Where You Stand
+          </span>
         </div>
+        <TopbarStatus />
+      </header>
+
+      <main className="flex-1 max-w-3xl w-full mx-auto py-8 px-4 sm:px-6 space-y-6">
 
         {loading ? (
           <div className="py-20 text-center text-xs text-ink-muted">
@@ -232,7 +231,7 @@ function CandidateStatusContent() {
             </div>
           </>
         )}
-      </div>
+      </main>
     </div>
   );
 }
