@@ -527,7 +527,7 @@ export default function HomePage() {
                     </button>
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-brand-wash text-brand border border-brand/20 font-medium">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Live Conversational
+                      Live-Interactive 24/7
                     </span>
                   </div>
                   <p className="text-[11px] text-ink-muted mt-0.5">
