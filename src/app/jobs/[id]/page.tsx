@@ -4,6 +4,7 @@ import Link from "next/link";
 import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
 import TopbarStatus from "@/components/TopbarStatus";
+import JobShareButton from "@/components/JobShareButton";
 import { buildJobPostingSchema } from "@/lib/jobPostings/schema";
 
 export const dynamic = "force-dynamic";
@@ -256,11 +257,23 @@ export default async function JobDetailPage({
               </div>
             </div>
 
-            {job.ctc_budget && (
-              <span className="text-sm sm:text-base font-bold text-good-text bg-good-wash border border-good/20 px-4 py-1.5 rounded-xl shadow-soft-sm whitespace-nowrap">
-                {job.ctc_budget}
-              </span>
-            )}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <JobShareButton
+                job={{
+                  id: job.id,
+                  title: job.title,
+                  company: job.company,
+                  location: job.location,
+                  ctc_budget: job.ctc_budget || undefined,
+                }}
+                variant="button"
+              />
+              {job.ctc_budget && (
+                <span className="text-sm sm:text-base font-bold text-good-text bg-good-wash border border-good/20 px-4 py-1.5 rounded-xl shadow-soft-sm whitespace-nowrap">
+                  {job.ctc_budget}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2 pt-3 border-t border-border">
@@ -307,7 +320,17 @@ export default async function JobDetailPage({
               Consult directly with Shree or apply directly for instantaneous candidate evaluation.
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <JobShareButton
+              job={{
+                id: job.id,
+                title: job.title,
+                company: job.company,
+                location: job.location,
+                ctc_budget: job.ctc_budget || undefined,
+              }}
+              variant="button"
+            />
             <Link
               href={`/?role=${encodeURIComponent(job.id)}`}
               className="px-4 py-2 rounded-xl text-xs font-semibold border border-border hover:border-brand/40 text-ink hover:text-brand bg-page transition-all flex items-center gap-1.5"

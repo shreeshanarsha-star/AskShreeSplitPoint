@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
 import TopbarStatus from "@/components/TopbarStatus";
+import JobShareButton from "@/components/JobShareButton";
+import ShareToEarnModal from "@/components/ShareToEarnModal";
+import { getCandidateCredits } from "@/lib/credits";
 
 type SpeechRecognitionLike = {
   lang: string;
@@ -53,6 +56,9 @@ export default function HomePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedJob, setSelectedJob] = useState<JobPosting | null>(null);
   const [showApplyModal, setShowApplyModal] = useState(false);
+  const [candidateCredits, setCandidateCredits] = useState(25);
+  const [shareJob, setShareJob] = useState<JobPosting | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
   const chipsRef = useRef<HTMLDivElement | null>(null);
   const ROLES_PER_PAGE = 3;
 
@@ -145,6 +151,19 @@ export default function HomePage() {
       }
     }
     loadJobs();
+  }, []);
+
+  // Listen for real-time candidate credit updates
+  useEffect(() => {
+    setCandidateCredits(getCandidateCredits());
+    function handleCreditsUpdate(e: Event) {
+      const detail = (e as CustomEvent).detail;
+      if (detail && typeof detail.credits === "number") {
+        setCandidateCredits(detail.credits);
+      }
+    }
+    window.addEventListener("askshree_credits_updated", handleCreditsUpdate);
+    return () => window.removeEventListener("askshree_credits_updated", handleCreditsUpdate);
   }, []);
 
   // Auto-scroll chat transcript to bottom
@@ -297,6 +316,20 @@ export default function HomePage() {
                 <span className="font-semibold uppercase tracking-wider text-[10.5px] text-ink-muted">
                   {filteredJobs.length} {filteredJobs.length === 1 ? "Role" : "Roles"} Available
                 </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const targetJob = selectedJob || jobs[0];
+                    if (targetJob) {
+                      setShareJob(targetJob);
+                      setShowShareModal(true);
+                    }
+                  }}
+                  title="Your Candidate Credits (Click to Share & Earn more)"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-brand-wash text-brand border border-brand/20 font-bold hover:border-brand/40 transition-all shadow-soft-sm"
+                >
+                  <span>🎁 {candidateCredits} Credits</span>
+                </button>
                 {roleFilter && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-brand-wash text-brand border border-brand/20 font-medium">
                     <span>Filter: &quot;{roleFilter}&quot;</span>
@@ -405,7 +438,17 @@ export default function HomePage() {
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                           <span>💬 Consult Shree</span>
                         </button>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <JobShareButton
+                            job={{
+                              id: job.id,
+                              title: job.title,
+                              company: job.department,
+                              location: job.location,
+                              salary_range: job.salary_range,
+                            }}
+                            variant="pill"
+                          />
                           <Link
                             href={`/jobs/${job.id}`}
                             onClick={(e) => e.stopPropagation()}
@@ -534,9 +577,19 @@ export default function HomePage() {
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 {selectedJob && (
                   <>
+                    <JobShareButton
+                      job={{
+                        id: selectedJob.id,
+                        title: selectedJob.title,
+                        company: selectedJob.department,
+                        location: selectedJob.location,
+                        salary_range: selectedJob.salary_range,
+                      }}
+                      variant="pill"
+                    />
                     <Link
                       href={`/jobs/${selectedJob.id}`}
                       className="text-xs font-semibold text-brand hover:underline flex items-center gap-0.5"
@@ -816,6 +869,30 @@ export default function HomePage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* 5. Share & Earn Credits Modal */}
+      {showShareModal && shareJob && (
+        <ShareToEarnModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          job={{
+            id: shareJob.id,
+            title: shareJob.title,
+            company: shareJob.department,
+            location: shareJob.location,
+            salary_range: shareJob.salary_range,
+          }}
+          onConsultCv={(j) => {
+            const query = `Shree, please review and consult on my CV for the ${j.title} role. What critical competencies and keywords should I emphasize?`;
+            handleSendQuery(undefined, query);
+          }}
+          onQuickApply={(j) => {
+            const found = jobs.find((x) => x.id === j.id);
+            if (found) setSelectedJob(found);
+            setShowApplyModal(true);
+          }}
+        />
       )}
     </div>
   );
