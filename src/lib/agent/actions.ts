@@ -401,6 +401,30 @@ function buildAppDestinations(): AppDestination[] {
     hint: "Open Team Chat.",
   });
 
+  destinations.push({
+    key: "recruiter-console",
+    label: "Recruiter Console",
+    href: "/recruiter",
+    featureKey: null,
+    hint: "Open AskShree Recruiter Console, AI cockpit, candidate shadow mode review queue, or talent dashboard.",
+  });
+
+  destinations.push({
+    key: "careers-portal",
+    label: "Careers Portal",
+    href: "/careers",
+    featureKey: null,
+    hint: "Open the public careers portal, job openings, voice Shree avatar, or apply page.",
+  });
+
+  destinations.push({
+    key: "interview-schedule",
+    label: "Interview & Scheduling",
+    href: "/schedule",
+    featureKey: null,
+    hint: "Open interview scheduling, candidate calendar negotiation, or interview rooms.",
+  });
+
   // Hand-curated sub-actions -- specific things a user can DO inside a
   // tool, not just the tool's landing page. Each href encodes enough of a
   // query param for the destination page to pick up and act on (see
