@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
+import TopbarStatus from "@/components/TopbarStatus";
 
 type AgentTask = {
   id: string;
@@ -172,6 +173,8 @@ export default function AgentSchedulingPage() {
           >
             Manual Calendar Grid
           </Link>
+          <span className="w-px h-5 bg-border flex-shrink-0" />
+          <TopbarStatus />
         </div>
       </header>
 

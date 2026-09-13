@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import ApplyAIForm from "@/components/tools/ApplyAIForm";
 import Link from "next/link";
 import Logo from "@/components/Logo";
+import TopbarStatus from "@/components/TopbarStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,7 @@ export default async function ApplyPage() {
               CAREERS
             </small>
           </Link>
+          <TopbarStatus />
         </div>
       </header>
 

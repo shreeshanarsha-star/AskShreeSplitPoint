@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/Icon";
+import Logo from "@/components/Logo";
+import TopbarStatus from "@/components/TopbarStatus";
 
 type TimeSlot = {
   time: string;
@@ -69,18 +71,28 @@ export default function CandidateSelfSchedulePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white flex flex-col justify-center py-10 px-4 sm:px-6">
-      <div className="max-w-3xl w-full mx-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+    <div className="min-h-screen bg-page text-ink flex flex-col justify-center py-8 px-4 sm:px-6">
+      <div className="max-w-3xl w-full mx-auto mb-4 flex items-center justify-between">
+        <Link href="/" className="hover:opacity-90 transition-opacity">
+          <Logo height={28} showPunchline={true} />
+        </Link>
+        <TopbarStatus />
+      </div>
+
+      <div className="max-w-3xl w-full mx-auto bg-surface border border-border rounded-2xl shadow-soft overflow-hidden">
         
         {/* Top Header Banner */}
-        <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-purple-900 p-6 sm:p-8 text-white">
+        <div className="bg-gradient-to-r from-brand-dark via-brand to-amber-700 p-6 sm:p-8 text-white">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center font-bold text-lg text-white">
-                S
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/askshree-emblem.png"
+                alt="AskShree"
+                className="w-10 h-10 rounded-[22%] shadow-emblem flex-shrink-0"
+              />
               <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-indigo-200">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-100">
                   AskShree Candidate Experience
                 </span>
                 <h1 className="text-xl sm:text-2xl font-bold">

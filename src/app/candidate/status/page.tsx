@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
+import TopbarStatus from "@/components/TopbarStatus";
 import { STAGES, stageLabel } from "@/lib/talentStages";
 
 type CandidateStatus = {
@@ -82,9 +83,12 @@ function CandidateStatusContent() {
               Talent Portal
             </span>
           </div>
-          <span className="text-xs text-ink-muted">
-            Never Wonder Where You Stand
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-ink-muted hidden md:inline">
+              Never Wonder Where You Stand
+            </span>
+            <TopbarStatus />
+          </div>
         </div>
 
         {loading ? (

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
+import TopbarStatus from "@/components/TopbarStatus";
 
 type ChatMessage = {
   id: string;
@@ -91,18 +92,22 @@ export default function WhatsAppBotPage() {
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white flex flex-col justify-center py-6 px-4">
-      {/* Top Breadcrumb */}
-      <div className="max-w-md w-full mx-auto mb-3 flex items-center justify-between">
-        <Link href="/" className="group">
-          <Logo height={24} showPunchline={true} />
-        </Link>
-        <Link
-          href="/recruiter"
-          className="text-xs text-slate-500 hover:text-brand flex items-center gap-1"
-        >
-          <Icon name="chevronLeft" size={14} />
-          Back to Recruiter Console
-        </Link>
+      {/* Top Breadcrumb & Status */}
+      <div className="max-w-xl w-full mx-auto mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link href="/" className="group">
+            <Logo height={24} showPunchline={true} />
+          </Link>
+          <span className="text-slate-300 dark:text-slate-700">/</span>
+          <Link
+            href="/recruiter"
+            className="text-xs text-slate-500 hover:text-brand flex items-center gap-1"
+          >
+            <Icon name="chevronLeft" size={14} />
+            Back to Recruiter
+          </Link>
+        </div>
+        <TopbarStatus />
       </div>
 
       {/* Phone Mockup Container */}

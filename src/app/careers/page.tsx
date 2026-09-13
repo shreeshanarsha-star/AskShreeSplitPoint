@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
+import TopbarStatus from "@/components/TopbarStatus";
 
 type JobPosting = {
   id: string;
@@ -150,19 +151,15 @@ export default function CareersGatewayPage() {
           </span>
         </div>
 
-        <div className="flex items-center gap-4 text-xs">
+        <div className="flex items-center gap-3 text-xs">
           <Link
             href="/candidate/status"
-            className="text-ink-muted hover:text-ink font-semibold transition-colors"
+            className="text-ink-muted hover:text-ink font-semibold transition-colors hidden md:inline"
           >
             My Application Status
           </Link>
-          <Link
-            href="/recruiter"
-            className="px-3.5 py-1.5 rounded-xl bg-brand hover:bg-brand-dark text-white font-bold shadow-button transition-all"
-          >
-            Recruiter Login →
-          </Link>
+          <span className="w-px h-5 bg-border flex-shrink-0 hidden md:inline" />
+          <TopbarStatus />
         </div>
       </header>
 

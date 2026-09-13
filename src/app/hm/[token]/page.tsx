@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
+import TopbarStatus from "@/components/TopbarStatus";
 
 type HMRequisition = {
   id: string;
@@ -111,9 +112,12 @@ export default function HiringManagerPortalPage() {
               </p>
             </div>
           </div>
-          <span className="text-xs px-2.5 py-1 rounded-full bg-good-wash text-good-text border border-good/20 font-semibold">
-            Verified Shortlist
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs px-2.5 py-1 rounded-full bg-good-wash text-good-text border border-good/20 font-semibold hidden sm:inline-block">
+              Verified Shortlist
+            </span>
+            <TopbarStatus />
+          </div>
         </div>
 
         {loading ? (

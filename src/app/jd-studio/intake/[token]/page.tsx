@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
+import Link from "next/link";
+import Logo from "@/components/Logo";
+import TopbarStatus from "@/components/TopbarStatus";
 import type { JdQuestion, JdDraft, BiasFlag } from "@/lib/jdstudio/types";
 
 interface TokenData {
@@ -88,49 +91,57 @@ export default function JdIntakePage({ params }: { params: Promise<{ token: stri
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f4ec] flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-xl bg-white rounded-2xl border border-[#e9e3d3] shadow-sm p-8">
-        <div className="text-[12px] font-bold tracking-wide text-[#8a6a10] uppercase mb-4">JD Studio.ai</div>
+    <div className="min-h-screen bg-page text-ink flex flex-col">
+      <header className="px-6 py-3.5 border-b border-border bg-surface flex items-center justify-between">
+        <Link href="/" className="hover:opacity-90 transition-opacity">
+          <Logo height={28} showPunchline={true} />
+        </Link>
+        <TopbarStatus />
+      </header>
+      <div className="flex-1 flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-xl bg-surface rounded-2xl border border-border shadow-soft p-8">
+          <div className="text-[12px] font-bold tracking-wide text-brand uppercase mb-4">JD Studio.ai</div>
 
-        {loading && <p className="text-[13px] text-[#8c8776]">Loading…</p>}
+          {loading && <p className="text-[13px] text-ink-muted">Loading…</p>}
 
-        {!loading && notFound && (
-          <p className="text-[14px] text-[#211f1a]">This link isn&rsquo;t valid or has expired.</p>
-        )}
+          {!loading && notFound && (
+            <p className="text-[14px] text-ink">This link isn&rsquo;t valid or has expired.</p>
+          )}
 
-        {!loading && data && (
-          <>
-            {["sent", "opened"].includes(data.status) && !submitted && (
-              <IntakeForm data={data} values={values} setValues={setValues} onSubmit={submitAnswers} submitting={submitting} error={error} />
-            )}
+          {!loading && data && (
+            <>
+              {["sent", "opened"].includes(data.status) && !submitted && (
+                <IntakeForm data={data} values={values} setValues={setValues} onSubmit={submitAnswers} submitting={submitting} error={error} />
+              )}
 
-            {(submitted || ["responded", "drafting"].includes(data.status)) && (
-              <div className="text-[14px] text-[#211f1a]">
-                <p className="font-bold mb-1">Thanks{data.recipient_name ? `, ${data.recipient_name}` : ""}!</p>
-                <p className="text-[#5c584c]">Your answers are in. We&rsquo;re putting the job description together now.</p>
-              </div>
-            )}
+              {(submitted || ["responded", "drafting"].includes(data.status)) && (
+                <div className="text-[14px] text-ink">
+                  <p className="font-bold mb-1">Thanks{data.recipient_name ? `, ${data.recipient_name}` : ""}!</p>
+                  <p className="text-ink-muted">Your answers are in. We&rsquo;re putting the job description together now.</p>
+                </div>
+              )}
 
-            {data.status === "pending_approval" && data.approver_mode === "route" && !decided && (
-              <ApprovalView data={data} onDecide={decide} deciding={deciding} error={error} />
-            )}
-            {data.status === "pending_approval" && data.approver_mode === "self" && (
-              <div className="text-[14px] text-[#211f1a]">
-                <p>This job description is drafted and waiting on internal approval.</p>
-              </div>
-            )}
-            {decided === "approve" && <p className="text-[14px] text-[#0ca30c] font-bold">Approved -- thank you.</p>}
-            {decided === "changes" && <p className="text-[14px] text-[#211f1a]">Sent back for changes -- thank you.</p>}
+              {data.status === "pending_approval" && data.approver_mode === "route" && !decided && (
+                <ApprovalView data={data} onDecide={decide} deciding={deciding} error={error} />
+              )}
+              {data.status === "pending_approval" && data.approver_mode === "self" && (
+                <div className="text-[14px] text-ink">
+                  <p>This job description is drafted and waiting on internal approval.</p>
+                </div>
+              )}
+              {decided === "approve" && <p className="text-[14px] text-good font-bold">Approved -- thank you.</p>}
+              {decided === "changes" && <p className="text-[14px] text-ink">Sent back for changes -- thank you.</p>}
 
-            {["approved", "published"].includes(data.status) && !decided && (
-              <div className="text-[14px] text-[#211f1a]">
-                <p className="font-bold mb-1">{data.job_title || "This role"} -- approved</p>
-                <p className="text-[#5c584c]">The final job description has been finalized{data.status === "published" ? " and published." : "."}</p>
-              </div>
-            )}
-            {data.status === "expired" && <p className="text-[14px] text-[#211f1a]">This link has expired.</p>}
-          </>
-        )}
+              {["approved", "published"].includes(data.status) && !decided && (
+                <div className="text-[14px] text-ink">
+                  <p className="font-bold mb-1">{data.job_title || "This role"} -- approved</p>
+                  <p className="text-ink-muted">The final job description has been finalized{data.status === "published" ? " and published." : "."}</p>
+                </div>
+              )}
+              {data.status === "expired" && <p className="text-[14px] text-ink">This link has expired.</p>}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

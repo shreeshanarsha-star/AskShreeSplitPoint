@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
+import TopbarStatus from "@/components/TopbarStatus";
 import ShreeRecruiterCockpit from "@/components/tools/ShreeRecruiterCockpit";
 
 export default function RecruiterHomePage() {
@@ -83,13 +84,7 @@ export default function RecruiterHomePage() {
             Public Careers
           </Link>
           <div className="h-4 w-px bg-border" />
-          <Link
-            href="/"
-            className="w-7 h-7 rounded-full bg-brand-wash border border-border flex items-center justify-center text-xs font-bold text-brand shadow-soft-sm"
-            title="Overview Home"
-          >
-            SC
-          </Link>
+          <TopbarStatus />
         </div>
       </header>
 

@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
+import TopbarStatus from "@/components/TopbarStatus";
 
 export default function InterviewRoomPage() {
   const params = useParams();
@@ -133,7 +134,10 @@ export default function InterviewRoomPage() {
             <span className="text-border">/</span>
             <span className="font-bold text-sm text-ink font-display">AI Pre-Screening Room</span>
           </div>
-          <span className="text-xs text-ink-muted">Position: {roleTitle}</span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-ink-muted hidden md:inline">Position: {roleTitle}</span>
+            <TopbarStatus />
+          </div>
         </div>
 
         {/* STEP 1: Standalone BIPA Biometric Consent Modal */}

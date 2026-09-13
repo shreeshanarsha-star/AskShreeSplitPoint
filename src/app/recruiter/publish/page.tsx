@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
+import TopbarStatus from "@/components/TopbarStatus";
 
 type SocialPlatform = "linkedin" | "twitter" | "whatsapp" | "slack";
 
@@ -166,6 +167,8 @@ export default function SocialMediaPublishPage() {
             <Icon name="external" size={13} />
             View Live Careers Board
           </Link>
+          <span className="w-px h-5 bg-border flex-shrink-0" />
+          <TopbarStatus />
         </div>
       </header>
 

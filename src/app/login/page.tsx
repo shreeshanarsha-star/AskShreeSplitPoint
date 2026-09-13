@@ -1,6 +1,7 @@
 "use client";
 
 import Logo from "@/components/Logo";
+import TopbarStatus from "@/components/TopbarStatus";
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -80,17 +81,22 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-page px-4">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm bg-surface border border-border rounded-lg p-8 shadow-soft"
-      >
-        <Logo height={32} />
-        <div className="mb-4" />
-        <h1 className="text-[19px] font-bold m-0 mb-1">Sign in</h1>
-        <p className="text-[12.5px] text-ink-muted m-0 mb-6">
-          Sign in to your Askshree account.
-        </p>
+    <div className="min-h-screen flex flex-col bg-page">
+      <header className="px-6 py-3.5 border-b border-border bg-surface flex items-center justify-between">
+        <Link href="/" className="hover:opacity-90 transition-opacity">
+          <Logo height={28} showPunchline={true} />
+        </Link>
+        <TopbarStatus />
+      </header>
+      <div className="flex-1 flex items-center justify-center px-4 py-8">
+        <form
+          onSubmit={handleSubmit}
+          className="w-full max-w-sm bg-surface border border-border rounded-xl p-8 shadow-soft"
+        >
+          <h1 className="text-[19px] font-bold m-0 mb-1 font-display text-ink">Sign in</h1>
+          <p className="text-[12.5px] text-ink-muted m-0 mb-6">
+            Sign in to your AskShree account.
+          </p>
 
         {error && (
           <div className="bg-critical-wash text-critical text-[12.5px] rounded-sm px-3 py-2 mb-4">
@@ -156,6 +162,7 @@ function LoginForm() {
           </Link>
         </p>
       </form>
+      </div>
     </div>
   );
 }

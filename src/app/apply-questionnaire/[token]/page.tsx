@@ -1,5 +1,6 @@
 import QuestionnaireForm from "@/components/tools/QuestionnaireForm";
 import Logo from "@/components/Logo";
+import TopbarStatus from "@/components/TopbarStatus";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -14,13 +15,14 @@ export default async function ApplyQuestionnairePage({
   return (
     <div className="min-h-screen bg-page">
       <header className="border-b border-border bg-surface">
-        <div className="max-w-[700px] mx-auto px-6 py-4">
+        <div className="max-w-[700px] mx-auto px-6 py-3.5 flex items-center justify-between">
           <Link href="/" className="flex flex-col items-start gap-0.5">
             <Logo height={26} />
             <small className="block font-medium text-[10.5px] text-ink-muted tracking-wide">
               APPLY.AI
             </small>
           </Link>
+          <TopbarStatus />
         </div>
       </header>
       <main className="max-w-[700px] mx-auto px-6 py-10">

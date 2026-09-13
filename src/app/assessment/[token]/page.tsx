@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import Logo from "@/components/Logo";
+import TopbarStatus from "@/components/TopbarStatus";
 import { useEffect, useState, use } from "react";
 
 type Question = { id: string; dimension: string; text: string; reverse: boolean };
@@ -78,8 +80,11 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ token
   return (
     <div className="min-h-screen bg-page">
       <header className="border-b border-border bg-surface">
-        <div className="max-w-[720px] mx-auto px-6 py-4 flex items-center">
-          <Logo height={28} />
+        <div className="max-w-[720px] mx-auto px-6 py-3.5 flex items-center justify-between">
+          <Link href="/" className="hover:opacity-90 transition-opacity">
+            <Logo height={28} showPunchline={true} />
+          </Link>
+          <TopbarStatus />
         </div>
       </header>
 

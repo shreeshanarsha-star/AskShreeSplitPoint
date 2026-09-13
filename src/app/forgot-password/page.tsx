@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Logo from "@/components/Logo";
+import TopbarStatus from "@/components/TopbarStatus";
 import { createClient } from "@/lib/supabase/client";
 
 export default function ForgotPasswordPage() {
@@ -30,64 +31,79 @@ export default function ForgotPasswordPage() {
 
   if (sent) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-page px-4">
-        <div className="w-full max-w-sm bg-surface border border-border rounded-lg p-8 text-center">
-          <h1 className="text-[18px] font-bold m-0 mb-2">Check your email</h1>
-          <p className="text-[13px] text-ink-2 m-0 mb-4">
-            If an account exists for <strong>{email}</strong>, we&apos;ve sent a link to
-            reset your password.
-          </p>
-          <Link href="/login" className="text-brand text-[13px] font-bold">
-            Back to sign in
+      <div className="min-h-screen flex flex-col bg-page">
+        <header className="px-6 py-3.5 border-b border-border bg-surface flex items-center justify-between">
+          <Link href="/" className="hover:opacity-90 transition-opacity">
+            <Logo height={28} showPunchline={true} />
           </Link>
+          <TopbarStatus />
+        </header>
+        <div className="flex-1 flex items-center justify-center px-4 py-8">
+          <div className="w-full max-w-sm bg-surface border border-border rounded-xl p-8 text-center shadow-soft">
+            <h1 className="text-[18px] font-bold m-0 mb-2 font-display text-ink">Check your email</h1>
+            <p className="text-[13px] text-ink-2 m-0 mb-4">
+              If an account exists for <strong>{email}</strong>, we&apos;ve sent a link to
+              reset your password.
+            </p>
+            <Link href="/login" className="text-brand text-[13px] font-bold">
+              Back to sign in
+            </Link>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-page px-4">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm bg-surface border border-border rounded-lg p-8 shadow-soft"
-      >
-        <Logo height={32} />
-        <div className="mb-4" />
-        <h1 className="text-[19px] font-bold m-0 mb-1">Reset your password</h1>
-        <p className="text-[12.5px] text-ink-muted m-0 mb-6">
-          Enter your email and we&apos;ll send you a link to reset it.
-        </p>
-
-        {error && (
-          <div className="bg-critical-wash text-critical text-[12.5px] rounded-sm px-3 py-2 mb-4">
-            {error}
-          </div>
-        )}
-
-        <label className="block text-[12px] font-bold mb-1.5">Email</label>
-        <input
-          type="email"
-          required
-          autoFocus
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full border border-border rounded-sm px-3 py-2.5 text-[13.5px] mb-6 outline-none focus:border-brand"
-        />
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-brand text-white font-bold text-[13px] rounded-sm py-2.5 disabled:opacity-60 shadow-soft-sm"
+    <div className="min-h-screen flex flex-col bg-page">
+      <header className="px-6 py-3.5 border-b border-border bg-surface flex items-center justify-between">
+        <Link href="/" className="hover:opacity-90 transition-opacity">
+          <Logo height={28} showPunchline={true} />
+        </Link>
+        <TopbarStatus />
+      </header>
+      <div className="flex-1 flex items-center justify-center px-4 py-8">
+        <form
+          onSubmit={handleSubmit}
+          className="w-full max-w-sm bg-surface border border-border rounded-xl p-8 shadow-soft"
         >
-          {loading ? "Sending…" : "Send reset link"}
-        </button>
+          <h1 className="text-[19px] font-bold m-0 mb-1 font-display text-ink">Reset your password</h1>
+          <p className="text-[12.5px] text-ink-muted m-0 mb-6">
+            Enter your email and we&apos;ll send you a link to reset it.
+          </p>
 
-        <p className="text-[12px] text-ink-muted text-center mt-4 mb-0">
-          <Link href="/login" className="text-brand font-bold">
-            Back to sign in
-          </Link>
-        </p>
-      </form>
+          {error && (
+            <div className="bg-critical-wash text-critical text-[12.5px] rounded-sm px-3 py-2 mb-4">
+              {error}
+            </div>
+          )}
+
+          <label className="block text-[12px] font-bold mb-1.5">Email</label>
+          <input
+            type="email"
+            required
+            autoFocus
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full border border-border rounded-sm px-3 py-2.5 text-[13.5px] mb-6 outline-none focus:border-brand"
+          />
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-brand text-white font-bold text-[13px] rounded-sm py-2.5 disabled:opacity-60 shadow-soft-sm"
+          >
+            {loading ? "Sending…" : "Send reset link"}
+          </button>
+
+          <p className="text-[12px] text-ink-muted text-center mt-4 mb-0">
+            <Link href="/login" className="text-brand font-bold">
+              Back to sign in
+            </Link>
+          </p>
+        </form>
+      </div>
     </div>
   );
 }
+

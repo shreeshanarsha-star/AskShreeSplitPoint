@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
+import TopbarStatus from "@/components/TopbarStatus";
 
 type InterviewRound = {
   id: string;
@@ -149,7 +150,7 @@ export default function InterviewSchedulingPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={handleCopyMagicLink}
             className="px-3 py-1.5 text-xs font-semibold rounded-xl border border-brand/30 text-brand bg-brand-wash hover:opacity-90 transition-colors flex items-center gap-1.5"
@@ -160,11 +161,13 @@ export default function InterviewSchedulingPage() {
           <Link
             href="/schedule/demo"
             target="_blank"
-            className="px-3 py-1.5 text-xs font-semibold rounded-xl border border-border text-ink hover:bg-brand-wash transition-colors flex items-center gap-1"
+            className="px-3 py-1.5 text-xs font-semibold rounded-xl border border-border text-ink hover:bg-brand-wash transition-colors flex items-center gap-1 hidden sm:flex"
           >
             <span>Candidate View</span>
             <Icon name="chevronRight" size={13} />
           </Link>
+          <span className="w-px h-5 bg-border flex-shrink-0" />
+          <TopbarStatus />
         </div>
       </header>
 

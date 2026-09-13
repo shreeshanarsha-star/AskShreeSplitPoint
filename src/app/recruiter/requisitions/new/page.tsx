@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
+import TopbarStatus from "@/components/TopbarStatus";
 
 type JdMode = "upload" | "paste";
 
@@ -216,11 +217,13 @@ export default function NewRequisitionPage() {
           <button
             onClick={() => handleSave("published")}
             disabled={saving || !title.trim()}
-            className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-50"
+            className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-brand hover:bg-brand-dark text-white shadow-button transition-colors flex items-center gap-1.5 disabled:opacity-50"
           >
             <Icon name="checkCircle" size={14} />
             {saving ? "Publishing..." : "Launch Requisition"}
           </button>
+          <span className="w-px h-5 bg-border flex-shrink-0" />
+          <TopbarStatus />
         </div>
       </header>
 

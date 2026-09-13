@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import Icon from "@/components/Icon";
 import Link from "next/link";
 import Logo from "@/components/Logo";
+import TopbarStatus from "@/components/TopbarStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -28,20 +29,22 @@ export default async function JobsPage() {
 
   return (
     <div className="min-h-screen bg-page">
-      <header className="border-b border-border bg-surface">
-        <div className="max-w-[1000px] mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex flex-col items-start gap-0.5">
-            <Logo height={26} />
-            <small className="block font-medium text-[10.5px] text-ink-muted tracking-wide">
-              JOB BOARD
-            </small>
+      <header className="border-b border-border bg-surface px-6 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link href="/" className="hover:opacity-90 transition-opacity">
+            <Logo height={28} showPunchline={true} />
           </Link>
+          <span className="text-border text-sm select-none">/</span>
+          <span className="text-[12.5px] font-semibold text-ink-muted">Job Board</span>
+        </div>
+        <div className="flex items-center gap-4">
           <Link
             href="/jobs/post"
-            className="bg-brand text-white text-[12.5px] font-bold px-3.5 py-2 rounded-sm shadow-soft-sm"
+            className="bg-brand text-white text-[12.5px] font-bold px-3.5 py-1.5 rounded-sm shadow-soft-sm hover:opacity-95 transition-opacity"
           >
             Post a job — free
           </Link>
+          <TopbarStatus />
         </div>
       </header>
 
