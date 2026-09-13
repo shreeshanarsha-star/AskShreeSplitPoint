@@ -35,11 +35,12 @@ export async function middleware(request: NextRequest) {
 
   // Everything under /admin and /tools is owner-only for now — there's no
   // public-facing flow yet (Apply.ai, the candidate side, is deferred).
-  const isAdminRoute =
+  const isProtectedRoute =
     request.nextUrl.pathname.startsWith("/admin") ||
     request.nextUrl.pathname.startsWith("/tools") ||
     request.nextUrl.pathname.startsWith("/org") ||
-    request.nextUrl.pathname.startsWith("/chat");
+    request.nextUrl.pathname.startsWith("/chat") ||
+    request.nextUrl.pathname.startsWith("/recruiter");
   const isLoginRoute = request.nextUrl.pathname === "/login";
 
   // A short, explicit allowlist of tools that offer a no-signup guest
@@ -65,7 +66,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (isAdminRoute && !user) {
+  if (isProtectedRoute && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", request.nextUrl.pathname);
@@ -89,5 +90,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/tools/:path*", "/org/:path*", "/chat/:path*", "/login"],
+  matcher: ["/admin/:path*", "/tools/:path*", "/org/:path*", "/chat/:path*", "/recruiter/:path*", "/recruiter", "/login"],
 };
+

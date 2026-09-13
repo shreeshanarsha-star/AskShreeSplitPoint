@@ -1,14 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
 import TopbarStatus from "@/components/TopbarStatus";
 import ShreeRecruiterCockpit from "@/components/tools/ShreeRecruiterCockpit";
+import { createClient } from "@/lib/supabase/client";
 
 export default function RecruiterHomePage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"cockpit" | "requisitions" | "pipeline">("cockpit");
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    async function checkAuth() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push("/login?next=/recruiter");
+        return;
+      }
+      setCheckingAuth(false);
+    }
+    checkAuth();
+  }, [router]);
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-page text-ink flex flex-col items-center justify-center">
+        <div className="text-xs text-ink-muted flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-brand animate-pulse" />
+          Verifying recruiter session...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-page text-ink flex flex-col">

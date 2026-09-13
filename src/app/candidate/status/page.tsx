@@ -7,6 +7,7 @@ import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
 import TopbarStatus from "@/components/TopbarStatus";
 import { STAGES, stageLabel } from "@/lib/talentStages";
+import { createClient } from "@/lib/supabase/client";
 
 type CandidateStatus = {
   id: string;
@@ -28,12 +29,25 @@ function CandidateStatusContent() {
   const id = searchParams.get("id");
   const token = searchParams.get("token");
 
+  const [authChecking, setAuthChecking] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [candidate, setCandidate] = useState<CandidateStatus | null>(null);
   const [deletionRequested, setDeletionRequested] = useState(false);
 
   useEffect(() => {
-    async function load() {
+    async function checkAuthAndLoad() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setIsAuthenticated(false);
+        setAuthChecking(false);
+        setLoading(false);
+        return;
+      }
+      setIsAuthenticated(true);
+      setAuthChecking(false);
+
       try {
         setLoading(true);
         if (!id && !token) {
@@ -51,7 +65,7 @@ function CandidateStatusContent() {
         setLoading(false);
       }
     }
-    load();
+    checkAuthAndLoad();
   }, [id, token]);
 
   const stagesList = ["applied", "screening", "hm_review", "interview_1", "offer"];
@@ -90,7 +104,38 @@ function CandidateStatusContent() {
 
       <main className="flex-1 max-w-3xl w-full mx-auto py-8 px-4 sm:px-6 space-y-6">
 
-        {loading ? (
+        {authChecking ? (
+          <div className="py-20 text-center text-xs text-ink-muted flex items-center justify-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-brand animate-pulse" />
+            Checking candidate session...
+          </div>
+        ) : !isAuthenticated ? (
+          <div className="bg-surface border border-border rounded-2xl p-8 text-center shadow-soft max-w-md mx-auto my-8">
+            <div className="w-12 h-12 mx-auto rounded-full bg-brand-wash border border-brand/20 flex items-center justify-center text-brand mb-4">
+              <Icon name="user" size={22} />
+            </div>
+            <h2 className="text-lg font-bold text-ink font-display">
+              Candidate Login Required
+            </h2>
+            <p className="text-xs text-ink-muted mt-2 max-w-xs mx-auto leading-relaxed">
+              Tracking your application timeline, interview milestones, and recruiter feedback is strictly available for registered candidates.
+            </p>
+            <div className="mt-6 flex flex-col gap-2.5">
+              <Link
+                href="/login?next=/candidate/status"
+                className="w-full py-2.5 px-4 rounded-xl bg-brand text-white text-xs font-bold shadow-button hover:bg-brand-dark transition-all text-center"
+              >
+                Sign In to Track Application
+              </Link>
+              <Link
+                href="/signup?next=/candidate/status"
+                className="w-full py-2.5 px-4 rounded-xl border border-border bg-page text-ink text-xs font-semibold hover:bg-surface transition-all text-center"
+              >
+                Create Candidate Account
+              </Link>
+            </div>
+          </div>
+        ) : loading ? (
           <div className="py-20 text-center text-xs text-ink-muted">
             Retrieving your application timeline...
           </div>
