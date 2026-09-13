@@ -30,8 +30,6 @@ export async function GET(req: Request) {
 
   if (id) {
     query = query.eq("id", id);
-  } else if (token) {
-    query = query.eq("interview_token", token);
   } else if (email) {
     query = query.eq("email", email.toLowerCase().trim()).order("created_at", { ascending: false });
   }

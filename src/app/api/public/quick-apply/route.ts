@@ -64,7 +64,6 @@ export async function POST(req: Request) {
       tags: keySkills.length ? keySkills : (currentDesignation ? [currentDesignation] : []),
       match_score: matchScore,
       expected_ctc: expectedSalary ? Number(expectedSalary.replace(/[^0-9]/g, "")) : null,
-      interview_token: interviewToken,
     })
     .select()
     .single();
@@ -74,14 +73,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: candError.message }, { status: 500 });
   }
 
-  // 4. Log standalone statutory consent
-  await admin.from("consent_records").insert({
-    candidate_id: candidate.id,
-    email,
-    scope: "ai_screening",
-    granted: true,
-    legal_text_hash: "sha256-consent-bipa-gdpr-2026",
-  });
+  // 4. Log standalone statutory consent (best effort)
+  try {
+    await admin.from("consent_records").insert({
+      candidate_id: candidate.id,
+      email,
+      scope: "ai_screening",
+      granted: true,
+      legal_text_hash: "sha256-consent-bipa-gdpr-2026",
+    });
+  } catch (consentErr) {
+    console.warn("Consent record log warning:", consentErr);
+  }
 
   // 5. Trigger Shree Blind Evaluation
   if (requisition && resumeText) {
