@@ -226,18 +226,19 @@ export default function TopbarStatus() {
     // greeting + weather + time/date scale down gracefully at each
     // breakpoint, while the two action icons (appearance, notifications)
     // always stay put inside the same card.
-    <div className="flex items-center gap-1.5 sm:gap-2.5 pl-1 sm:pl-3.5 pr-1 py-1 rounded-full border border-border bg-page shadow-soft-sm">
+    <div className="flex items-center gap-2 sm:gap-2.5 pl-2 sm:pl-3.5 pr-1 py-1 rounded-full border border-border bg-page shadow-soft-sm">
       {now && (
-        <div className="hidden sm:flex flex-col leading-tight">
-          <span className="text-[11.5px] font-semibold text-ink whitespace-nowrap">
+        <div className="hidden sm:flex items-center gap-2 whitespace-nowrap">
+          <span className="text-[12px] font-semibold text-ink">
             {greeting}
             {firstName ? `, ${firstName}` : ""}
           </span>
-          <span className="text-[10px] text-ink-muted whitespace-nowrap">{dateStr}</span>
+          <span className="text-ink-muted/40 font-normal select-none">•</span>
+          <span className="text-[11.5px] text-ink-muted font-normal">{dateStr}</span>
         </div>
       )}
 
-      {now && <span className="hidden sm:block w-px h-6 bg-border flex-shrink-0" />}
+      {now && <span className="hidden sm:block w-px h-4 bg-border flex-shrink-0" />}
 
       {weather && (
         <div
@@ -255,7 +256,7 @@ export default function TopbarStatus() {
         </span>
       )}
 
-      {now && <span className="hidden sm:block w-px h-6 bg-border flex-shrink-0" />}
+      {now && <span className="hidden sm:block w-px h-4 bg-border flex-shrink-0" />}
 
       {/* Appearance -- a personalization preference, not a wayfinding
           control, so it lives here in the persistent global header (same
