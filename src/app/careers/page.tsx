@@ -136,33 +136,33 @@ export default function CareersGatewayPage() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex flex-col">
+    <div className="min-h-screen bg-page text-ink flex flex-col">
       {/* Top Navigation */}
-      <header className="px-6 py-4 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-base shadow-sm">
+      <header className="px-6 py-3.5 border-b border-border bg-surface shadow-soft-sm flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-3 group">
+          <div className="w-8 h-8 rounded-xl bg-brand text-white flex items-center justify-center font-bold text-base shadow-emblem group-hover:scale-105 transition-transform">
             S
           </div>
           <div>
-            <span className="font-bold text-sm tracking-tight text-white block">
+            <span className="font-bold text-sm tracking-tight text-ink font-display block">
               AskShree Careers
             </span>
-            <span className="text-[10px] text-slate-400 block -mt-0.5">
+            <span className="text-[10px] text-ink-muted block -mt-0.5">
               AI-Native Talent Gateway
             </span>
           </div>
-        </div>
+        </Link>
 
         <div className="flex items-center gap-4 text-xs">
           <Link
             href="/candidate/status"
-            className="text-slate-400 hover:text-white transition-colors"
+            className="text-ink-muted hover:text-ink font-semibold transition-colors"
           >
             My Application Status
           </Link>
           <Link
-            href="/tools/talent-ai"
-            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+            href="/recruiter"
+            className="px-3.5 py-1.5 rounded-xl bg-brand hover:bg-brand-dark text-white font-bold shadow-button transition-all"
           >
             Recruiter Login →
           </Link>
@@ -172,27 +172,27 @@ export default function CareersGatewayPage() {
       {/* Main Dual-Panel Viewport */}
       <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
         {/* LEFT PANEL: Job Feed & Details (7 cols) */}
-        <div className="lg:col-span-7 border-r border-slate-800 flex flex-col h-[calc(100vh-65px)] overflow-y-auto p-6 space-y-6">
+        <div className="lg:col-span-7 border-r border-border flex flex-col h-[calc(100vh-65px)] overflow-y-auto p-6 space-y-4 bg-page">
           {/* Search Header */}
-          <div className="flex items-center gap-3 bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-2.5 shadow-inner">
-            <Icon name="search" size={16} />
+          <div className="flex items-center gap-3 bg-surface border border-border rounded-xl px-4 py-2.5 shadow-soft-sm">
+            <Icon name="search" size={16} className="text-ink-muted" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by role title, department, or location..."
-              className="bg-transparent border-none text-xs w-full focus:outline-hidden text-white placeholder-slate-500"
+              className="bg-transparent border-none text-xs w-full focus:outline-none text-ink placeholder:text-ink-muted"
             />
           </div>
 
           {/* Job List */}
           <div className="space-y-3">
-            <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            <h2 className="text-xs font-bold text-ink-muted uppercase tracking-wider">
               Open Positions ({filteredJobs.length})
             </h2>
 
             {filteredJobs.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-500 border border-dashed border-slate-800 rounded-xl">
+              <div className="p-8 text-center text-xs text-ink-muted border border-dashed border-border rounded-2xl bg-surface">
                 No open roles matching your search criteria.
               </div>
             ) : (
@@ -202,35 +202,35 @@ export default function CareersGatewayPage() {
                   <div
                     key={job.id}
                     onClick={() => setSelectedJob(job)}
-                    className={`cursor-pointer p-4.5 rounded-xl border transition-all ${
+                    className={`cursor-pointer p-4.5 rounded-2xl border transition-all ${
                       isSelected
-                        ? "bg-slate-850 border-indigo-500 shadow-md shadow-indigo-950/40"
-                        : "bg-slate-950/50 border-slate-800/80 hover:border-slate-700"
+                        ? "bg-surface border-brand shadow-soft ring-1 ring-brand/30"
+                        : "bg-surface border-border hover:border-brand/40 shadow-soft-sm"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <h3 className="font-semibold text-sm text-white">{job.title}</h3>
-                        <p className="text-xs text-slate-400 mt-0.5">
+                        <h3 className="font-bold text-sm text-ink">{job.title}</h3>
+                        <p className="text-xs text-ink-muted mt-0.5">
                           {job.department || "General"} • {job.location || "Remote / Hybrid"}
                         </p>
                       </div>
                       {job.salary_range && (
-                        <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-emerald-950/80 border border-emerald-800/60 text-emerald-400">
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-good-wash border border-good/20 text-good-text">
                           {job.salary_range}
                         </span>
                       )}
                     </div>
 
-                    <div className="mt-3 flex items-center justify-between text-xs pt-2 border-t border-slate-800/60">
-                      <span className="text-[11px] text-slate-500">Full-time • Fast Track Screen</span>
+                    <div className="mt-3 flex items-center justify-between text-xs pt-2 border-t border-border">
+                      <span className="text-[11px] text-ink-muted">Full-time • Fast Track Screen</span>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedJob(job);
                           setShowApplyModal(true);
                         }}
-                        className="px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-xs"
+                        className="px-3.5 py-1 rounded-xl text-xs font-bold bg-brand hover:bg-brand-dark text-white shadow-button transition-all"
                       >
                         Quick Apply
                       </button>
@@ -243,40 +243,40 @@ export default function CareersGatewayPage() {
         </div>
 
         {/* RIGHT PANEL: Talking Shree Avatar (5 cols) */}
-        <div className="lg:col-span-5 bg-slate-950 flex flex-col h-[calc(100vh-65px)] overflow-hidden">
+        <div className="lg:col-span-5 bg-surface flex flex-col h-[calc(100vh-65px)] overflow-hidden border-l border-border">
           {/* Avatar Video / Visual Loop */}
-          <div className="h-64 sm:h-72 bg-gradient-to-b from-indigo-950/40 via-slate-900 to-slate-950 border-b border-slate-800 relative flex flex-col items-center justify-center p-6 text-center">
+          <div className="h-60 sm:h-64 bg-gradient-to-b from-brand-wash/60 via-surface to-surface border-b border-border relative flex flex-col items-center justify-center p-6 text-center">
             <div className="relative">
               <div
-                className={`w-28 h-28 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-500 p-1 shadow-2xl transition-transform ${
-                  isSpeaking ? "scale-105 ring-4 ring-indigo-500/50" : ""
+                className={`w-24 h-24 rounded-full bg-gradient-to-tr from-brand to-brand-dark p-1 shadow-emblem transition-transform ${
+                  isSpeaking ? "scale-105 ring-4 ring-brand/30" : ""
                 }`}
               >
-                <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-5xl select-none">
+                <div className="w-full h-full rounded-full bg-surface flex items-center justify-center text-4xl select-none">
                   👩‍💼
                 </div>
               </div>
 
               {isSpeaking && (
-                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-emerald-500 text-[10px] font-bold text-slate-950 uppercase tracking-wider animate-pulse">
+                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-brand text-[10px] font-bold text-white uppercase tracking-wider animate-pulse shadow-soft-sm">
                   Speaking
                 </div>
               )}
             </div>
 
-            <h3 className="font-bold text-sm text-white mt-3">Shree</h3>
-            <p className="text-[11px] text-indigo-400">AI Talent Acquisition Partner</p>
+            <h3 className="font-bold text-sm text-ink mt-3 font-display">Shree</h3>
+            <p className="text-[11px] text-brand font-semibold">AI Talent Acquisition Partner</p>
 
             <div className="absolute top-3 right-3">
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-300 border border-slate-700">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                Zero-Burn Organic
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] bg-brand-wash text-brand border border-brand/20 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-good animate-pulse" />
+                Live Conversational
               </span>
             </div>
           </div>
 
           {/* Chat Transcript Area */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-3 text-xs">
+          <div className="flex-1 p-4 overflow-y-auto space-y-3 text-xs bg-page">
             {messages.map((m, i) => (
               <div
                 key={i}
@@ -285,8 +285,8 @@ export default function CareersGatewayPage() {
                 <div
                   className={`max-w-[85%] rounded-2xl px-4 py-2.5 leading-relaxed ${
                     m.role === "user"
-                      ? "bg-indigo-600 text-white rounded-br-xs"
-                      : "bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-xs"
+                      ? "bg-brand text-white rounded-br-xs shadow-soft-sm"
+                      : "bg-surface border border-border text-ink rounded-bl-xs shadow-soft-sm"
                   }`}
                 >
                   {m.text}
@@ -294,7 +294,7 @@ export default function CareersGatewayPage() {
               </div>
             ))}
             {isThinking && (
-              <div className="text-[11px] text-slate-500 italic pl-2">
+              <div className="text-[11px] text-ink-muted italic pl-2">
                 Shree is thinking...
               </div>
             )}
@@ -303,19 +303,19 @@ export default function CareersGatewayPage() {
           {/* Chat Input Bar */}
           <form
             onSubmit={handleSendQuery}
-            className="p-3 border-t border-slate-800 bg-slate-950/80 flex items-center gap-2"
+            className="p-3 border-t border-border bg-surface flex items-center gap-2"
           >
             <input
               type="text"
               value={inputQuery}
               onChange={(e) => setInputQuery(e.target.value)}
               placeholder="Ask Shree about roles, process, or expectations..."
-              className="flex-1 text-xs bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-white placeholder-slate-500 focus:outline-hidden focus:border-indigo-500"
+              className="flex-1 text-xs bg-page border border-border rounded-xl px-3.5 py-2.5 text-ink placeholder:text-ink-muted focus:outline-none focus:border-brand"
             />
             <button
               type="submit"
               disabled={!inputQuery.trim() || isThinking}
-              className="p-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white rounded-xl transition-colors shadow-xs"
+              className="p-2.5 bg-brand hover:bg-brand-dark disabled:opacity-40 text-white rounded-xl transition-colors shadow-button"
             >
               <Icon name="arrowRight" size={14} />
             </button>
@@ -325,14 +325,14 @@ export default function CareersGatewayPage() {
 
       {/* Quick Apply Modal */}
       {showApplyModal && selectedJob && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-surface border border-border rounded-2xl max-w-lg w-full p-6 shadow-soft space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
               <div>
-                <h3 className="font-bold text-base text-white">
+                <h3 className="font-bold text-base text-ink">
                   Quick Apply: {selectedJob.title}
                 </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs text-ink-muted mt-0.5">
                   60-second conversational screening. No password required.
                 </p>
               </div>
@@ -341,7 +341,7 @@ export default function CareersGatewayPage() {
                   setShowApplyModal(false);
                   setApplySuccess(false);
                 }}
-                className="text-slate-400 hover:text-white"
+                className="text-ink-muted hover:text-ink text-sm"
               >
                 ✕
               </button>
@@ -349,23 +349,23 @@ export default function CareersGatewayPage() {
 
             {applySuccess ? (
               <div className="py-8 text-center space-y-3">
-                <div className="w-12 h-12 mx-auto rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xl">
+                <div className="w-12 h-12 mx-auto rounded-full bg-good-wash text-good-text border border-good/20 flex items-center justify-center text-xl shadow-soft-sm">
                   ✓
                 </div>
-                <h4 className="font-bold text-base text-white">Application Received!</h4>
-                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                <h4 className="font-bold text-base text-ink">Application Received!</h4>
+                <p className="text-xs text-ink-muted max-w-sm mx-auto">
                   Shree is evaluating your profile against the role criteria. Check your email or view your live status link below.
                 </p>
                 <div className="pt-2 flex justify-center gap-3">
                   <Link
                     href={`/interview/demo`}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white"
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-brand hover:bg-brand-dark text-white shadow-button"
                   >
                     Start AI Pre-Screen Now →
                   </Link>
                   <Link
                     href={`/candidate/status`}
-                    className="px-4 py-2 rounded-xl text-xs font-medium border border-slate-700 text-slate-300 hover:bg-slate-800"
+                    className="px-4 py-2 rounded-xl text-xs font-semibold border border-border text-ink-2 hover:bg-page"
                   >
                     Track Status
                   </Link>
@@ -375,54 +375,54 @@ export default function CareersGatewayPage() {
               <form onSubmit={handleQuickApply} className="space-y-3 text-xs">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-slate-400 mb-1">Full Name *</label>
+                    <label className="block text-ink-2 font-semibold mb-1">Full Name *</label>
                     <input
                       required
                       type="text"
                       value={applyName}
                       onChange={(e) => setApplyName(e.target.value)}
                       placeholder="Jane Doe"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white"
+                      className="w-full bg-page border border-border rounded-xl p-2.5 text-ink focus:border-brand focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-400 mb-1">Email *</label>
+                    <label className="block text-ink-2 font-semibold mb-1">Email *</label>
                     <input
                       required
                       type="email"
                       value={applyEmail}
                       onChange={(e) => setApplyEmail(e.target.value)}
                       placeholder="jane@example.com"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white"
+                      className="w-full bg-page border border-border rounded-xl p-2.5 text-ink focus:border-brand focus:outline-none"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-slate-400 mb-1">Phone</label>
+                    <label className="block text-ink-2 font-semibold mb-1">Phone</label>
                     <input
                       type="tel"
                       value={applyPhone}
                       onChange={(e) => setApplyPhone(e.target.value)}
                       placeholder="+1 (555) 000-0000"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white"
+                      className="w-full bg-page border border-border rounded-xl p-2.5 text-ink focus:border-brand focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-400 mb-1">Target Annual Salary</label>
+                    <label className="block text-ink-2 font-semibold mb-1">Target Annual Salary</label>
                     <input
                       type="text"
                       value={applyExpectedSalary}
                       onChange={(e) => setApplyExpectedSalary(e.target.value)}
                       placeholder="$120,000"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white"
+                      className="w-full bg-page border border-border rounded-xl p-2.5 text-ink focus:border-brand focus:outline-none"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-slate-400 mb-1">
+                  <label className="block text-ink-2 font-semibold mb-1">
                     Paste Resume / LinkedIn Summary *
                   </label>
                   <textarea
@@ -431,7 +431,7 @@ export default function CareersGatewayPage() {
                     value={applyResume}
                     onChange={(e) => setApplyResume(e.target.value)}
                     placeholder="Paste your resume text or experience highlights here..."
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white"
+                    className="w-full bg-page border border-border rounded-xl p-2.5 text-ink focus:border-brand focus:outline-none"
                   />
                 </div>
 
@@ -441,9 +441,9 @@ export default function CareersGatewayPage() {
                     type="checkbox"
                     checked={applyConsented}
                     onChange={(e) => setApplyConsented(e.target.checked)}
-                    className="mt-0.5 rounded border-slate-700 bg-slate-950 text-indigo-600"
+                    className="mt-0.5 rounded border-border text-brand"
                   />
-                  <span className="text-[11px] text-slate-400">
+                  <span className="text-[11px] text-ink-muted">
                     I grant consent for AI screening and data retention under statutory privacy guidelines (no demographic bias, deletion on request).
                   </span>
                 </label>
@@ -452,14 +452,14 @@ export default function CareersGatewayPage() {
                   <button
                     type="button"
                     onClick={() => setShowApplyModal(false)}
-                    className="px-4 py-2 text-slate-400 hover:text-white"
+                    className="px-4 py-2 text-ink-muted hover:text-ink font-semibold"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={applySubmitting || !applyConsented}
-                    className="px-5 py-2 rounded-xl font-semibold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white shadow-md"
+                    className="px-5 py-2 rounded-xl font-bold bg-brand hover:bg-brand-dark disabled:opacity-50 text-white shadow-button"
                   >
                     {applySubmitting ? "Submitting..." : "Submit Application"}
                   </button>

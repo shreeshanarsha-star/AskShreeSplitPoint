@@ -1,24 +1,18 @@
 import AppShell from "@/components/AppShell";
 import GlobalSearchBar from "@/components/GlobalSearchBar";
+import ShreeWorkerHero from "@/components/ShreeWorkerHero";
 
 export const dynamic = "force-dynamic";
 
-// The old hero (greeting/"Askshree AI Console" label + search glyph +
-// "What do you need?" heading) was removed at the user's explicit request
-// -- it should not appear anywhere. This page now just frames the
-// functional search bar over the decorative wave background.
 export default async function OverviewPage() {
   return (
-    <AppShell title="Overview" sidebarMode="home">
+    <AppShell title="Shree AI Worker" sidebarMode="home">
       <div
         className="flex-1 flex flex-col min-h-0 relative -mx-[26px] -mb-[26px] overflow-hidden"
         id="overviewView"
       >
         {/* Decorative wave art -- purely atmospheric, sits behind the
-            content and search bar. Both fills resolve through the active
-            theme's --wave-1/--wave-2 custom properties (already encoded
-            as rgba with the intended opacity), so the panel re-tints with
-            the rest of the chrome when the theme switches. */}
+            content and search bar. */}
         <svg
           className="absolute inset-x-0 bottom-0 w-full h-[52%] pointer-events-none"
           viewBox="0 0 1000 320"
@@ -35,7 +29,8 @@ export default async function OverviewPage() {
           />
         </svg>
 
-        <div className="flex-1 flex flex-col items-center justify-center relative z-10">
+        <div className="flex-1 flex flex-col items-center justify-start overflow-y-auto relative z-10 pt-2 sm:pt-4">
+          <ShreeWorkerHero />
         </div>
 
         <div className="relative z-10">

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Icon from "./Icon";
 import { VScroller } from "./Scroller";
 import ThemeSwitcher from "./ThemeSwitcher";
+import WaffleMenu from "./WaffleMenu";
 import { createClient } from "@/lib/supabase/client";
 
 // Bengaluru -- fallback location used only when the browser doesn't
@@ -322,6 +323,8 @@ export default function TopbarStatus() {
           </>
         )}
       </div>
+
+      <WaffleMenu />
     </div>
   );
 }

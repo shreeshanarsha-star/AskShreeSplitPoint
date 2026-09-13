@@ -44,10 +44,24 @@ function LoginForm() {
     if (!params.get("next") && data.user) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("is_admin")
+        .select("is_admin, org_role")
         .eq("id", data.user.id)
         .maybeSingle();
-      if (profile?.is_admin) destination = "/admin";
+      if (profile?.is_admin) {
+        destination = "/admin";
+      } else {
+        // Dispatch to appropriate cockpit based on talent role
+        const { data: userRoles } = await supabase
+          .from("talent_user_roles")
+          .select("role")
+          .eq("user_id", data.user.id);
+        const roles = (userRoles || []).map((r: { role: string }) => r.role);
+        if (roles.some((r) => ["recruiter", "ta_head", "lead_recruiter"].includes(r))) {
+          destination = "/recruiter";
+        } else if (roles.some((r) => ["hiring_manager", "reporting_manager"].includes(r))) {
+          destination = "/hm/demo";
+        }
+      }
     }
 
     setLoading(false);

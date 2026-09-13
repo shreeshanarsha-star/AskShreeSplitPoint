@@ -96,23 +96,23 @@ export default function ShreeRecruiterCockpit({
   }
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden mb-6">
+    <div className="bg-surface border border-border rounded-2xl shadow-soft overflow-hidden mb-6">
       {/* Header Banner */}
-      <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-850">
+      <div className="px-5 py-4 border-b border-border flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-brand-wash/40 via-surface to-surface">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-indigo-600/10 text-indigo-600 dark:bg-indigo-400/10 dark:text-indigo-400 flex items-center justify-center font-bold text-lg shadow-xs">
+          <div className="w-9 h-9 rounded-xl bg-brand-wash text-brand border border-brand/20 flex items-center justify-center font-bold text-lg shadow-soft-sm">
             ✨
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+              <h3 className="text-base font-bold text-ink font-display">
                 Shree AI Recruiter Cockpit
               </h3>
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-good-wash text-good-text border border-good/20">
                 Shadow Mode Active
               </span>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-ink-muted">
               AI proposes candidate triage and screening with cited evidence. You retain final decision authority.
             </p>
           </div>
@@ -121,26 +121,26 @@ export default function ShreeRecruiterCockpit({
         <div className="flex items-center gap-2">
           <button
             onClick={() => setActiveTab("queue")}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 ${
               activeTab === "queue"
-                ? "bg-indigo-600 text-white shadow-xs"
-                : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                ? "bg-brand text-white shadow-button"
+                : "text-ink-2 hover:bg-page hover:text-ink"
             }`}
           >
             <Icon name="checkCircle" size={14} />
             Review Queue
             {decisions.length > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-white text-indigo-600 font-bold">
+              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-white text-brand font-bold">
                 {decisions.length}
               </span>
             )}
           </button>
           <button
             onClick={() => setActiveTab("trust")}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 ${
               activeTab === "trust"
-                ? "bg-indigo-600 text-white shadow-xs"
-                : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                ? "bg-brand text-white shadow-button"
+                : "text-ink-2 hover:bg-page hover:text-ink"
             }`}
           >
             <Icon name="chart" size={14} />
@@ -149,7 +149,7 @@ export default function ShreeRecruiterCockpit({
           <button
             onClick={loadData}
             title="Refresh"
-            className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="p-1.5 text-ink-muted hover:text-ink rounded-lg hover:bg-page transition-colors"
           >
             <Icon name="refresh" size={14} />
           </button>
@@ -187,27 +187,27 @@ export default function ShreeRecruiterCockpit({
                   return (
                     <div
                       key={d.id}
-                      className="border border-slate-200 dark:border-slate-800 rounded-xl p-4.5 bg-slate-50/50 dark:bg-slate-850/50 hover:border-indigo-200 dark:hover:border-indigo-900/50 transition-all"
+                      className="border border-border rounded-2xl p-4.5 bg-surface hover:border-brand/40 shadow-soft-sm transition-all"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="flex items-start gap-3">
-                          <div className="w-9 h-9 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center font-bold text-indigo-700 dark:text-indigo-400 text-xs shrink-0">
+                          <div className="w-9 h-9 rounded-full bg-brand-wash border border-brand/30 flex items-center justify-center font-bold text-brand text-xs shrink-0 shadow-soft-sm">
                             {cand?.name ? cand.name.charAt(0).toUpperCase() : "C"}
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="font-semibold text-sm text-slate-900 dark:text-white">
+                              <span className="font-bold text-sm text-ink">
                                 {cand?.name || "Candidate"}
                               </span>
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-page border border-border text-ink-muted">
                                 Current: {cand?.stage || "applied"}
                               </span>
-                              <span className="text-xs text-slate-400">→</span>
-                              <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300">
+                              <span className="text-xs text-ink-muted">→</span>
+                              <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-brand-wash text-brand border border-brand/20">
                                 Propose: {d.target_stage || r.target_stage || "hm_review"}
                               </span>
                             </div>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                            <p className="text-xs text-ink-muted mt-0.5">
                               {cand?.current_designation || "Role unspecified"}
                               {cand?.current_company ? ` at ${cand.current_company}` : ""}
                               {req?.title ? ` • Req: ${req.title}` : ""}
@@ -222,7 +222,7 @@ export default function ShreeRecruiterCockpit({
                             onClick={() =>
                               handleDecision(d.id, "approved_as_is", d.target_stage || "hm_review")
                             }
-                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors flex items-center gap-1 disabled:opacity-50"
+                            className="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-good hover:opacity-90 text-white shadow-soft-sm transition-opacity flex items-center gap-1 disabled:opacity-50"
                           >
                             <Icon name="check" size={13} />
                             Approve as-is
@@ -230,13 +230,13 @@ export default function ShreeRecruiterCockpit({
                           <button
                             disabled={resolvingId === d.id}
                             onClick={() => handleDecision(d.id, "rejected")}
-                            className="px-2.5 py-1.5 text-xs font-medium rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors disabled:opacity-50"
+                            className="px-2.5 py-1.5 text-xs font-semibold rounded-xl text-critical hover:bg-critical-wash transition-colors disabled:opacity-50"
                           >
                             Reject Proposal
                           </button>
                           <button
                             onClick={() => setExpandedId(isExpanded ? null : d.id)}
-                            className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-700/50"
+                            className="p-1.5 text-ink-muted hover:text-ink rounded-lg hover:bg-page transition-colors"
                             title="Toggle reasoning"
                           >
                             <Icon name={isExpanded ? "chevronUp" : "chevronDown"} size={14} />
@@ -245,7 +245,7 @@ export default function ShreeRecruiterCockpit({
                       </div>
 
                       {/* Summary Quote */}
-                      <p className="text-xs text-slate-700 dark:text-slate-300 mt-3 pl-12 italic border-l-2 border-indigo-400 dark:border-indigo-500 py-0.5">
+                      <p className="text-xs text-ink mt-3 pl-3 italic border-l-2 border-brand py-1 bg-brand-wash/30 rounded-r-lg">
                         &ldquo;{r?.summary || "Factual evaluation against role eligibility criteria."}&rdquo;
                       </p>
 
@@ -253,51 +253,51 @@ export default function ShreeRecruiterCockpit({
                       {isExpanded && (
                         <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                           {/* Matched Criteria with Citations */}
-                          <div className="bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/40 rounded-lg p-3">
-                            <div className="font-semibold text-emerald-800 dark:text-emerald-400 mb-2 flex items-center gap-1.5">
+                          <div className="bg-good-wash border border-good/20 rounded-xl p-3.5">
+                            <div className="font-bold text-good-text mb-2 flex items-center gap-1.5">
                               <Icon name="checkCircle" size={13} />
                               Verified Criteria Matches
                             </div>
                             <div className="space-y-2">
                               {(r?.matched_criteria || []).map((m, idx) => (
-                                <div key={idx} className="text-slate-700 dark:text-slate-300">
-                                  <span className="font-medium text-slate-900 dark:text-white">
+                                <div key={idx} className="text-ink">
+                                  <span className="font-bold text-ink">
                                     • {m.criteria}:
                                   </span>
-                                  <p className="text-[11px] text-slate-500 dark:text-slate-400 pl-3 italic">
+                                  <p className="text-[11px] text-ink-muted pl-3 italic">
                                     &ldquo;{m.evidence}&rdquo;
                                   </p>
                                 </div>
                               ))}
                               {(!r?.matched_criteria || r.matched_criteria.length === 0) && (
-                                <span className="text-slate-400">No explicit matches flagged.</span>
+                                <span className="text-ink-muted">No explicit matches flagged.</span>
                               )}
                             </div>
                           </div>
 
                           {/* Missing Criteria / Gaps */}
-                          <div className="bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded-lg p-3">
-                            <div className="font-semibold text-amber-800 dark:text-amber-400 mb-2 flex items-center gap-1.5">
+                          <div className="bg-brand-wash/60 border border-brand/30 rounded-xl p-3.5">
+                            <div className="font-bold text-brand mb-2 flex items-center gap-1.5">
                               <Icon name="alertTriangle" size={13} />
                               Gaps & Interview Probes
                             </div>
                             <div className="space-y-2">
                               {(r?.missing_criteria || []).map((gap, idx) => (
-                                <div key={idx} className="text-slate-700 dark:text-slate-300">
-                                  <span className="font-medium text-slate-900 dark:text-white">
+                                <div key={idx} className="text-ink">
+                                  <span className="font-bold text-ink">
                                     • {gap.criteria}:
                                   </span>
-                                  <p className="text-[11px] text-slate-500 dark:text-slate-400 pl-3">
+                                  <p className="text-[11px] text-ink-muted pl-3">
                                     {gap.impact}
                                   </p>
                                 </div>
                               ))}
                               {r?.interview_focus_areas && r.interview_focus_areas.length > 0 && (
-                                <div className="mt-2 pt-2 border-t border-amber-200/40 dark:border-amber-900/30">
-                                  <span className="font-medium text-amber-900 dark:text-amber-300 text-[11px]">
+                                <div className="mt-2 pt-2 border-t border-brand/20">
+                                  <span className="font-bold text-brand text-[11px]">
                                     Suggested Interview Probe:
                                   </span>
-                                  <p className="text-[11px] text-slate-600 dark:text-slate-300 italic pl-2">
+                                  <p className="text-[11px] text-ink-2 italic pl-2">
                                     {r.interview_focus_areas[0]}
                                   </p>
                                 </div>
@@ -315,8 +315,8 @@ export default function ShreeRecruiterCockpit({
         ) : (
           /* Trust Graduation View */
           <div>
-            <div className="mb-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-xs text-slate-600 dark:text-slate-300">
-              <span className="font-semibold text-slate-900 dark:text-white">
+            <div className="mb-4 bg-surface border border-border rounded-xl p-3.5 text-xs text-ink-2 shadow-soft-sm">
+              <span className="font-bold text-ink">
                 How Trust Graduation Works:
               </span>{" "}
               Shree starts every role family in <strong>Shadow Mode</strong>. After 20 real evaluations with a{" "}
@@ -325,7 +325,7 @@ export default function ShreeRecruiterCockpit({
             </div>
 
             {lanes.length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-400">
+              <div className="py-8 text-center text-xs text-ink-muted">
                 No active role family evaluations recorded yet. Run candidate screenings to start building trust metrics.
               </div>
             ) : (
@@ -337,54 +337,54 @@ export default function ShreeRecruiterCockpit({
                   return (
                     <div
                       key={lane.id}
-                      className="border border-slate-200 dark:border-slate-800 rounded-xl p-4 bg-white dark:bg-slate-900 shadow-xs"
+                      className="border border-border rounded-2xl p-4 bg-surface shadow-soft"
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <span className="font-semibold text-sm text-slate-900 dark:text-white">
+                        <span className="font-bold text-sm text-ink">
                           {lane.role_family}
                         </span>
                         {lane.is_autonomous && !lane.kill_switch_engaged ? (
-                          <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-good-wash text-good-text border border-good/20">
                             Autonomous
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-brand-wash text-brand border border-brand/20">
                             Shadow Mode
                           </span>
                         )}
                       </div>
 
-                      <div className="space-y-2 text-xs text-slate-600 dark:text-slate-400 mb-3">
+                      <div className="space-y-2 text-xs text-ink-2 mb-3">
                         <div className="flex justify-between">
                           <span>Agreement Rate:</span>
-                          <span className="font-semibold text-slate-900 dark:text-white">
+                          <span className="font-bold text-ink">
                             {agreementPct}% ({lane.human_agreement_count}/{lane.total_evaluations})
                           </span>
                         </div>
-                        <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                        <div className="w-full bg-page border border-border h-2 rounded-full overflow-hidden">
                           <div
                             className={`h-full ${
-                              agreementPct >= 90 ? "bg-emerald-500" : "bg-indigo-500"
+                              agreementPct >= 90 ? "bg-good" : "bg-brand"
                             }`}
                             style={{ width: `${Math.min(100, agreementPct)}%` }}
                           />
                         </div>
-                        <div className="flex justify-between text-[11px] text-slate-400">
+                        <div className="flex justify-between text-[11px] text-ink-muted">
                           <span>Graduation threshold: &ge;90% (20 samples)</span>
                           <span>{lane.total_evaluations}/20</span>
                         </div>
                       </div>
 
-                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                        <span className="text-[11px] text-slate-500">
+                      <div className="pt-2 border-t border-border flex items-center justify-between">
+                        <span className="text-[11px] text-ink-muted font-medium">
                           {lane.kill_switch_engaged ? "Kill Switch ON" : "Safe to operate"}
                         </span>
                         <button
                           onClick={() => toggleKillSwitch(lane.role_family, lane.kill_switch_engaged)}
-                          className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors ${
+                          className={`text-xs px-2.5 py-1 rounded-xl font-bold transition-all ${
                             lane.kill_switch_engaged
-                              ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
-                              : "text-slate-500 hover:text-rose-600 dark:hover:text-rose-400"
+                              ? "bg-brand text-white shadow-button"
+                              : "text-ink-muted hover:text-critical"
                           }`}
                         >
                           {lane.kill_switch_engaged ? "Resume Autonomy" : "Engage Kill Switch"}
