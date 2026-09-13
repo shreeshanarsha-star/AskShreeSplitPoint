@@ -47,6 +47,49 @@ export default function OfferAiForm() {
   const [polished, setPolished] = useState("");
   const [error, setError] = useState<string | null>(null);
   const isSubmitting: boolean = step === "submitting";
+  const [isHandshaking, setIsHandshaking] = useState(false);
+  const [handshakeResult, setHandshakeResult] = useState<{
+    envelopeId: string;
+    signUrl: string;
+    token: string;
+  } | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  async function handleHandshakeToContracts() {
+    setError(null);
+    setIsHandshaking(true);
+    try {
+      const cleanComponents = components
+        .filter((c) => c.label && c.annual)
+        .map((c) => ({ label: c.label, annual: Number(c.annual) }));
+      const res = await fetch("/api/talent-ai/offer-to-contract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidateName,
+          candidateEmail,
+          roleTitle,
+          proposedCtcAnnual: proposedCtc ? Number(proposedCtc) : null,
+          currency,
+          components: cleanComponents,
+          noticePeriod,
+          joiningDate: joiningDate || null,
+          aiPolishedLetter: polished || draftNotes,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to generate e-sign contract.");
+      setHandshakeResult({
+        envelopeId: data.envelopeId,
+        signUrl: data.signUrl,
+        token: data.token,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Handshake to Contracts failed.");
+    } finally {
+      setIsHandshaking(false);
+    }
+  }
 
   function updateComponent(idx: number, field: keyof Component, value: string) {
     setComponents((prev) => prev.map((c, i) => (i === idx ? { ...c, [field]: value } : c)));
@@ -252,6 +295,63 @@ export default function OfferAiForm() {
 
       {step === "review" && (
         <div className="flex flex-col gap-4">
+          {handshakeResult && (
+            <div className="bg-emerald-50 border border-emerald-300 rounded-lg p-4 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 font-bold">
+                  <Icon name="check" className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-emerald-950">
+                      Employment Agreement & Digital Envelope Created
+                    </h3>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900 font-bold uppercase tracking-wider">
+                      Ready to Sign
+                    </span>
+                  </div>
+                  <p className="text-xs text-emerald-800 mt-1">
+                    Formal legal contract envelope generated in Contracts &amp; eSign for <strong>{candidateName}</strong> ({candidateEmail}).
+                  </p>
+
+                  <div className="mt-3 flex items-center gap-2 bg-white border border-emerald-200 rounded-md p-2 text-xs">
+                    <span className="text-slate-500 shrink-0 font-semibold">Sign URL:</span>
+                    <span className="font-mono text-[11px] truncate flex-1 text-slate-800">
+                      {handshakeResult.signUrl}
+                    </span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(handshakeResult.signUrl);
+                        setCopiedLink(true);
+                        setTimeout(() => setCopiedLink(false), 2000);
+                      }}
+                      className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shrink-0 transition-colors"
+                    >
+                      {copiedLink ? "Copied!" : "Copy Link"}
+                    </button>
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-2">
+                    <a
+                      href={`/sign/${handshakeResult.token}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold inline-flex items-center gap-1.5 shadow-xs transition-colors"
+                    >
+                      <span>Open Candidate E-Sign Page</span>
+                    </a>
+                    <Link
+                      href="/tools/contracts-esign"
+                      className="px-3 py-1.5 rounded-md border border-emerald-300 text-emerald-900 hover:bg-emerald-100/60 text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
+                    >
+                      View in Contracts &amp; eSign
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="bg-surface border border-border rounded-md p-4 shadow-soft-sm">
             <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-2">
               AI-drafted offer letter
@@ -262,7 +362,14 @@ export default function OfferAiForm() {
               className="input min-h-[260px]"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
+            <button
+              onClick={handleHandshakeToContracts}
+              disabled={isHandshaking || !candidateName || !candidateEmail}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-[13px] font-bold px-4 py-2.5 rounded-sm disabled:opacity-50 shadow-soft-sm flex items-center gap-1.5 transition-colors"
+            >
+              {isHandshaking ? "Generating Envelope…" : "✨ Send to Contracts & eSign"}
+            </button>
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}

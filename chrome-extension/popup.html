@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AskShree Sourcing Copilot</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { width: 340px; padding: 16px; background: #ffffff; color: #0f172a; font-size: 13px; }
+    .header { display: flex; items-center: center; justify-content: space-between; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 12px; }
+    .logo { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; color: #4f46e5; }
+    .badge { font-size: 10px; background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+    .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+    .candidate-name { font-weight: 700; font-size: 14px; color: #0f172a; }
+    .candidate-headline { font-size: 11px; color: #64748b; margin-top: 2px; line-height: 1.3; }
+    .candidate-meta { font-size: 11px; color: #475569; margin-top: 6px; display: flex; gap: 8px; }
+    .form-group { margin-bottom: 12px; }
+    label { display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 4px; }
+    select, input { width: 100%; font-size: 12px; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; background: #fff; }
+    button { width: 100%; background: #4f46e5; color: #fff; font-weight: 600; font-size: 12px; padding: 9px; border: none; border-radius: 6px; cursor: pointer; transition: background 0.15s; }
+    button:hover { background: #4338ca; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status-msg { margin-top: 8px; font-size: 11px; text-align: center; }
+    .status-success { color: #15803d; font-weight: 600; }
+    .status-error { color: #b91c1c; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">
+      <span>✨ Shree Copilot</span>
+    </div>
+    <span class="badge">1-Click Sourcing</span>
+  </div>
+
+  <div id="profile-card" class="card">
+    <div id="loading-state">Detecting profile on page...</div>
+    <div id="profile-content" style="display: none;">
+      <div id="candidate-name" class="candidate-name"></div>
+      <div id="candidate-headline" class="candidate-headline"></div>
+      <div class="candidate-meta">
+        <span id="candidate-company"></span>
+        <span id="candidate-location"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label for="req-select">Target Requisition:</label>
+    <select id="req-select">
+      <option value="R-2208261">Senior Full-Stack Engineer (#R-2208261)</option>
+      <option value="R-2208262">Enterprise Account Executive (#R-2208262)</option>
+      <option value="R-2208264">Principal Infrastructure Architect (#R-2208264)</option>
+    </select>
+  </div>
+
+  <button id="add-btn" disabled>+ Add to Requisition Pipeline</button>
+  <div id="status-msg" class="status-msg"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

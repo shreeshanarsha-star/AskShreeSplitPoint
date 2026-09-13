@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "AskShree Sourcing Copilot",
+  "version": "1.0.0",
+  "description": "1-Click AI candidate sourcing for AskShree from LinkedIn and GitHub profiles.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://*.linkedin.com/*",
+    "https://github.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Add Candidate to AskShree"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.linkedin.com/in/*",
+        "https://github.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

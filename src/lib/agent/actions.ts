@@ -598,6 +598,76 @@ const findTopCandidates: ActionSpec = {
   },
 };
 
+// --- triage_pipeline ----------------------------------------------------
+const triagePipeline: ActionSpec = {
+  name: "triage_pipeline",
+  description:
+    "Generate a pipeline triage report for a specific job requisition, summarizing candidate stages, high-scoring applicants ready to advance, candidates stalled >48 hours, and pending shadow decisions.",
+  parameters: {
+    type: "object",
+    properties: {
+      requisitionQuery: { type: "string", description: "The requisition number (e.g. 'R-2208261') or role title keywords." },
+    },
+    required: ["requisitionQuery"],
+  },
+  riskTier: "read",
+  async run(args, ctx) {
+    const hasAccess = await checkFeatureAccess(ctx.supabase, ctx.userId, "Talent.ai");
+    if (!hasAccess) return { ok: true, data: { hasAccess: false } };
+
+    const q = typeof args?.requisitionQuery === "string" ? args.requisitionQuery.trim() : "";
+    if (!q) return { ok: false, error: "No requisition specified." };
+
+    const { data: reqMatches } = await ctx.supabase
+      .from("talent_requisitions")
+      .select("id, req_no, title")
+      .or(`req_no.ilike.%${q}%,title.ilike.%${q}%`)
+      .limit(1);
+
+    if (!reqMatches || !reqMatches.length) {
+      return { ok: true, data: { hasAccess: true, requisitionFound: false, query: q } };
+    }
+
+    const req = reqMatches[0];
+    const { data: candidates } = await ctx.supabase
+      .from("talent_candidates")
+      .select("id, name, stage, match_score, updated_at, created_at")
+      .eq("requisition_id", req.id);
+
+    const list = candidates || [];
+    const stageCounts: Record<string, number> = {};
+    const stalled: string[] = [];
+    const readyToAdvance: Array<{ name: string; score: number | null }> = [];
+
+    const now = Date.now();
+    for (const c of list) {
+      stageCounts[c.stage] = (stageCounts[c.stage] || 0) + 1;
+      const days = Math.round((now - new Date(c.updated_at || c.created_at).getTime()) / 86_400_000);
+      if (days >= 2 && c.stage !== "rejected" && c.stage !== "joined") {
+        stalled.push(`${c.name} (${c.stage}, ${days}d)`);
+      }
+      if ((c.stage === "applied" || c.stage === "screening") && (c.match_score || 0) >= 75) {
+        readyToAdvance.push({ name: c.name, score: c.match_score });
+      }
+    }
+
+    return {
+      ok: true,
+      data: {
+        hasAccess: true,
+        requisitionFound: true,
+        requisition: { reqNo: req.req_no, title: req.title },
+        totalCandidates: list.length,
+        stageCounts,
+        stalledCount: stalled.length,
+        stalledSample: stalled.slice(0, 4),
+        readyToAdvanceCount: readyToAdvance.length,
+        readyToAdvanceSample: readyToAdvance.slice(0, 4),
+      },
+    };
+  },
+};
+
 export const ACTION_REGISTRY: ActionSpec[] = [
   searchWeb,
   getWeather,
@@ -609,6 +679,7 @@ export const ACTION_REGISTRY: ActionSpec[] = [
   openFeature,
   findTopCandidates,
   addTodo,
+  triagePipeline,
 ];
 
 export function getAction(name: string): ActionSpec | undefined {
@@ -625,3 +696,4 @@ export function toOpenAiTools() {
     },
   }));
 }
+

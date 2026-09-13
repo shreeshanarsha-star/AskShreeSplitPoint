@@ -9,10 +9,11 @@ import { useRegisterToolHome } from "@/components/ToolHomeContext";
 import { HScroller, VScroller } from "@/components/Scroller";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import { FUNNEL_STAGES, STAGE_ORDER as STAGES_ORDER } from "@/lib/talentStages";
+import ShreeRecruiterCockpit from "@/components/tools/ShreeRecruiterCockpit";
 
 type Me = { roles: string[]; isAdmin: boolean; isOrgAdmin?: boolean; profile: { full_name: string | null; email: string | null; manager_id: string | null; avatar_url?: string | null } | null };
 type ActionItem = { id: string; kind: string; title: string; detail: string; link: string; daysWaiting: number };
-type Tab = "home" | "funnel" | "approvals" | "assign" | "recruiter" | "projects" | "jobs" | "admin";
+type Tab = "home" | "shree" | "funnel" | "approvals" | "assign" | "recruiter" | "projects" | "jobs" | "admin";
 
 export default function TalentWorkspace() {
   const router = useRouter();
@@ -74,6 +75,7 @@ export default function TalentWorkspace() {
 
   const tabs: { id: Tab; label: string; show: boolean }[] = [
     { id: "home", label: "My requisitions", show: true },
+    { id: "shree", label: "✨ Shree AI Cockpit", show: true },
     { id: "recruiter", label: "Search candidates", show: canRecruit },
     { id: "funnel", label: "My analytics", show: canRecruit || canAssign },
     { id: "projects", label: "My Projects", show: canRecruit },
@@ -108,6 +110,7 @@ export default function TalentWorkspace() {
           onAutoOpenNewRequisitionHandled={() => setAutoOpenNewRequisition(false)}
         />
       )}
+      {tab === "shree" && <ShreeRecruiterCockpit />}
       {tab === "funnel" && <FunnelPanel />}
       {tab === "approvals" && <ApprovalsPanel />}
       {tab === "assign" && <AssignPanel />}
