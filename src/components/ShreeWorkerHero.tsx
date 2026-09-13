@@ -50,25 +50,7 @@ export default function ShreeWorkerHero() {
   ];
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-2 sm:py-4 flex flex-col items-center text-center">
-      {/* Shree AI Worker Identity Banner */}
-      <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface border border-border shadow-soft-sm mb-4">
-        <span className="w-2 h-2 rounded-full bg-good animate-pulse" />
-        <span className="text-[12px] font-semibold text-ink">
-          Shree — Autonomous AI Worker
-        </span>
-        <span className="text-border">|</span>
-        <span className="text-[11px] text-ink-muted">Talent & Hiring OS</span>
-      </div>
-
-      {/* Main Heading in InterDisplay */}
-      <h1 className="text-2xl sm:text-4xl font-extrabold text-ink tracking-tight mb-2 font-display">
-        Simpler ways. Smarter hiring.
-      </h1>
-      <p className="text-sm sm:text-base text-ink-2 max-w-xl mb-6 leading-relaxed">
-        Meet <strong className="text-ink font-semibold">Shree</strong>, the AI worker interacting with candidates 24/7. Explore open roles, experience instant pre-screening, or sign in to your team cockpit.
-      </p>
-
+    <div className="w-full max-w-4xl mx-auto px-4 py-3 sm:py-6 flex flex-col items-center text-center">
       {/* Interactive Shree Voice Card */}
       <div className="w-full max-w-xl bg-surface border border-border rounded-2xl p-4 sm:p-5 shadow-soft mb-6 text-left flex flex-col sm:flex-row items-center gap-4 transition-all hover:border-brand/40">
         <div className="relative flex-shrink-0">
