@@ -99,8 +99,14 @@ Rubric Dimensions: Problem Decomposition (25%), Technical Depth (30%), Communica
   },
 ];
 
-// Fallback persistence file path in local workspace
-const FALLBACK_DIR = path.join(process.cwd(), "src", "data");
+// Global in-memory fallback store to ensure zero latency and full compatibility on serverless
+let memoryDocs: KnowledgeDocument[] = [...DEFAULT_DOCUMENTS];
+
+// Fallback persistence file path (uses /tmp on serverless/Vercel, src/data locally)
+const FALLBACK_DIR =
+  process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NODE_ENV === "production"
+    ? path.join("/tmp", "askshree_kb")
+    : path.join(process.cwd(), "src", "data");
 const FALLBACK_FILE = path.join(FALLBACK_DIR, "avatar_knowledge_store.json");
 
 function ensureStoreFile(): KnowledgeDocument[] {
@@ -109,29 +115,31 @@ function ensureStoreFile(): KnowledgeDocument[] {
       fs.mkdirSync(FALLBACK_DIR, { recursive: true });
     }
     if (!fs.existsSync(FALLBACK_FILE)) {
-      fs.writeFileSync(FALLBACK_FILE, JSON.stringify(DEFAULT_DOCUMENTS, null, 2), "utf-8");
-      return DEFAULT_DOCUMENTS;
+      fs.writeFileSync(FALLBACK_FILE, JSON.stringify(memoryDocs, null, 2), "utf-8");
+      return memoryDocs;
     }
     const content = fs.readFileSync(FALLBACK_FILE, "utf-8");
     const parsed = JSON.parse(content);
     if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
+      memoryDocs = parsed;
+      return memoryDocs;
     }
-    return DEFAULT_DOCUMENTS;
+    return memoryDocs;
   } catch (err) {
-    console.warn("[avatarKnowledge] Fallback store read error, using in-memory defaults:", err);
-    return DEFAULT_DOCUMENTS;
+    console.warn("[avatarKnowledge] Fallback store read error, using in-memory store:", err);
+    return memoryDocs;
   }
 }
 
 function writeStoreFile(docs: KnowledgeDocument[]) {
+  memoryDocs = docs;
   try {
     if (!fs.existsSync(FALLBACK_DIR)) {
       fs.mkdirSync(FALLBACK_DIR, { recursive: true });
     }
     fs.writeFileSync(FALLBACK_FILE, JSON.stringify(docs, null, 2), "utf-8");
   } catch (err) {
-    console.warn("[avatarKnowledge] Fallback store write error:", err);
+    console.warn("[avatarKnowledge] Fallback store write error, preserved in memory:", err);
   }
 }
 
@@ -282,12 +290,18 @@ export async function findRelevantKnowledge(
     const lowerCategory = doc.category.toLowerCase();
     const lowerTitle = doc.filename.toLowerCase();
 
-    // Check token matches
+    // Check token matches safely without regex syntax errors
     for (const token of queryTokens) {
+      if (!token) continue;
       if (lowerTitle.includes(token)) docScore += 3;
       if (lowerCategory.includes(token)) docScore += 2.5;
 
-      const occurrences = (lowerText.match(new RegExp(`\\b${token}`, "g")) || []).length;
+      let occurrences = 0;
+      let pos = 0;
+      while ((pos = lowerText.indexOf(token, pos)) !== -1) {
+        occurrences++;
+        pos += token.length;
+      }
       docScore += Math.min(occurrences * 1.5, 6);
     }
 
