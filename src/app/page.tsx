@@ -66,7 +66,7 @@ export default function HomePage() {
   const [messages, setMessages] = useState<Array<{ role: "assistant" | "user"; text: string }>>([
     {
       role: "assistant",
-      text: "Hello! I am Shree, your autonomous AI Talent Acquisition partner. Select any open role on the left to discuss it, or ask me anything about our interview process, expectations, and culture.",
+      text: "Hello! I am Shree, your autonomous AI Talent Acquisition partner. Select any open job on the left to discuss it, or ask me anything about our interview process, expectations, and culture.",
     },
   ]);
   const [inputQuery, setInputQuery] = useState("");
@@ -310,11 +310,14 @@ export default function HomePage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* ================= LEFT PANEL: Job Postings List (6 Cols) ================= */}
           <div className="lg:col-span-6 space-y-3">
-            {/* Roles Header: Total count, active filter, & clickable pagination arrows (Zero scrollbars) */}
+            {/* Open Jobs Header: Total count, active filter, & clickable pagination arrows (Zero scrollbars) */}
             <div className="flex items-center justify-between text-xs px-1">
               <div className="flex items-center gap-2">
-                <span className="font-semibold uppercase tracking-wider text-[10.5px] text-ink-muted">
-                  {filteredJobs.length} {filteredJobs.length === 1 ? "Role" : "Roles"} Available
+                <span className="font-bold text-[13.5px] text-ink font-display tracking-tight flex items-center gap-1.5">
+                  <span>Open Jobs</span>
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-brand-wash text-brand border border-brand/20">
+                    {filteredJobs.length}
+                  </span>
                 </span>
                 <button
                   type="button"
@@ -358,7 +361,7 @@ export default function HomePage() {
                     type="button"
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    aria-label="Previous roles page"
+                    aria-label="Previous jobs page"
                     className="w-6 h-6 rounded-lg border border-border bg-surface text-ink-muted hover:text-brand hover:border-brand/40 flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none transition-all shadow-soft-sm text-sm"
                   >
                     ‹
@@ -367,7 +370,7 @@ export default function HomePage() {
                     type="button"
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
-                    aria-label="Next roles page"
+                    aria-label="Next jobs page"
                     className="w-6 h-6 rounded-lg border border-border bg-surface text-ink-muted hover:text-brand hover:border-brand/40 flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none transition-all shadow-soft-sm text-sm"
                   >
                     ›
@@ -378,7 +381,7 @@ export default function HomePage() {
 
             {filteredJobs.length === 0 ? (
               <div className="p-8 text-center text-xs text-ink-muted border border-dashed border-border rounded-2xl bg-surface">
-                No open roles match &quot;{roleFilter}&quot;. Use the global search bar below Shree to discover roles or clear your filter.
+                No open jobs match &quot;{roleFilter}&quot;. Use the global search bar below Shree to discover jobs or clear your filter.
               </div>
             ) : (
               <div className="space-y-3">
@@ -573,7 +576,7 @@ export default function HomePage() {
                     {selectedJob.title} {selectedJob.salary_range ? `• ${selectedJob.salary_range}` : ""}
                   </span>
                 ) : (
-                  <span className="text-ink-muted italic text-[11px]">All Open Roles</span>
+                  <span className="text-ink-muted italic text-[11px]">All Open Jobs</span>
                 )}
               </div>
 
@@ -689,7 +692,7 @@ export default function HomePage() {
                     placeholder={
                       selectedJob
                         ? `Ask Shree about ${selectedJob.title}, culture, rubrics...`
-                        : "Ask Shree about open roles, benefits, culture, or rubrics..."
+                        : "Ask Shree about open jobs, benefits, culture, or rubrics..."
                     }
                     className="flex-1 bg-transparent border-none outline-none text-ink text-xs placeholder:text-ink-muted leading-tight"
                   />

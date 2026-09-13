@@ -228,7 +228,7 @@ export default async function JobDetailPage({
             className="text-[12px] font-bold text-ink-muted hover:text-brand transition-colors flex items-center gap-1.5"
           >
             <Icon name="chevronLeft" size={13} />
-            <span>Back to Open Roles</span>
+            <span>Back to Open Jobs</span>
           </Link>
           <span className="w-px h-5 bg-border flex-shrink-0" />
           <TopbarStatus />
