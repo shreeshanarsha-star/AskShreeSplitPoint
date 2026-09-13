@@ -37,14 +37,7 @@ type JobPosting = {
   description?: string;
 };
 
-const DEPARTMENTS = [
-  "All Roles",
-  "Engineering & Technology",
-  "Product & Design",
-  "Sales & Partnerships",
-  "Human Resources",
-  "Legal & Operations",
-];
+
 
 const SUGGESTED_QUESTIONS = [
   "What are the interview stages?",
@@ -55,7 +48,6 @@ const SUGGESTED_QUESTIONS = [
 
 export default function CareersLandingPage() {
   const [jobs, setJobs] = useState<JobPosting[]>([]);
-  const [selectedDept, setSelectedDept] = useState("All Roles");
   const [search, setSearch] = useState("");
   const [selectedJob, setSelectedJob] = useState<JobPosting | null>(null);
   const [showApplyModal, setShowApplyModal] = useState(false);
@@ -242,18 +234,15 @@ export default function CareersLandingPage() {
 
   const filteredJobs = useMemo(() => {
     return jobs.filter((j) => {
-      const matchesDept =
-        selectedDept === "All Roles" ||
-        (j.department && j.department.toLowerCase().includes(selectedDept.toLowerCase()));
       const q = search.toLowerCase();
-      const matchesSearch =
+      return (
         !q ||
         j.title.toLowerCase().includes(q) ||
         (j.department && j.department.toLowerCase().includes(q)) ||
-        (j.location && j.location.toLowerCase().includes(q));
-      return matchesDept && matchesSearch;
+        (j.location && j.location.toLowerCase().includes(q))
+      );
     });
-  }, [jobs, selectedDept, search]);
+  }, [jobs, search]);
 
   return (
     <div className="min-h-screen bg-page text-ink flex flex-col selection:bg-brand-wash selection:text-brand">
@@ -294,24 +283,7 @@ export default function CareersLandingPage() {
       </header>
 
       {/* 2. Main Dual-Panel Viewport: Job Postings (Left) + AI Avatar Candidate Studio (Right) */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col space-y-5">
-        {/* Department Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {DEPARTMENTS.map((dept) => (
-            <button
-              key={dept}
-              onClick={() => setSelectedDept(dept)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-                selectedDept === dept
-                  ? "bg-brand text-white shadow-button"
-                  : "bg-surface border border-border text-ink-muted hover:text-ink hover:border-brand/30"
-              }`}
-            >
-              {dept}
-            </button>
-          ))}
-        </div>
-
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6">
         {/* Dual Panel Grid: Left Job Postings (6 cols) + Right AI Avatar Candidate Studio (6 cols) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* ================= LEFT PANEL: Job Postings List (6 Cols) ================= */}
@@ -342,7 +314,7 @@ export default function CareersLandingPage() {
 
             {filteredJobs.length === 0 ? (
               <div className="p-8 text-center text-xs text-ink-muted border border-dashed border-border rounded-2xl bg-surface">
-                No roles currently match &quot;{search || selectedDept}&quot;. Try selecting &quot;All Roles&quot;.
+                No roles currently match &quot;{search}&quot;. Try clearing your search filter.
               </div>
             ) : (
               <div className="space-y-3 max-h-[calc(100vh-170px)] min-h-[580px] overflow-y-auto pr-1">
