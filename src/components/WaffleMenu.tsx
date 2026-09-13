@@ -399,7 +399,7 @@ export default function WaffleMenu() {
                 </span>
               </div>
               <p className="text-[11px] text-ink-muted mt-0.5">
-                Simpler ways. Smarter work. • Full Platform Directory
+                AI powered hiring partner • Full Platform Directory
               </p>
             </div>
             <button

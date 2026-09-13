@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Askshree — Recruiting & AI Console",
-  description: "AI-assisted recruiting and talent tools at Askshree.com",
+  title: "AskShree — AI powered hiring partner",
+  description: "Autonomous AI talent and hiring partner at AskShree.com",
 };
 
 // Runs before first paint so a saved theme (localStorage) applies
