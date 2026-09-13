@@ -306,32 +306,29 @@ export async function findRelevantKnowledge(
     }
 
     if (docScore > 0) {
-      // Find the most relevant paragraph or snippet
-      const paragraphs = doc.extractedText
-        .split(/\n\s*\n|\n(?=[A-Z0-9\-\*\•])/)
-        .map((p) => p.trim())
-        .filter((p) => p.length > 20);
+      // Collect lines or sentences that contain the candidate's query tokens
+      const rawLines = doc.extractedText
+        .split(/\n+/)
+        .map((l) => l.trim())
+        .filter(Boolean);
 
-      let bestParagraph = paragraphs[0] || doc.extractedText.slice(0, 400);
-      let bestParaScore = 0;
+      const matchingLines = rawLines.filter((line) => {
+        const lowerLine = line.toLowerCase();
+        return queryTokens.some((tok) => lowerLine.includes(tok));
+      });
 
-      for (const p of paragraphs) {
-        let paraScore = 0;
-        const pLower = p.toLowerCase();
-        for (const token of queryTokens) {
-          if (pLower.includes(token)) paraScore += 1;
-        }
-        if (paraScore > bestParaScore) {
-          bestParaScore = paraScore;
-          bestParagraph = p;
-        }
+      let bestExcerpt = "";
+      if (matchingLines.length > 0) {
+        bestExcerpt = matchingLines.slice(0, 3).join(" ");
+      } else {
+        bestExcerpt = doc.extractedText.slice(0, 400).replace(/\n+/g, " ");
       }
 
       scoredDocs.push({
         documentTitle: doc.filename,
         category: doc.category,
-        excerpt: bestParagraph.slice(0, 450),
-        score: docScore + bestParaScore,
+        excerpt: bestExcerpt.slice(0, 450),
+        score: docScore + matchingLines.length * 2,
       });
     }
   }
