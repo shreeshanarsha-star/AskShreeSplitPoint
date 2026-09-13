@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/Icon";
+import Logo from "@/components/Logo";
 
 type InterviewRound = {
   id: string;
@@ -132,13 +133,14 @@ export default function InterviewSchedulingPage() {
           >
             <Icon name="chevronLeft" size={16} />
           </Link>
-          <div className="w-8 h-8 rounded-xl bg-brand flex items-center justify-center text-white font-bold text-base shadow-emblem">
-            S
-          </div>
+          <Link href="/" className="group">
+            <Logo height={28} showPunchline={true} />
+          </Link>
+          <span className="text-border">/</span>
           <div>
             <div className="flex items-center gap-2">
               <span className="font-bold text-sm tracking-tight text-ink font-display">
-                Interview Scheduling &amp; Coordination Hub
+                Interview Scheduling Hub
               </span>
               <span className="text-[11px] px-2 py-0.5 rounded-md font-medium bg-good-wash text-good-text border border-good/20">
                 Zero-Conflict Engine

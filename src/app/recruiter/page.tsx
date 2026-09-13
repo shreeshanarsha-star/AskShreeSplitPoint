@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/Icon";
+import Logo from "@/components/Logo";
 import ShreeRecruiterCockpit from "@/components/tools/ShreeRecruiterCockpit";
 
 export default function RecruiterHomePage() {
@@ -13,21 +14,20 @@ export default function RecruiterHomePage() {
       {/* Top Recruiter Navigation Bar */}
       <header className="px-6 py-3.5 bg-surface border-b border-border flex items-center justify-between sticky top-0 z-30 shadow-soft-sm">
         <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-xl bg-brand text-white flex items-center justify-center font-bold text-base shadow-emblem group-hover:scale-105 transition-transform">
-              S
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-2 group">
+              <Logo height={28} showPunchline={true} />
+            </Link>
+            <span className="text-border">/</span>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-sm tracking-tight text-ink font-display">
+                Recruiter Console
+              </span>
+              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-brand-wash text-brand border border-brand/20">
+                Autonomous Talent OS
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-sm tracking-tight text-ink font-display">
-                  AskShree Recruiter Console
-                </span>
-                <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-brand-wash text-brand border border-brand/20">
-                  Autonomous Talent OS
-                </span>
-              </div>
-            </div>
-          </Link>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">

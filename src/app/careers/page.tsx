@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/Icon";
+import Logo from "@/components/Logo";
 
 type JobPosting = {
   id: string;
@@ -139,19 +140,15 @@ export default function CareersGatewayPage() {
     <div className="min-h-screen bg-page text-ink flex flex-col">
       {/* Top Navigation */}
       <header className="px-6 py-3.5 border-b border-border bg-surface shadow-soft-sm flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-8 h-8 rounded-xl bg-brand text-white flex items-center justify-center font-bold text-base shadow-emblem group-hover:scale-105 transition-transform">
-            S
-          </div>
-          <div>
-            <span className="font-bold text-sm tracking-tight text-ink font-display block">
-              AskShree Careers
-            </span>
-            <span className="text-[10px] text-ink-muted block -mt-0.5">
-              AI-Native Talent Gateway
-            </span>
-          </div>
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center hover:opacity-90 transition-opacity">
+            <Logo height={28} showPunchline={true} />
+          </Link>
+          <span className="text-border hidden sm:inline select-none">/</span>
+          <span className="font-semibold text-[13.5px] sm:text-[14.5px] text-ink-2 hidden sm:inline">
+            Careers Portal
+          </span>
+        </div>
 
         <div className="flex items-center gap-4 text-xs">
           <Link

@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
+import Logo from "@/components/Logo";
 
 export default function InterviewRoomPage() {
   const params = useParams();
@@ -127,11 +128,10 @@ export default function InterviewRoomPage() {
       <div className="w-full max-w-2xl mx-auto">
         {/* Top Header */}
         <div className="flex items-center justify-between pb-4 mb-6 border-b border-border">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-brand text-white flex items-center justify-center font-bold text-base shadow-emblem">
-              S
-            </div>
-            <span className="font-bold text-sm text-ink font-display">AskShree AI Pre-Screening Room</span>
+          <div className="flex items-center gap-3">
+            <Logo height={28} showPunchline={true} />
+            <span className="text-border">/</span>
+            <span className="font-bold text-sm text-ink font-display">AI Pre-Screening Room</span>
           </div>
           <span className="text-xs text-ink-muted">Position: {roleTitle}</span>
         </div>

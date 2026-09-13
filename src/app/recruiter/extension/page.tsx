@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/Icon";
+import Logo from "@/components/Logo";
 
 export default function RecruiterExtensionPage() {
   const [testUrl, setTestUrl] = useState("https://www.linkedin.com/in/alex-rivera-systems");
@@ -43,15 +44,16 @@ export default function RecruiterExtensionPage() {
           >
             <Icon name="chevronLeft" size={16} />
           </Link>
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-base shadow-sm">
-            S
-          </div>
+          <Link href="/" className="group">
+            <Logo height={28} showPunchline={true} />
+          </Link>
+          <span className="text-slate-300 dark:text-slate-700">/</span>
           <div>
             <div className="flex items-center gap-2">
               <span className="font-bold text-sm tracking-tight">
-                AskShree 1-Click Sourcing Chrome Extension
+                1-Click Sourcing Chrome Extension
               </span>
-              <span className="text-[11px] px-2 py-0.5 rounded-md font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
+              <span className="text-[11px] px-2 py-0.5 rounded-md font-medium bg-brand-wash text-brand border border-brand/20">
                 Manifest V3 Verified
               </span>
             </div>

@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/Icon";
+import Logo from "@/components/Logo";
 import { STAGES, stageLabel } from "@/lib/talentStages";
 
 type CandidateStatus = {
@@ -72,14 +73,15 @@ function CandidateStatusContent() {
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Brand Header */}
         <div className="flex items-center justify-between pb-4 border-b border-border">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-xl bg-brand text-white flex items-center justify-center font-bold text-base shadow-emblem group-hover:scale-105 transition-transform">
-              S
-            </div>
-            <span className="font-bold text-base text-ink tracking-tight font-display">
-              AskShree Talent Portal
+          <div className="flex items-center gap-3">
+            <Link href="/" className="group">
+              <Logo height={28} showPunchline={true} />
+            </Link>
+            <span className="text-border">/</span>
+            <span className="font-bold text-sm text-ink tracking-tight font-display">
+              Talent Portal
             </span>
-          </Link>
+          </div>
           <span className="text-xs text-ink-muted">
             Never Wonder Where You Stand
           </span>

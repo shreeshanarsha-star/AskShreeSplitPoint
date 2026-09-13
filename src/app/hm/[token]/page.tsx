@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/Icon";
+import Logo from "@/components/Logo";
 
 type HMRequisition = {
   id: string;
@@ -96,10 +97,11 @@ export default function HiringManagerPortalPage() {
       <div className="max-w-5xl mx-auto space-y-6">
         {/* Top Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-border">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-8 h-8 rounded-xl bg-brand text-white flex items-center justify-center font-bold text-base shadow-emblem group-hover:scale-105 transition-transform">
-              S
-            </div>
+          <div className="flex items-center gap-3">
+            <Link href="/" className="group">
+              <Logo height={28} showPunchline={true} />
+            </Link>
+            <span className="text-border">/</span>
             <div>
               <h1 className="text-base font-bold text-ink font-display">
                 Hiring Manager Review Portal
@@ -108,7 +110,7 @@ export default function HiringManagerPortalPage() {
                 Calibrated shortlist for: <strong className="text-ink">{data?.title || "Engineering Lead"}</strong> ({data?.req_no || "Req-Active"})
               </p>
             </div>
-          </Link>
+          </div>
           <span className="text-xs px-2.5 py-1 rounded-full bg-good-wash text-good-text border border-good/20 font-semibold">
             Verified Shortlist
           </span>

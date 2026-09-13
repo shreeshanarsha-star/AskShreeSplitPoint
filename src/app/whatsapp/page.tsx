@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Icon from "@/components/Icon";
+import Logo from "@/components/Logo";
 
 type ChatMessage = {
   id: string;
@@ -92,16 +93,16 @@ export default function WhatsAppBotPage() {
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white flex flex-col justify-center py-6 px-4">
       {/* Top Breadcrumb */}
       <div className="max-w-md w-full mx-auto mb-3 flex items-center justify-between">
+        <Link href="/" className="group">
+          <Logo height={24} showPunchline={true} />
+        </Link>
         <Link
           href="/recruiter"
-          className="text-xs text-slate-500 hover:text-indigo-600 flex items-center gap-1"
+          className="text-xs text-slate-500 hover:text-brand flex items-center gap-1"
         >
           <Icon name="chevronLeft" size={14} />
           Back to Recruiter Console
         </Link>
-        <span className="text-[11px] px-2.5 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-          ● WhatsApp API Connected
-        </span>
       </div>
 
       {/* Phone Mockup Container */}
@@ -111,9 +112,12 @@ export default function WhatsAppBotPage() {
         <div className="bg-[#075E54] text-white p-3.5 flex items-center justify-between shadow-xs">
           <div className="flex items-center gap-3">
             <div className="relative">
-              <div className="w-10 h-10 rounded-full bg-emerald-700 border-2 border-white/40 flex items-center justify-center font-bold text-sm">
-                S
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/askshree-emblem.png"
+                alt="Shree AI Recruiter"
+                className="w-10 h-10 rounded-full border-2 border-white/40 shadow-xs"
+              />
               <span className="w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#075E54] absolute bottom-0 right-0" />
             </div>
             <div>
