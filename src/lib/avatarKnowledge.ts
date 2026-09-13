@@ -306,29 +306,15 @@ export async function findRelevantKnowledge(
     }
 
     if (docScore > 0) {
-      // Collect lines or sentences that contain the candidate's query tokens
-      const rawLines = doc.extractedText
-        .split(/\n+/)
-        .map((l) => l.trim())
-        .filter(Boolean);
-
-      const matchingLines = rawLines.filter((line) => {
-        const lowerLine = line.toLowerCase();
-        return queryTokens.some((tok) => lowerLine.includes(tok));
-      });
-
-      let bestExcerpt = "";
-      if (matchingLines.length > 0) {
-        bestExcerpt = matchingLines.slice(0, 3).join(" ");
-      } else {
-        bestExcerpt = doc.extractedText.slice(0, 400).replace(/\n+/g, " ");
-      }
+      // Clean extracted text into readable continuous excerpt
+      const cleanText = doc.extractedText.replace(/\n+/g, " ").trim();
+      const excerpt = cleanText.length > 420 ? cleanText.slice(0, 417) + "..." : cleanText;
 
       scoredDocs.push({
         documentTitle: doc.filename,
         category: doc.category,
-        excerpt: bestExcerpt.slice(0, 450),
-        score: docScore + matchingLines.length * 2,
+        excerpt,
+        score: docScore,
       });
     }
   }
