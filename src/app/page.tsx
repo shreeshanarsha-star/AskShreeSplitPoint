@@ -319,168 +319,205 @@ export default function HomePage() {
         {/* Dual Panel Grid: Left Job Postings (6 cols) + Right AI Avatar Candidate Studio (6 cols) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* ================= LEFT PANEL: Job Postings List (6 Cols) ================= */}
-          <div className="lg:col-span-6 space-y-3">
-            {/* Open Jobs Header: Total count, active filter, & clickable pagination arrows (Zero scrollbars) */}
-            <div className="flex items-center justify-between text-xs px-1">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-[13.5px] text-ink font-display tracking-tight">
-                  Open Jobs
+          {/* ================= LEFT PANEL: Job Postings List (6 Cols) ================= */}
+          <div className="lg:col-span-6 bg-surface border border-border rounded-2xl shadow-soft overflow-hidden flex flex-col h-[calc(100vh-170px)] min-h-[580px] sticky top-20">
+            {/* Top Open Jobs Header (Parallelly matching Shree AI Avatar section) */}
+            <div className="bg-gradient-to-b from-brand-wash/70 via-surface to-surface border-b border-border p-4 relative flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-3.5">
+                <div className="relative flex-shrink-0">
+                  <div className="relative block w-14 h-14 rounded-full bg-gradient-to-tr from-brand to-brand-dark p-0.5 shadow-emblem">
+                    <div className="w-full h-full rounded-full overflow-hidden bg-surface relative flex items-center justify-center">
+                      <Icon name="briefcase" size={22} className="text-brand" />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-bold text-sm text-ink font-display">
+                      Open Jobs
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetJob = selectedJob || jobs[0];
+                        if (targetJob) {
+                          setShareJob(targetJob);
+                          setShowShareModal(true);
+                        }
+                      }}
+                      title="Your Candidate Credits (Click to Share & Earn more)"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-brand-wash text-brand border border-brand/20 font-bold hover:border-brand/40 transition-all shadow-soft-sm cursor-pointer"
+                    >
+                      <span>🎁 {candidateCredits} Credits</span>
+                    </button>
+                    {roleFilter && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-brand-wash text-brand border border-brand/20 font-medium">
+                        <span>Filter: &quot;{roleFilter}&quot;</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRoleFilter("");
+                            setCurrentPage(1);
+                          }}
+                          className="hover:text-brand-dark ml-0.5 cursor-pointer"
+                          title="Clear filter"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-ink-muted mt-0.5">
+                    Verified Open Positions • Fast-Track AI Assessment & Direct Referral
+                  </p>
+                </div>
+              </div>
+
+              {/* Status Indicator */}
+              <div className="flex items-center gap-1.5">
+                <span className="px-2.5 py-1 rounded-xl text-xs font-semibold border border-border bg-page text-ink-muted flex items-center gap-1">
+                  <span>⚡ Instant Apply</span>
                 </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const targetJob = selectedJob || jobs[0];
-                    if (targetJob) {
-                      setShareJob(targetJob);
-                      setShowShareModal(true);
-                    }
-                  }}
-                  title="Your Candidate Credits (Click to Share & Earn more)"
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-brand-wash text-brand border border-brand/20 font-bold hover:border-brand/40 transition-all shadow-soft-sm"
-                >
-                  <span>🎁 {candidateCredits} Credits</span>
-                </button>
-                {roleFilter && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-brand-wash text-brand border border-brand/20 font-medium">
-                    <span>Filter: &quot;{roleFilter}&quot;</span>
+              </div>
+            </div>
+
+            {/* Job Postings Body */}
+            <div className="flex-1 flex flex-col justify-between overflow-y-auto scrollbar-none bg-page p-3 sm:p-3.5 space-y-2.5">
+              {filteredJobs.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center p-8 text-center text-xs text-ink-muted">
+                  <div>
+                    <p className="font-semibold text-ink mb-1">No positions found</p>
+                    <p>No open jobs match &quot;{roleFilter}&quot;. Use the search bar in Shree AI Studio or clear your filter.</p>
                     <button
                       type="button"
                       onClick={() => {
                         setRoleFilter("");
                         setCurrentPage(1);
                       }}
-                      className="hover:text-brand-dark ml-0.5"
-                      title="Clear filter"
+                      className="mt-3 px-3 py-1.5 rounded-xl text-xs font-semibold bg-brand text-white shadow-button cursor-pointer"
                     >
-                      ✕
+                      Clear Filter
                     </button>
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {filteredJobs.length === 0 ? (
-              <div className="p-8 text-center text-xs text-ink-muted border border-dashed border-border rounded-2xl bg-surface">
-                No open jobs match &quot;{roleFilter}&quot;. Use the global search bar below Shree to discover jobs or clear your filter.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {displayedJobs.map((job) => {
-                  const isSelected = selectedJob?.id === job.id;
-                  return (
-                    <div
-                      key={job.id}
-                      onClick={() => router.push(`/jobs/${job.id}`)}
-                      className={`group cursor-pointer p-4 rounded-2xl border transition-all ${
-                        isSelected
-                          ? "bg-surface border-brand shadow-soft ring-1 ring-brand/30"
-                          : "bg-surface border-border hover:border-brand/40 shadow-soft-sm hover:shadow-soft"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-bold text-sm text-ink group-hover:text-brand transition-colors">
-                              {job.title}
-                            </h3>
-                            {isSelected && (
-                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-wash text-brand border border-brand/20">
-                                Active Context
-                              </span>
-                            )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col justify-start space-y-2.5">
+                  {displayedJobs.map((job) => {
+                    const isSelected = selectedJob?.id === job.id;
+                    return (
+                      <div
+                        key={job.id}
+                        onClick={() => router.push(`/jobs/${job.id}`)}
+                        className={`group cursor-pointer p-3 sm:p-3.5 rounded-xl border transition-all ${
+                          isSelected
+                            ? "bg-surface border-brand shadow-soft ring-1 ring-brand/30"
+                            : "bg-surface border-border hover:border-brand/40 shadow-soft-sm hover:shadow-soft"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-bold text-sm text-ink group-hover:text-brand transition-colors">
+                                {job.title}
+                              </h3>
+                              {isSelected && (
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-wash text-brand border border-brand/20">
+                                  Active Context
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-ink-muted mt-0.5">
+                              {job.department || "Engineering"} • {job.location || "Remote"}
+                            </p>
                           </div>
-                          <p className="text-xs text-ink-muted mt-0.5">
-                            {job.department || "Engineering"} • {job.location || "Remote"}
-                          </p>
                         </div>
-                      </div>
 
-                      {job.description && (
-                        <p className="text-xs text-ink-muted line-clamp-2 mt-2 leading-relaxed">
-                          {job.description}
-                        </p>
-                      )}
+                        {job.description && (
+                          <p className="text-xs text-ink-muted line-clamp-2 mt-1.5 leading-relaxed">
+                            {job.description}
+                          </p>
+                        )}
 
-                      <div className="mt-3 flex items-center justify-between text-xs pt-2.5 border-t border-border">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSelectJob(job);
-                          }}
-                          className={`h-7 px-2.5 text-[11.5px] font-semibold rounded-xl border flex items-center gap-1.5 transition-all shadow-soft-sm cursor-pointer ${
-                            isSelected
-                              ? "bg-brand-wash border-brand/40 text-brand ring-1 ring-brand/20 font-bold"
-                              : "bg-surface hover:bg-brand-wash/40 border-border hover:border-brand/40 text-ink-2 hover:text-brand"
-                          }`}
-                          title="Set active context in Shree AI studio"
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
-                          <span>💬 Consult Shree</span>
-                        </button>
-                        <div className="flex items-center gap-1.5">
-                          <JobShareButton
-                            job={{
-                              id: job.id,
-                              title: job.title,
-                              company: job.department,
-                              location: job.location,
-                            }}
-                            variant="pill"
-                          />
-                          <Link
-                            href={`/jobs/${job.id}`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="group/spec h-7 px-2.5 text-[11.5px] font-semibold rounded-xl border bg-surface hover:bg-brand-wash/40 border-border hover:border-brand/40 text-ink-2 hover:text-brand transition-all flex items-center gap-1 shadow-soft-sm cursor-pointer"
-                          >
-                            <span>View Specs</span>
-                            <Icon name="chevronRight" size={11} className="text-ink-muted group-hover/spec:text-brand transition-colors" />
-                          </Link>
+                        <div className="mt-2.5 flex items-center justify-between text-xs pt-2 border-t border-border">
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setSelectedJob(job);
-                              setShowApplyModal(true);
+                              handleSelectJob(job);
                             }}
-                            className="h-7 px-3 text-[11.5px] font-bold rounded-xl bg-brand hover:bg-brand-dark text-white border border-brand transition-all flex items-center gap-1 shadow-button cursor-pointer"
+                            className={`h-7 px-2.5 text-[11.5px] font-semibold rounded-xl border flex items-center gap-1.5 transition-all shadow-soft-sm cursor-pointer ${
+                              isSelected
+                                ? "bg-brand-wash border-brand/40 text-brand ring-1 ring-brand/20 font-bold"
+                                : "bg-surface hover:bg-brand-wash/40 border-border hover:border-brand/40 text-ink-2 hover:text-brand"
+                            }`}
+                            title="Set active context in Shree AI studio"
                           >
-                            <span>Quick Apply</span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
+                            <span>💬 Consult Shree</span>
                           </button>
+                          <div className="flex items-center gap-1.5">
+                            <JobShareButton
+                              job={{
+                                id: job.id,
+                                title: job.title,
+                                company: job.department,
+                                location: job.location,
+                              }}
+                              variant="pill"
+                            />
+                            <Link
+                              href={`/jobs/${job.id}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="group/spec h-7 px-2.5 text-[11.5px] font-semibold rounded-xl border bg-surface hover:bg-brand-wash/40 border-border hover:border-brand/40 text-ink-2 hover:text-brand transition-all flex items-center gap-1 shadow-soft-sm cursor-pointer"
+                            >
+                              <span>View Specs</span>
+                              <Icon name="chevronRight" size={11} className="text-ink-muted group-hover/spec:text-brand transition-colors" />
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedJob(job);
+                                setShowApplyModal(true);
+                              }}
+                              className="h-7 px-3 text-[11.5px] font-bold rounded-xl bg-brand hover:bg-brand-dark text-white border border-brand transition-all flex items-center gap-1 shadow-button cursor-pointer"
+                            >
+                              <span>Quick Apply</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
-                {/* Bottom Pagination Bar (Zero scrollbars) */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between text-xs pt-2 px-1 text-ink-muted">
-                    <span className="text-[11.5px]">
-                      Showing {(currentPage - 1) * ROLES_PER_PAGE + 1}–{Math.min(currentPage * ROLES_PER_PAGE, filteredJobs.length)} of {filteredJobs.length} jobs <span className="text-ink-muted/60">•</span> Page {currentPage} of {totalPages}
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                        className="px-2.5 py-1 rounded-lg border border-border bg-surface text-xs font-medium text-ink-muted hover:text-brand hover:border-brand/40 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1 shadow-soft-sm"
-                      >
-                        <span>‹</span> Previous
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                        className="px-2.5 py-1 rounded-lg border border-border bg-surface text-xs font-medium text-ink-muted hover:text-brand hover:border-brand/40 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1 shadow-soft-sm"
-                      >
-                        Next <span>›</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
+            {/* Bottom Pagination Bar (Zero scrollbars) */}
+            <div className="p-3 border-t border-border bg-surface flex items-center justify-between text-xs text-ink-muted flex-shrink-0">
+              <span className="text-[11.5px]">
+                Showing {(currentPage - 1) * ROLES_PER_PAGE + 1}–{Math.min(currentPage * ROLES_PER_PAGE, filteredJobs.length)} of {filteredJobs.length} jobs <span className="text-ink-muted/60">•</span> Page {currentPage} of {totalPages}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-2.5 py-1 rounded-lg border border-border bg-page text-xs font-medium text-ink-muted hover:text-brand hover:border-brand/40 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1 shadow-soft-sm cursor-pointer"
+                >
+                  <span>‹</span> Previous
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-2.5 py-1 rounded-lg border border-border bg-page text-xs font-medium text-ink-muted hover:text-brand hover:border-brand/40 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1 shadow-soft-sm cursor-pointer"
+                >
+                  Next <span>›</span>
+                </button>
               </div>
-            )}
+            </div>
           </div>
 
           {/* ================= RIGHT PANEL: Shree AI Conversational Studio (6 Cols) ================= */}
