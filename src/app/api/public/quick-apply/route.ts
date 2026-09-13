@@ -16,11 +16,21 @@ export async function POST(req: Request) {
   // 1. Fetch requisition
   const { data: requisition } = await admin
     .from("talent_requisitions")
-    .select("id, org_id, title, description, eligibility_criteria")
+    .select("id, org_id, title, description, eligibility_criteria, created_by, owner_id")
     .eq("id", requisitionId)
     .maybeSingle();
 
   const orgId = requisition?.org_id;
+  let createdBy = (requisition as any)?.created_by || (requisition as any)?.owner_id;
+  if (!createdBy) {
+    const { data: adminProfile } = await admin
+      .from("profiles")
+      .select("id")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    createdBy = adminProfile?.id;
+  }
 
   // 2. Parse candidate resume if provided
   let currentCompany: string | null = null;
@@ -48,12 +58,46 @@ export async function POST(req: Request) {
 
   const interviewToken = `int-${Math.random().toString(36).substring(2, 10)}`;
 
+  // Find or create person identity in talent_people
+  let personId: string | null = null;
+  if (email) {
+    const { data: existingPerson } = await admin
+      .from("talent_people")
+      .select("id")
+      .ilike("email", email)
+      .limit(1)
+      .maybeSingle();
+    if (existingPerson) personId = existingPerson.id;
+  }
+  if (!personId && createdBy) {
+    try {
+      const { data: newPerson } = await admin
+        .from("talent_people")
+        .insert({
+          org_id: orgId,
+          name,
+          email,
+          phone,
+          resume_text: resumeText,
+          source: "Quick Apply",
+          current_company: currentCompany,
+          created_by: createdBy,
+        })
+        .select("id")
+        .single();
+      if (newPerson) personId = newPerson.id;
+    } catch (pErr) {
+      console.warn("talent_people insert warning:", pErr);
+    }
+  }
+
   // 3. Insert Candidate into talent_candidates
   // Notice: expected_ctc is stored; current_ctc is omitted per Pay Transparency rules!
   const { data: candidate, error: candError } = await admin
     .from("talent_candidates")
     .insert({
       requisition_id: requisitionId,
+      person_id: personId || null,
       name,
       email,
       phone: phone || null,
@@ -64,6 +108,7 @@ export async function POST(req: Request) {
       tags: keySkills.length ? keySkills : (currentDesignation ? [currentDesignation] : []),
       match_score: matchScore,
       expected_ctc: expectedSalary ? Number(expectedSalary.replace(/[^0-9]/g, "")) : null,
+      created_by: createdBy,
     })
     .select()
     .single();
