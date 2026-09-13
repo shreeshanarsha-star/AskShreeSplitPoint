@@ -53,16 +53,15 @@ export async function POST(req: Request) {
   const { data: candidate, error: candError } = await admin
     .from("talent_candidates")
     .insert({
-      org_id: orgId,
       requisition_id: requisitionId,
       name,
       email,
       phone: phone || null,
       stage: "applied",
       current_company: currentCompany,
-      current_designation: currentDesignation,
-      key_skills: keySkills,
-      summary: summary || `Applicant for ${requisition?.title || "role"}.`,
+      resume_text: resumeText || null,
+      source: "Quick Apply",
+      tags: keySkills.length ? keySkills : (currentDesignation ? [currentDesignation] : []),
       match_score: matchScore,
       expected_ctc: expectedSalary ? Number(expectedSalary.replace(/[^0-9]/g, "")) : null,
       interview_token: interviewToken,

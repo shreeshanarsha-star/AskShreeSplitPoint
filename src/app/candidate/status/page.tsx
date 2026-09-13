@@ -14,7 +14,7 @@ type CandidateStatus = {
   id: string;
   name: string;
   stage: string;
-  current_designation: string | null;
+  current_designation?: string | null;
   current_company: string | null;
   created_at: string;
   updated_at: string;

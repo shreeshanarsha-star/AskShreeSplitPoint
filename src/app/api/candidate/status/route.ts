@@ -18,7 +18,6 @@ export async function GET(req: Request) {
       id,
       name,
       stage,
-      current_designation,
       current_company,
       created_at,
       updated_at,
