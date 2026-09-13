@@ -8,7 +8,8 @@ import Logo from "@/components/Logo";
 import TopbarStatus from "@/components/TopbarStatus";
 import JobShareButton from "@/components/JobShareButton";
 import ShareToEarnModal from "@/components/ShareToEarnModal";
-import { getCandidateCredits } from "@/lib/credits";
+import { getCandidateCredits, awardCandidateCredits } from "@/lib/credits";
+import { createClient } from "@/lib/supabase/client";
 
 type SpeechRecognitionLike = {
   lang: string;
@@ -165,7 +166,35 @@ export default function HomePage() {
   const [applyConsented, setApplyConsented] = useState(false);
   const [applySubmitting, setApplySubmitting] = useState(false);
   const [applySuccess, setApplySuccess] = useState(false);
+  const [submittedCandidateId, setSubmittedCandidateId] = useState<string | null>(null);
   const [submittedInterviewToken, setSubmittedInterviewToken] = useState<string | null>(null);
+
+  // Candidate Account & Password Activation State (Optional on Apply Success)
+  const [accountPassword, setAccountPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [accountSubmitting, setAccountSubmitting] = useState(false);
+  const [accountCreated, setAccountCreated] = useState(false);
+  const [accountError, setAccountError] = useState<string | null>(null);
+  const [isCandidateLoggedIn, setIsCandidateLoggedIn] = useState(false);
+
+  // Listen to candidate auth session
+  useEffect(() => {
+    async function checkCandidateAuth() {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setIsCandidateLoggedIn(true);
+        }
+        supabase.auth.onAuthStateChange((_event, session) => {
+          setIsCandidateLoggedIn(!!session?.user);
+        });
+      } catch (err) {
+        console.warn("Auth check failed:", err);
+      }
+    }
+    checkCandidateAuth();
+  }, []);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -477,6 +506,9 @@ export default function HomePage() {
       const data = await res.json();
       if (res.ok) {
         setApplySuccess(true);
+        if (data.candidateId) {
+          setSubmittedCandidateId(data.candidateId);
+        }
         if (data.interviewToken) {
           setSubmittedInterviewToken(data.interviewToken);
         }
@@ -485,6 +517,53 @@ export default function HomePage() {
       console.error("Apply failed:", err);
     } finally {
       setApplySubmitting(false);
+    }
+  }
+
+  async function handleCandidateQuickSignup(e: React.FormEvent) {
+    e.preventDefault();
+    if (!accountPassword || accountPassword.length < 6 || !applyEmail) return;
+    setAccountSubmitting(true);
+    setAccountError(null);
+
+    try {
+      const res = await fetch("/api/candidate/quick-signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: applyEmail,
+          password: accountPassword,
+          name: applyName,
+          candidateId: submittedCandidateId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAccountError(data.error || "Failed to create candidate account.");
+        return;
+      }
+
+      // Automatically sign in via Supabase client
+      const supabase = createClient();
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: applyEmail.toLowerCase().trim(),
+        password: accountPassword,
+      });
+
+      if (signInError) {
+        setAccountError(signInError.message);
+        return;
+      }
+
+      // Activate candidate welcome credits
+      awardCandidateCredits(25, "welcome_signup");
+      setAccountCreated(true);
+      setIsCandidateLoggedIn(true);
+    } catch (err) {
+      console.error("Account creation failed:", err);
+      setAccountError("An unexpected error occurred. Please try again.");
+    } finally {
+      setAccountSubmitting(false);
     }
   }
 
@@ -1130,32 +1209,121 @@ export default function HomePage() {
                 onClick={() => {
                   setShowApplyModal(false);
                   setApplySuccess(false);
+                  setAccountPassword("");
+                  setAccountCreated(false);
+                  setAccountError(null);
                 }}
-                className="text-ink-muted hover:text-ink text-sm"
+                className="text-ink-muted hover:text-ink text-sm cursor-pointer"
+                title="Close"
               >
                 ✕
               </button>
             </div>
 
             {applySuccess ? (
-              <div className="py-8 text-center space-y-3">
+              <div className="py-4 text-center space-y-4">
                 <div className="w-12 h-12 mx-auto rounded-full bg-good-wash text-good-text border border-good/20 flex items-center justify-center text-xl shadow-soft-sm">
                   ✓
                 </div>
-                <h4 className="font-bold text-base text-ink font-display">Application Received!</h4>
-                <p className="text-xs text-ink-muted max-w-sm mx-auto leading-relaxed">
-                  Your application has been received and indexed into the review pipeline. Shree has started the objective blind review.
-                </p>
-                <div className="pt-2 flex justify-center gap-3">
+                <div>
+                  <h4 className="font-bold text-base text-ink font-display">Application Received!</h4>
+                  <p className="text-xs text-ink-muted max-w-sm mx-auto leading-relaxed mt-1">
+                    Your application has been received and indexed into the review pipeline. Shree has started the objective blind review.
+                  </p>
+                </div>
+
+                {/* Optional 1-Click Password & Account Activation Card */}
+                {!isCandidateLoggedIn && !accountCreated ? (
+                  <div className="bg-gradient-to-b from-brand-wash/50 via-surface to-surface border border-brand/30 rounded-2xl p-4 text-left shadow-soft-sm space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center text-brand flex-shrink-0 mt-0.5">
+                        <Icon name="gift" size={18} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h5 className="font-bold text-xs text-ink font-display">
+                            Save Progress &amp; Activate 25 Welcome Credits
+                          </h5>
+                          <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-brand text-white font-bold uppercase tracking-wider">
+                            Optional
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-ink-muted mt-0.5 leading-relaxed">
+                          Set a password for <strong className="text-ink font-semibold">{applyEmail}</strong> to track your hiring status anytime and activate your 25 Welcome Credits.
+                        </p>
+                      </div>
+                    </div>
+
+                    <form onSubmit={handleCandidateQuickSignup} className="space-y-2 pt-0.5">
+                      <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <input
+                            type={showPassword ? "text" : "password"}
+                            value={accountPassword}
+                            onChange={(e) => setAccountPassword(e.target.value)}
+                            placeholder="Set a password (min 6 chars)..."
+                            minLength={6}
+                            required
+                            disabled={accountSubmitting}
+                            className="w-full bg-surface border border-border rounded-xl px-3 py-2 text-xs text-ink placeholder:text-ink-muted focus:border-brand focus:outline-none pr-12"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink text-[11px] font-medium cursor-pointer"
+                            tabIndex={-1}
+                          >
+                            {showPassword ? "Hide" : "Show"}
+                          </button>
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={accountSubmitting || accountPassword.length < 6}
+                          className="px-4 py-2 rounded-xl text-xs font-bold bg-brand hover:bg-brand-dark disabled:opacity-50 text-white shadow-button transition-all flex items-center gap-1.5 flex-shrink-0 cursor-pointer"
+                        >
+                          {accountSubmitting ? (
+                            <>
+                              <span className="w-3 h-3 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                              <span>Activating...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>Activate &amp; Claim 🎁</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      {accountError && (
+                        <p className="text-[11px] text-critical font-medium">{accountError}</p>
+                      )}
+                    </form>
+                  </div>
+                ) : accountCreated ? (
+                  <div className="bg-emerald-950/20 border border-emerald-500/30 rounded-2xl p-3.5 text-left flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0 font-bold">
+                      ✓
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-xs text-emerald-300 font-display">
+                        Account Created &amp; 25 Credits Activated!
+                      </p>
+                      <p className="text-[11px] text-ink-muted">
+                        Signed in as <strong className="text-ink font-semibold">{applyEmail}</strong>. Your candidate wallet and tracking are now active.
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="pt-2 flex flex-wrap justify-center gap-3">
                   <Link
                     href={`/interview/${submittedInterviewToken || "demo"}`}
-                    className="px-4 py-2 rounded-xl text-xs font-bold bg-brand hover:bg-brand-dark text-white shadow-button"
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-brand hover:bg-brand-dark text-white shadow-button transition-all"
                   >
                     Start AI Pre-Screen Now →
                   </Link>
                   <Link
-                    href={`/candidate/status`}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold border border-border text-ink-2 hover:bg-page"
+                    href={`/candidate/status?${submittedCandidateId ? `id=${submittedCandidateId}` : `email=${encodeURIComponent(applyEmail)}`}`}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold border border-border text-ink-2 hover:bg-page transition-all"
                   >
                     Track Status
                   </Link>

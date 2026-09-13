@@ -8,6 +8,7 @@ import Logo from "@/components/Logo";
 import TopbarStatus from "@/components/TopbarStatus";
 import { STAGES, stageLabel } from "@/lib/talentStages";
 import { createClient } from "@/lib/supabase/client";
+import { getCandidateCredits } from "@/lib/credits";
 
 type CandidateStatus = {
   id: string;
@@ -34,6 +35,19 @@ function CandidateStatusContent() {
   const [loading, setLoading] = useState(true);
   const [candidate, setCandidate] = useState<CandidateStatus | null>(null);
   const [deletionRequested, setDeletionRequested] = useState(false);
+  const [candidateCredits, setCandidateCredits] = useState(25);
+
+  useEffect(() => {
+    setCandidateCredits(getCandidateCredits());
+    function handleCreditsUpdate(e: Event) {
+      const detail = (e as CustomEvent).detail;
+      if (detail && typeof detail.credits === "number") {
+        setCandidateCredits(detail.credits);
+      }
+    }
+    window.addEventListener("askshree_credits_updated", handleCreditsUpdate);
+    return () => window.removeEventListener("askshree_credits_updated", handleCreditsUpdate);
+  }, []);
 
   useEffect(() => {
     async function checkAuthAndLoad() {
@@ -50,11 +64,16 @@ function CandidateStatusContent() {
 
       try {
         setLoading(true);
-        if (!id && !token) {
+        if (!id && !token && !user.email) {
           setLoading(false);
           return;
         }
-        const res = await fetch(`/api/candidate/status?${id ? `id=${id}` : `token=${token}`}`);
+        const queryParam = id
+          ? `id=${encodeURIComponent(id)}`
+          : token
+          ? `token=${encodeURIComponent(token)}`
+          : `email=${encodeURIComponent(user.email || "")}`;
+        const res = await fetch(`/api/candidate/status?${queryParam}`);
         if (res.ok) {
           const data = await res.json();
           setCandidate(data.candidate);
@@ -173,7 +192,10 @@ function CandidateStatusContent() {
                   </p>
                 </div>
 
-                <div className="text-right">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs bg-brand-wash text-brand border border-brand/20 font-bold shadow-soft-sm">
+                    <span>🎁 {candidateCredits} Candidate Credits</span>
+                  </span>
                   <span className="text-xs font-semibold px-3 py-1 rounded-full bg-good-wash text-good-text border border-good/20">
                     {candidate.stage === "rejected" ? "Position Closed" : stageLabel(candidate.stage)}
                   </span>
