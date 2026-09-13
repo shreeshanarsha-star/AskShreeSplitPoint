@@ -411,12 +411,14 @@ export default function HomePage() {
                             e.stopPropagation();
                             handleSelectJob(job);
                           }}
-                          className={`text-[11.5px] font-semibold flex items-center gap-1.5 transition-colors ${
-                            isSelected ? "text-brand" : "text-ink-muted hover:text-brand"
+                          className={`h-7 px-2.5 text-[11.5px] font-semibold rounded-xl border flex items-center gap-1.5 transition-all shadow-soft-sm cursor-pointer ${
+                            isSelected
+                              ? "bg-brand-wash border-brand/40 text-brand ring-1 ring-brand/20 font-bold"
+                              : "bg-surface hover:bg-brand-wash/40 border-border hover:border-brand/40 text-ink-2 hover:text-brand"
                           }`}
                           title="Set active context in Shree AI studio"
                         >
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
                           <span>💬 Consult Shree</span>
                         </button>
                         <div className="flex items-center gap-1.5">
@@ -432,10 +434,10 @@ export default function HomePage() {
                           <Link
                             href={`/jobs/${job.id}`}
                             onClick={(e) => e.stopPropagation()}
-                            className="px-2.5 py-1 text-xs text-ink-muted hover:text-brand font-semibold flex items-center gap-1 transition-colors"
+                            className="group/spec h-7 px-2.5 text-[11.5px] font-semibold rounded-xl border bg-surface hover:bg-brand-wash/40 border-border hover:border-brand/40 text-ink-2 hover:text-brand transition-all flex items-center gap-1 shadow-soft-sm cursor-pointer"
                           >
                             <span>View Specs</span>
-                            <Icon name="chevronRight" size={11} />
+                            <Icon name="chevronRight" size={11} className="text-ink-muted group-hover/spec:text-brand transition-colors" />
                           </Link>
                           <button
                             type="button"
@@ -444,9 +446,9 @@ export default function HomePage() {
                               setSelectedJob(job);
                               setShowApplyModal(true);
                             }}
-                            className="px-3.5 py-1 rounded-xl text-xs font-bold bg-brand hover:bg-brand-dark text-white shadow-button transition-all"
+                            className="h-7 px-3 text-[11.5px] font-bold rounded-xl bg-brand hover:bg-brand-dark text-white border border-brand transition-all flex items-center gap-1 shadow-button cursor-pointer"
                           >
-                            Quick Apply
+                            <span>Quick Apply</span>
                           </button>
                         </div>
                       </div>

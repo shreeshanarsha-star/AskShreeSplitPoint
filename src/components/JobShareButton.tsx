@@ -26,7 +26,7 @@ export default function JobShareButton({
             setShowModal(true);
           }}
           title="Share to earn credits for AI CV consultation, ATS builder, and more"
-          className={`px-2.5 py-1 text-xs text-brand hover:text-brand-dark bg-brand-wash hover:bg-brand/25 border border-brand/30 rounded-xl font-bold flex items-center gap-1 transition-all shadow-soft-sm ${className}`}
+          className={`h-7 px-2.5 text-[11.5px] font-semibold rounded-xl border bg-surface hover:bg-brand-wash/40 border-border hover:border-brand/40 text-ink-2 hover:text-brand transition-all flex items-center gap-1 shadow-soft-sm cursor-pointer ${className}`}
         >
           <span>🎁 Share & Earn</span>
         </button>
