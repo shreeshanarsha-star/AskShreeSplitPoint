@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
 import TopbarStatus from "@/components/TopbarStatus";
@@ -46,11 +47,14 @@ const SUGGESTED_QUESTIONS = [
 ];
 
 export default function HomePage() {
+  const router = useRouter();
   const [jobs, setJobs] = useState<JobPosting[]>([]);
-  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedJob, setSelectedJob] = useState<JobPosting | null>(null);
   const [showApplyModal, setShowApplyModal] = useState(false);
-  const [rightPanelTab, setRightPanelTab] = useState<"chat" | "specs">("chat");
+  const chipsRef = useRef<HTMLDivElement | null>(null);
+  const ROLES_PER_PAGE = 3;
 
   // Shree AI Avatar & Conversational State
   const [messages, setMessages] = useState<Array<{ role: "assistant" | "user"; text: string }>>([
@@ -124,7 +128,17 @@ export default function HomePage() {
           const data = await res.json();
           const loadedJobs: JobPosting[] = data.jobs || [];
           setJobs(loadedJobs);
-          if (loadedJobs.length > 0) setSelectedJob(loadedJobs[0]);
+          if (loadedJobs.length > 0) {
+            let initialJob = loadedJobs[0];
+            if (typeof window !== "undefined") {
+              const p = new URLSearchParams(window.location.search).get("role");
+              if (p) {
+                const found = loadedJobs.find((j) => j.id === p);
+                if (found) initialJob = found;
+              }
+            }
+            setSelectedJob(initialJob);
+          }
         }
       } catch (err) {
         console.error("Failed to load jobs:", err);
@@ -160,7 +174,20 @@ export default function HomePage() {
     setMessages((prev) => [...prev, { role: "user", text: q }]);
     setInputQuery("");
     setIsThinking(true);
-    setRightPanelTab("chat");
+
+    // If query matches roles, filter the roles list and pre-select first match
+    const lowerQ = q.toLowerCase();
+    const matchedJobs = jobs.filter(
+      (j) =>
+        j.title.toLowerCase().includes(lowerQ) ||
+        (j.department && j.department.toLowerCase().includes(lowerQ)) ||
+        (j.location && j.location.toLowerCase().includes(lowerQ))
+    );
+    if (matchedJobs.length > 0) {
+      setRoleFilter(q);
+      setCurrentPage(1);
+      setSelectedJob(matchedJobs[0]);
+    }
 
     try {
       const res = await fetch("/api/public/ask-shree", {
@@ -225,16 +252,23 @@ export default function HomePage() {
   }
 
   const filteredJobs = useMemo(() => {
+    if (!roleFilter.trim()) return jobs;
+    const q = roleFilter.toLowerCase().trim();
     return jobs.filter((j) => {
-      const q = search.toLowerCase();
       return (
-        !q ||
         j.title.toLowerCase().includes(q) ||
         (j.department && j.department.toLowerCase().includes(q)) ||
-        (j.location && j.location.toLowerCase().includes(q))
+        (j.location && j.location.toLowerCase().includes(q)) ||
+        (j.description && j.description.toLowerCase().includes(q))
       );
     });
-  }, [jobs, search]);
+  }, [jobs, roleFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredJobs.length / ROLES_PER_PAGE));
+  const displayedJobs = filteredJobs.slice(
+    (currentPage - 1) * ROLES_PER_PAGE,
+    currentPage * ROLES_PER_PAGE
+  );
 
   return (
     <div className="min-h-screen bg-page text-ink flex flex-col selection:bg-brand-wash selection:text-brand">
@@ -257,55 +291,85 @@ export default function HomePage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* ================= LEFT PANEL: Job Postings List (6 Cols) ================= */}
           <div className="lg:col-span-6 space-y-3">
-            {/* Quick in-page filter */}
-            <div className="flex items-center gap-2.5 bg-surface border border-border rounded-xl px-3.5 py-2 shadow-soft-sm">
-              <Icon name="search" size={15} className="text-ink-muted" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Filter by title, skill, or location..."
-                className="bg-transparent border-none text-xs w-full focus:outline-none text-ink placeholder:text-ink-muted"
-              />
-              {search && (
-                <button onClick={() => setSearch("")} className="text-ink-muted hover:text-ink text-xs">
-                  ✕
-                </button>
-              )}
-            </div>
+            {/* Roles Header: Total count, active filter, & clickable pagination arrows (Zero scrollbars) */}
+            <div className="flex items-center justify-between text-xs px-1">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold uppercase tracking-wider text-[10.5px] text-ink-muted">
+                  {filteredJobs.length} {filteredJobs.length === 1 ? "Role" : "Roles"} Available
+                </span>
+                {roleFilter && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-brand-wash text-brand border border-brand/20 font-medium">
+                    <span>Filter: &quot;{roleFilter}&quot;</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRoleFilter("");
+                        setCurrentPage(1);
+                      }}
+                      className="hover:text-brand-dark ml-0.5"
+                      title="Clear filter"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                )}
+              </div>
 
-            <div className="flex items-center justify-between text-xs text-ink-muted px-1">
-              <span className="font-semibold uppercase tracking-wider text-[10.5px]">
-                {filteredJobs.length} {filteredJobs.length === 1 ? "Role" : "Roles"} Available
-              </span>
-              <span className="text-[11px] text-ink-muted">Click any role to consult Shree</span>
+              {/* Clickable Pagination Arrows */}
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1.5 text-xs">
+                  <span className="text-[11px] text-ink-muted">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    aria-label="Previous roles page"
+                    className="w-6 h-6 rounded-lg border border-border bg-surface text-ink-muted hover:text-brand hover:border-brand/40 flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none transition-all shadow-soft-sm text-sm"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    aria-label="Next roles page"
+                    className="w-6 h-6 rounded-lg border border-border bg-surface text-ink-muted hover:text-brand hover:border-brand/40 flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none transition-all shadow-soft-sm text-sm"
+                  >
+                    ›
+                  </button>
+                </div>
+              )}
             </div>
 
             {filteredJobs.length === 0 ? (
               <div className="p-8 text-center text-xs text-ink-muted border border-dashed border-border rounded-2xl bg-surface">
-                No roles currently match &quot;{search}&quot;. Try clearing your search filter.
+                No open roles match &quot;{roleFilter}&quot;. Use the global search bar below Shree to discover roles or clear your filter.
               </div>
             ) : (
-              <div className="space-y-3 max-h-[calc(100vh-170px)] min-h-[580px] overflow-y-auto pr-1">
-                {filteredJobs.map((job) => {
+              <div className="space-y-3">
+                {displayedJobs.map((job) => {
                   const isSelected = selectedJob?.id === job.id;
                   return (
                     <div
                       key={job.id}
-                      onClick={() => handleSelectJob(job)}
-                      className={`cursor-pointer p-4 rounded-2xl border transition-all ${
+                      onClick={() => router.push(`/jobs/${job.id}`)}
+                      className={`group cursor-pointer p-4 rounded-2xl border transition-all ${
                         isSelected
                           ? "bg-surface border-brand shadow-soft ring-1 ring-brand/30"
-                          : "bg-surface border-border hover:border-brand/40 shadow-soft-sm"
+                          : "bg-surface border-border hover:border-brand/40 shadow-soft-sm hover:shadow-soft"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <div className="flex items-center gap-2">
-                            <h3 className="font-bold text-sm text-ink">{job.title}</h3>
+                            <h3 className="font-bold text-sm text-ink group-hover:text-brand transition-colors">
+                              {job.title}
+                            </h3>
                             {isSelected && (
                               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-wash text-brand border border-brand/20">
-                                Active
+                                Active Context
                               </span>
                             )}
                           </div>
@@ -327,22 +391,29 @@ export default function HomePage() {
                       )}
 
                       <div className="mt-3 flex items-center justify-between text-xs pt-2.5 border-t border-border">
-                        <span className="text-[11px] text-ink-muted flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          <span>Fast Track AI Screen</span>
-                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectJob(job);
+                          }}
+                          className={`text-[11.5px] font-semibold flex items-center gap-1.5 transition-colors ${
+                            isSelected ? "text-brand" : "text-ink-muted hover:text-brand"
+                          }`}
+                          title="Set active context in Shree AI studio"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span>💬 Consult Shree</span>
+                        </button>
                         <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedJob(job);
-                              setRightPanelTab("specs");
-                            }}
-                            className="px-2.5 py-1 text-xs text-ink-muted hover:text-ink font-medium"
+                          <Link
+                            href={`/jobs/${job.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="px-2.5 py-1 text-xs text-ink-muted hover:text-brand font-semibold flex items-center gap-1 transition-colors"
                           >
-                            View Specs
-                          </button>
+                            <span>View Specs</span>
+                            <Icon name="chevronRight" size={11} />
+                          </Link>
                           <button
                             type="button"
                             onClick={(e) => {
@@ -359,11 +430,38 @@ export default function HomePage() {
                     </div>
                   );
                 })}
+
+                {/* Bottom Pagination Bar (Zero scrollbars) */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between text-xs pt-2 px-1 text-ink-muted">
+                    <span className="text-[11px]">
+                      Showing {(currentPage - 1) * ROLES_PER_PAGE + 1}–{Math.min(currentPage * ROLES_PER_PAGE, filteredJobs.length)} of {filteredJobs.length} roles
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="px-2 py-1 rounded-lg border border-border bg-surface text-xs text-ink-muted hover:text-brand hover:border-brand/40 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                      >
+                        <span>‹</span> Previous
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-2 py-1 rounded-lg border border-border bg-surface text-xs text-ink-muted hover:text-brand hover:border-brand/40 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                      >
+                        Next <span>›</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
-          {/* ================= RIGHT PANEL: Shree AI Avatar Candidate Studio (6 Cols) ================= */}
+          {/* ================= RIGHT PANEL: Shree AI Conversational Studio (6 Cols) ================= */}
           <div className="lg:col-span-6 bg-surface border border-border rounded-2xl shadow-soft overflow-hidden flex flex-col h-[calc(100vh-170px)] min-h-[580px] sticky top-20">
             {/* Top Avatar Visual & Audio Header */}
             <div className="bg-gradient-to-b from-brand-wash/70 via-surface to-surface border-b border-border p-4 relative flex items-center justify-between">
@@ -423,87 +521,85 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Context Pill & Tabs Header */}
+            {/* Context Sub-Header with Specs Link & Quick Apply */}
             <div className="px-4 py-2 border-b border-border bg-page/50 flex items-center justify-between text-xs">
               <div className="flex items-center gap-1.5 truncate max-w-[65%]">
                 <span className="text-ink-muted text-[11px]">Context:</span>
                 {selectedJob ? (
                   <span className="font-semibold text-ink truncate text-[11.5px]">
-                    {selectedJob.title} ({selectedJob.salary_range || selectedJob.location})
+                    {selectedJob.title} {selectedJob.salary_range ? `• ${selectedJob.salary_range}` : ""}
                   </span>
                 ) : (
                   <span className="text-ink-muted italic text-[11px]">All Open Roles</span>
                 )}
               </div>
 
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setRightPanelTab("chat")}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-                    rightPanelTab === "chat"
-                      ? "bg-surface text-brand shadow-soft-sm border border-border"
-                      : "text-ink-muted hover:text-ink"
-                  }`}
-                >
-                  AI Chat
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRightPanelTab("specs")}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-                    rightPanelTab === "specs"
-                      ? "bg-surface text-brand shadow-soft-sm border border-border"
-                      : "text-ink-muted hover:text-ink"
-                  }`}
-                >
-                  Role Specs
-                </button>
+              <div className="flex items-center gap-2">
                 {selectedJob && (
-                  <button
-                    type="button"
-                    onClick={() => setShowApplyModal(true)}
-                    className="ml-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-brand hover:bg-brand-dark text-white shadow-button transition-all"
-                  >
-                    Quick Apply
-                  </button>
+                  <>
+                    <Link
+                      href={`/jobs/${selectedJob.id}`}
+                      className="text-xs font-semibold text-brand hover:underline flex items-center gap-0.5"
+                    >
+                      <span>View Specs</span>
+                      <Icon name="chevronRight" size={11} />
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setShowApplyModal(true)}
+                      className="px-2.5 py-1 rounded-lg text-xs font-bold bg-brand hover:bg-brand-dark text-white shadow-button transition-all"
+                    >
+                      Quick Apply
+                    </button>
+                  </>
                 )}
               </div>
             </div>
 
-            {/* Panel Body: Chat or Role Specs */}
-            {rightPanelTab === "chat" ? (
-              <div className="flex-1 flex flex-col overflow-hidden bg-page">
-                {/* Chat Messages Transcript */}
-                <div className="flex-1 p-4 overflow-y-auto space-y-3 text-xs min-h-0">
-                  {messages.map((m, i) => (
+            {/* Conversational Studio Body */}
+            <div className="flex-1 flex flex-col overflow-hidden bg-page">
+              {/* Chat Messages Transcript */}
+              <div className="flex-1 p-4 overflow-y-auto space-y-3 text-xs min-h-0">
+                {messages.map((m, i) => (
+                  <div
+                    key={i}
+                    className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+                  >
                     <div
-                      key={i}
-                      className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+                      className={`max-w-[85%] rounded-2xl px-4 py-2.5 leading-relaxed text-[12.5px] ${
+                        m.role === "user"
+                          ? "bg-brand text-white rounded-br-xs shadow-soft-sm"
+                          : "bg-surface border border-border text-ink rounded-bl-xs shadow-soft-sm"
+                      }`}
                     >
-                      <div
-                        className={`max-w-[85%] rounded-2xl px-4 py-2.5 leading-relaxed text-[12.5px] ${
-                          m.role === "user"
-                            ? "bg-brand text-white rounded-br-xs shadow-soft-sm"
-                            : "bg-surface border border-border text-ink rounded-bl-xs shadow-soft-sm"
-                        }`}
-                      >
-                        {m.text}
-                      </div>
+                      {m.text}
                     </div>
-                  ))}
+                  </div>
+                ))}
 
-                  {isThinking && (
-                    <div className="flex items-center gap-2 text-xs text-ink-muted italic pl-2 py-1">
-                      <span className="w-2 h-2 rounded-full bg-brand animate-ping" />
-                      <span>Shree is thinking...</span>
-                    </div>
-                  )}
-                  <div ref={messagesEndRef} />
-                </div>
+                {isThinking && (
+                  <div className="flex items-center gap-2 text-xs text-ink-muted italic pl-2 py-1">
+                    <span className="w-2 h-2 rounded-full bg-brand animate-ping" />
+                    <span>Shree is thinking...</span>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
 
-                {/* Suggested Quick Prompt Chips */}
-                <div className="px-3 py-2 bg-surface border-t border-border flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+              {/* Suggested Quick Prompt Chips with Clickable Navigation Arrows (Zero scrollbars) */}
+              <div className="px-2 py-2 bg-surface border-t border-border flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => chipsRef.current?.scrollBy({ left: -180, behavior: "smooth" })}
+                  aria-label="Scroll suggested questions left"
+                  className="w-6 h-6 rounded-lg border border-border bg-page text-ink-muted hover:text-brand hover:border-brand/40 flex items-center justify-center flex-shrink-0 text-xs shadow-soft-sm transition-all"
+                >
+                  ‹
+                </button>
+                <div
+                  ref={chipsRef}
+                  className="flex-1 flex items-center gap-1.5 overflow-x-auto scrollbar-none"
+                >
                   {SUGGESTED_QUESTIONS.map((promptText) => (
                     <button
                       key={promptText}
@@ -516,131 +612,61 @@ export default function HomePage() {
                     </button>
                   ))}
                 </div>
-
-                {/* Global Search Bar Capsule (Wired to Shree AI Avatar) */}
-                <div className="p-3 border-t border-border bg-surface">
-                  <form
-                    onSubmit={handleSendQuery}
-                    className="w-full bg-page border border-border rounded-full shadow-search flex items-center px-3.5 py-1.5 gap-2.5 transition-all focus-within:border-brand focus-within:shadow-search-focus"
-                  >
-                    <Icon name="search" className="w-[16px] h-[16px] text-ink-muted flex-shrink-0" />
-                    <input
-                      type="text"
-                      value={inputQuery}
-                      onChange={(e) => setInputQuery(e.target.value)}
-                      placeholder={
-                        selectedJob
-                          ? `Ask Shree about ${selectedJob.title}, culture, rubrics...`
-                          : "Ask Shree about open roles, benefits, culture, or rubrics..."
-                      }
-                      className="flex-1 bg-transparent border-none outline-none text-ink text-xs placeholder:text-ink-muted leading-tight"
-                    />
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <button
-                        type="button"
-                        onClick={toggleMic}
-                        aria-label="Ask Shree with your voice"
-                        title={listening ? "Listening... (click to stop)" : "Dictate your question"}
-                        className={`w-7 h-7 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors ${
-                          listening
-                            ? "border-brand/40 bg-brand-wash text-brand animate-pulse"
-                            : "border-border bg-surface text-ink-muted hover:border-border-strong hover:text-brand"
-                        }`}
-                      >
-                        <Icon name="mic" className="w-[13px] h-[13px]" />
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={!inputQuery.trim() || isThinking}
-                        aria-label="Send message to Shree"
-                        title="Ask Shree"
-                        className="w-7 h-7 rounded-full bg-[radial-gradient(circle_at_35%_30%,var(--accent-btn-1),var(--accent-btn-2))] text-white border-none flex items-center justify-center flex-shrink-0 shadow-button hover:brightness-110 transition-all disabled:opacity-40"
-                      >
-                        <Icon name="arrowUp" className="w-[13px] h-[13px]" />
-                      </button>
-                    </div>
-                  </form>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => chipsRef.current?.scrollBy({ left: 180, behavior: "smooth" })}
+                  aria-label="Scroll suggested questions right"
+                  className="w-6 h-6 rounded-lg border border-border bg-page text-ink-muted hover:text-brand hover:border-brand/40 flex items-center justify-center flex-shrink-0 text-xs shadow-soft-sm transition-all"
+                >
+                  ›
+                </button>
               </div>
-            ) : (
-              /* Role Specs Tab */
-              <div className="flex-1 p-6 overflow-y-auto space-y-5 bg-surface text-xs leading-relaxed text-ink-2">
-                {selectedJob ? (
-                  <>
-                    <div className="pb-4 border-b border-border flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className="text-base font-bold text-ink font-display">
-                          {selectedJob.title}
-                        </h3>
-                        <p className="text-xs text-ink-muted mt-0.5">
-                          {selectedJob.department || "Engineering"} • {selectedJob.location || "Remote"} • {selectedJob.type || "Full-Time"}
-                        </p>
-                      </div>
-                      {selectedJob.salary_range && (
-                        <span className="text-xs font-bold text-good-text bg-good-wash border border-good/20 px-3 py-1 rounded-full">
-                          {selectedJob.salary_range}
-                        </span>
-                      )}
-                    </div>
 
-                    <div>
-                      <h4 className="text-xs font-bold text-ink font-display mb-1 uppercase tracking-wider">
-                        Role Overview
-                      </h4>
-                      <p className="text-ink-muted">
-                        {selectedJob.description ||
-                          "Join our mission-driven team to architect and scale autonomous talent workflows. You will work directly with modern TypeScript, distributed systems, and real-time AI agents."}
-                      </p>
-                    </div>
-
-                    <div>
-                      <h4 className="text-xs font-bold text-ink font-display mb-1 uppercase tracking-wider">
-                        Key Responsibilities
-                      </h4>
-                      <ul className="list-disc pl-5 space-y-1 text-ink-muted">
-                        <li>Design and deliver production-grade microservices and interfaces.</li>
-                        <li>Collaborate cross-functionally with recruiters, founders, and hiring managers.</li>
-                        <li>Ensure sub-second response times, resilient data sync, and high security.</li>
-                        <li>Mentor peers and champion code craft, unit testing, and design systems.</li>
-                      </ul>
-                    </div>
-
-                    <div>
-                      <h4 className="text-xs font-bold text-ink font-display mb-1 uppercase tracking-wider">
-                        Candidate Benefits
-                      </h4>
-                      <ul className="list-disc pl-5 space-y-1 text-ink-muted">
-                        <li>Competitive market compensation with transparent pay bands.</li>
-                        <li>Remote-first flexibility with modern equipment allowance.</li>
-                        <li>Comprehensive health insurance for you and your family.</li>
-                        <li>60-second transparent application review with guaranteed feedback.</li>
-                      </ul>
-                    </div>
-
-                    <div className="pt-3 border-t border-border flex items-center justify-between">
-                      <button
-                        type="button"
-                        onClick={() => setRightPanelTab("chat")}
-                        className="text-brand font-semibold text-xs hover:underline"
-                      >
-                        ← Ask Shree questions about this role
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowApplyModal(true)}
-                        className="px-4 py-2 rounded-xl text-xs font-bold bg-brand hover:bg-brand-dark text-white shadow-button transition-all"
-                      >
-                        Quick Apply Now
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="py-20 text-center text-xs text-ink-muted">
-                    Select a role on the left to view detailed responsibilities and compensation.
+              {/* Global Search Bar Capsule (Wired to Shree AI Avatar) */}
+              <div className="p-3 border-t border-border bg-surface">
+                <form
+                  onSubmit={handleSendQuery}
+                  className="w-full bg-page border border-border rounded-full shadow-search flex items-center px-3.5 py-1.5 gap-2.5 transition-all focus-within:border-brand focus-within:shadow-search-focus"
+                >
+                  <Icon name="search" className="w-[16px] h-[16px] text-ink-muted flex-shrink-0" />
+                  <input
+                    type="text"
+                    value={inputQuery}
+                    onChange={(e) => setInputQuery(e.target.value)}
+                    placeholder={
+                      selectedJob
+                        ? `Ask Shree about ${selectedJob.title}, culture, rubrics...`
+                        : "Ask Shree about open roles, benefits, culture, or rubrics..."
+                    }
+                    className="flex-1 bg-transparent border-none outline-none text-ink text-xs placeholder:text-ink-muted leading-tight"
+                  />
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={toggleMic}
+                      aria-label="Ask Shree with your voice"
+                      title={listening ? "Listening... (click to stop)" : "Dictate your question"}
+                      className={`w-7 h-7 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors ${
+                        listening
+                          ? "border-brand/40 bg-brand-wash text-brand animate-pulse"
+                          : "border-border bg-surface text-ink-muted hover:border-border-strong hover:text-brand"
+                      }`}
+                    >
+                      <Icon name="mic" className="w-[13px] h-[13px]" />
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!inputQuery.trim() || isThinking}
+                      aria-label="Send message to Shree"
+                      title="Ask Shree"
+                      className="w-7 h-7 rounded-full bg-[radial-gradient(circle_at_35%_30%,var(--accent-btn-1),var(--accent-btn-2))] text-white border-none flex items-center justify-center flex-shrink-0 shadow-button hover:brightness-110 transition-all disabled:opacity-40"
+                    >
+                      <Icon name="arrowUp" className="w-[13px] h-[13px]" />
+                    </button>
                   </div>
-                )}
+                </form>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </main>

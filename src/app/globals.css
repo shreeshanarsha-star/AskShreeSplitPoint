@@ -210,6 +210,18 @@ body {
   transition: background 0.25s ease;
 }
 
+/* Zero Scrollbars Thumbrule: No visible scrollbars anywhere on the platform */
 * {
   box-sizing: border-box;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+*::-webkit-scrollbar,
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+  width: 0px;
+  height: 0px;
+  background: transparent;
 }

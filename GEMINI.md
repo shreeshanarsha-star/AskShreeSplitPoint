@@ -30,3 +30,8 @@
 - Every change must strictly typecheck with zero errors (`npx tsc --noEmit`) and build cleanly (`npm run build`).
 - Live production deployments to `https://www.askshree.com/` must be verified using Chrome DevTools MCP.
 
+### 5. Zero Scrollbars Thumbrule (Non-Negotiable)
+- **Thumbrule**: There will be **no scroll bars in the site, now and in future**.
+- **Execution**: Eliminate all browser and container scrollbars across all pages, modals, tables, and views (enforcing `scrollbar-none`, `scrollbar-width: none`, and `::-webkit-scrollbar { display: none; }` globally).
+- **Clickable Navigation**: Instead of scrolling containers, implement **clickable arrows** (`‹` / `›`, `▲` / `▼`, or `Previous` / `Next` paging buttons) wherever navigation through overflow content is required.
+
