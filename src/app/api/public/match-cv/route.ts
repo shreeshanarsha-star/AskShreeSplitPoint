@@ -19,6 +19,19 @@ interface AiMatchPayload {
   matches: MatchResult[];
 }
 
+const COMMON_SKILLS = [
+  "TypeScript", "JavaScript", "React", "Next.js", "Node.js", "Python", "Go", "Java", "C++",
+  "SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis", "Supabase", "AWS", "GCP", "Azure", "Docker",
+  "Kubernetes", "Microservices", "REST APIs", "GraphQL", "CI/CD", "Git", "Tailwind CSS",
+  "Customer Success", "Account Management", "Retention", "Renewals", "Onboarding", "NPS", "CSAT",
+  "Enterprise Sales", "B2B Sales", "Lead Generation", "CRM", "Salesforce", "HubSpot", "Negotiation",
+  "Digital Marketing", "SEO", "SEM", "Google Ads", "Content Strategy", "Social Media", "Campaigns",
+  "Talent Acquisition", "Recruiting", "Sourcing", "HR", "People Operations", "Interviewing",
+  "Contracts", "Compliance", "Legal Risk", "Corporate Governance", "Drafting", "Regulatory",
+  "Finance", "Budgeting", "Forecasting", "Financial Modeling", "Accounting", "Excel",
+  "Product Management", "Roadmapping", "Agile", "Scrum", "User Research", "Wireframing"
+];
+
 export async function POST(req: Request) {
   try {
     let fileName = "resume.pdf";
@@ -76,8 +89,35 @@ export async function POST(req: Request) {
       );
     }
 
-    // 2. Parse candidate structured profile
+    // 2. Parse candidate structured profile (AI + Resilient Heuristics)
     const candidate = await parseCandidateProfile(resumeText);
+
+    const lowerResume = resumeText.toLowerCase();
+    const extractedSkills = COMMON_SKILLS.filter((s) => lowerResume.includes(s.toLowerCase()));
+
+    if (candidate.skills.length === 0 && extractedSkills.length > 0) {
+      candidate.skills = extractedSkills;
+    }
+
+    if (candidate.name === "Unknown" || !candidate.name) {
+      const lines = resumeText.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+      for (const line of lines.slice(0, 5)) {
+        if (!line.includes("@") && !line.includes("http") && !line.includes(":") && line.length > 2 && line.length < 40) {
+          candidate.name = line;
+          break;
+        }
+      }
+    }
+
+    if (!candidate.email) {
+      const emailMatch = resumeText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+      if (emailMatch) candidate.email = emailMatch[0];
+    }
+
+    if (!candidate.phone) {
+      const phoneMatch = resumeText.match(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
+      if (phoneMatch) candidate.phone = phoneMatch[0];
+    }
 
     // 3. Fetch active requisitions
     const admin = createAdminClient();
@@ -182,35 +222,47 @@ Instructions:
       console.warn("AI matching failed, falling back to heuristic matching:", aiErr);
 
       // Heuristic fallback matching
-      const candSkills = candidate.skills.map((s) => s.toLowerCase());
       const lowerText = resumeText.toLowerCase();
 
       const matchedList: MatchResult[] = [];
       for (const job of activeJobs) {
-        const titleWords = job.title.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3);
+        const titleLower = job.title.toLowerCase();
+        const titleWords = titleLower.split(/\s+/).filter((w: string) => w.length > 3);
         const descWords = job.description.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3);
         const combined = [...new Set([...titleWords, ...descWords])];
 
-        const matchedSkills = candSkills.filter((s: string) => combined.some((w: string) => s.includes(w) || w.includes(s)));
-        const titleMatch = titleWords.some((w: string) => lowerText.includes(w));
+        const matchedSkills = candidate.skills.filter((s) => {
+          const sLower = s.toLowerCase();
+          return combined.some((w: string) => sLower.includes(w) || w.includes(sLower));
+        });
+
+        const titleMatch = titleWords.some((w: string) => lowerText.includes(w)) || lowerText.includes(titleLower);
 
         let score = 0;
-        if (titleMatch) score += 40;
-        score += Math.min(45, matchedSkills.length * 15);
+        if (titleMatch) score += 55;
+        score += Math.min(40, matchedSkills.length * 15);
+
+        // Department / domain affinity
+        if (titleLower.includes("engineer") && (lowerText.includes("engineer") || lowerText.includes("developer"))) {
+          if (!titleMatch) score += 30;
+        }
+        if (titleLower.includes("success") && lowerText.includes("customer")) {
+          if (!titleMatch) score += 40;
+        }
 
         if (score >= 50) {
           matchedList.push({
             jobId: job.id,
-            matchScore: score,
-            matchedSkills: matchedSkills.length ? matchedSkills : candidate.skills.slice(0, 3),
+            matchScore: Math.min(96, score),
+            matchedSkills: matchedSkills.length ? matchedSkills : candidate.skills.slice(0, 4),
             missingSkills: [],
-            reason: `Your experience aligns well with the requirements for ${job.title}.`,
+            reason: `Your verified experience in ${matchedSkills.slice(0, 3).join(", ") || candidate.skills.slice(0, 3).join(", ") || "this domain"} is a strong fit for the ${job.title} role.`,
           });
         }
       }
 
       aiPayload = {
-        summary: `I analyzed your profile highlighting competencies in ${candidate.skills.slice(0, 4).join(", ") || "software development"}.`,
+        summary: `I analyzed your profile highlighting competencies in ${candidate.skills.slice(0, 4).join(", ") || "your field"}.`,
         matches: matchedList.sort((a, b) => b.matchScore - a.matchScore),
       };
     }
