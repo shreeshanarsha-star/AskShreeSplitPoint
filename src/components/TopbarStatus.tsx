@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Icon from "./Icon";
+import Avatar from "./Avatar";
 import { VScroller } from "./Scroller";
 import ThemeSwitcher from "./ThemeSwitcher";
 import WaffleMenu from "./WaffleMenu";
@@ -58,6 +60,13 @@ export default function TopbarStatus() {
   const [themeOpen, setThemeOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [firstName, setFirstName] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [fullName, setFullName] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [settingsHref, setSettingsHref] = useState<string | null>(null);
+  const [authLoaded, setAuthLoaded] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   // Live clock -- updates every 30s, which is plenty for a "day/date/time"
   // readout that isn't a stopwatch.
@@ -67,21 +76,29 @@ export default function TopbarStatus() {
     return () => clearInterval(t);
   }, []);
 
-  // Signed-in user's first name -- lets the greeting read "Good
-  // afternoon, Shree" instead of a bare "Good afternoon". Silent no-op
-  // for signed-out visitors (greeting still shows, just without a name).
+  // Signed-in user identity
   useEffect(() => {
     let cancelled = false;
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data }) => {
+      if (cancelled) return;
+      setAuthLoaded(true);
       const user = data.user;
-      if (!user) return;
+      if (!user) {
+        setUserEmail(null);
+        return;
+      }
+      setUserEmail(user.email ?? null);
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name")
+        .select("is_admin, org_role, full_name, avatar_url")
         .eq("id", user.id)
         .maybeSingle();
       if (cancelled) return;
+      if (profile?.is_admin) setSettingsHref("/admin");
+      else if (profile?.org_role === "org_admin") setSettingsHref("/org/settings");
+      setFullName(profile?.full_name ?? null);
+      setAvatarUrl(profile?.avatar_url ?? null);
       const label = profile?.full_name || user.email?.split("@")[0] || null;
       setFirstName(label ? label.split(" ")[0] : null);
     });
@@ -169,6 +186,18 @@ export default function TopbarStatus() {
     }
     setNotifOpen(false);
     if (n.link) router.push(n.link);
+  }
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error("Sign out error:", err);
+    } finally {
+      window.location.href = "/login";
+    }
   }
 
   const dateStr = now
@@ -325,6 +354,86 @@ export default function TopbarStatus() {
       </div>
 
       <WaffleMenu />
+
+      {/* User Auth Pill / Dropdown */}
+      {authLoaded && (
+        <div className="relative">
+          {!userEmail ? (
+            <Link
+              href="/login"
+              className="text-[11.5px] font-bold text-brand hover:text-brand-dark px-2.5 py-1 rounded-full bg-brand-wash border border-brand/20 transition-all flex items-center gap-1 shadow-soft-sm whitespace-nowrap"
+            >
+              <span>Sign in</span>
+            </Link>
+          ) : (
+            <>
+              <button
+                type="button"
+                aria-label="User profile menu"
+                onClick={() => setUserMenuOpen((v) => !v)}
+                className="w-7 h-7 rounded-full flex items-center justify-center transition-transform hover:scale-105 flex-shrink-0"
+              >
+                <Avatar
+                  name={fullName}
+                  email={userEmail}
+                  avatarUrl={avatarUrl}
+                  size={26}
+                  className="shadow-emblem"
+                />
+              </button>
+              {userMenuOpen && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Close user menu"
+                    onClick={() => setUserMenuOpen(false)}
+                    className="fixed inset-0 z-10 cursor-default"
+                  />
+                  <div className="absolute right-0 top-[calc(100%+8px)] w-56 bg-surface border border-border rounded-xl shadow-soft z-20 p-3 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="border-b border-border/70 pb-2">
+                      <div className="text-[12px] font-bold text-ink truncate">
+                        {fullName || userEmail}
+                      </div>
+                      <div className="text-[10.5px] text-ink-muted truncate">
+                        {userEmail}
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1 text-[11.5px]">
+                      <Link
+                        href="/recruiter"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="px-2 py-1.5 rounded-lg hover:bg-page text-ink flex items-center gap-2 font-medium transition-colors"
+                      >
+                        <Icon name="briefcase" className="w-3.5 h-3.5 text-brand" />
+                        <span>Recruiter Cockpit</span>
+                      </Link>
+                      {settingsHref && (
+                        <Link
+                          href={settingsHref}
+                          onClick={() => setUserMenuOpen(false)}
+                          className="px-2 py-1.5 rounded-lg hover:bg-page text-ink flex items-center gap-2 font-medium transition-colors"
+                        >
+                          <Icon name="gear" className="w-3.5 h-3.5 text-ink-muted" />
+                          <span>Settings</span>
+                        </Link>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleSignOut}
+                        disabled={signingOut}
+                        className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-page text-critical flex items-center gap-2 font-medium transition-colors disabled:opacity-50"
+                      >
+                        <Icon name="logout" className="w-3.5 h-3.5 text-critical" />
+                        <span>Sign out</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

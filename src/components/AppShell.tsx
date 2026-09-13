@@ -18,21 +18,29 @@ export default function AppShell({
    *   department pages, admin, etc). Sidebar starts collapsed and stays
    *   a drawer at every screen size, including desktop, so the tool gets
    *   full width; reopen via the hamburger in Topbar.
-   * "home" -- the Overview page only. Classic layout: full sidebar
-   *   always visible in-flow on desktop, drawer only below the lg
-   *   breakpoint (phones/tablets).
+   * "home" -- classic layout: full sidebar always visible in-flow on desktop.
+   * "none" -- no sidebar; all systems and departments are accessed exclusively
+   *   via the 9-dot grid launcher in Topbar.
    */
-  sidebarMode?: "tool" | "home";
+  sidebarMode?: "tool" | "home" | "none";
 }) {
   const [navOpen, setNavOpen] = useState(false);
   const alwaysDrawer = sidebarMode === "tool";
+  const showSidebar = sidebarMode !== "none";
 
   return (
     <ToolHomeProvider>
       <div className="flex w-full h-screen lg:h-screen p-2 sm:p-4 gap-2 sm:gap-4 overflow-hidden">
-        <Sidebar open={navOpen} onClose={() => setNavOpen(false)} alwaysDrawer={alwaysDrawer} />
+        {showSidebar && (
+          <Sidebar open={navOpen} onClose={() => setNavOpen(false)} alwaysDrawer={alwaysDrawer} />
+        )}
         <div className="flex-1 min-w-0 flex flex-col bg-surface rounded-[20px] sm:rounded-[28px] shadow-soft overflow-hidden">
-          <Topbar title={title} onMenuClick={() => setNavOpen(true)} alwaysShowMenu={alwaysDrawer} />
+          <Topbar
+            title={title}
+            onMenuClick={() => setNavOpen(true)}
+            alwaysShowMenu={alwaysDrawer}
+            showMenuButton={showSidebar}
+          />
           <main className="flex-1 min-h-0 flex flex-col max-w-[1180px] w-full mx-auto">
             <VScroller className="flex-1 min-h-0" trackClassName="h-full p-4 sm:p-[26px] flex flex-col">
               {children}

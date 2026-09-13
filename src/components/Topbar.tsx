@@ -9,6 +9,7 @@ export default function Topbar({
   title,
   onMenuClick,
   alwaysShowMenu = false,
+  showMenuButton = true,
 }: {
   title: string;
   onMenuClick?: () => void;
@@ -16,19 +17,22 @@ export default function Topbar({
    *  breakpoint -- so the hamburger has to stay visible on desktop too,
    *  not just hide below lg like it does on the Home page. */
   alwaysShowMenu?: boolean;
+  showMenuButton?: boolean;
 }) {
   const toolHome = useToolHomeHandler();
 
   return (
     <header className="flex-shrink-0 bg-surface px-4 sm:px-[26px] py-3 flex items-center gap-2">
-      <button
-        type="button"
-        aria-label="Open menu"
-        onClick={onMenuClick}
-        className={`${alwaysShowMenu ? "" : "lg:hidden"} w-8 h-8 rounded-full border border-border bg-surface flex items-center justify-center text-ink-2 flex-shrink-0`}
-      >
-        <Icon name="menu" className="w-[16px] h-[16px]" />
-      </button>
+      {showMenuButton && (
+        <button
+          type="button"
+          aria-label="Open menu"
+          onClick={onMenuClick}
+          className={`${alwaysShowMenu ? "" : "lg:hidden"} w-8 h-8 rounded-full border border-border bg-surface flex items-center justify-center text-ink-2 flex-shrink-0`}
+        >
+          <Icon name="menu" className="w-[16px] h-[16px]" />
+        </button>
+      )}
       <Link
         href="/"
         aria-label="Home"

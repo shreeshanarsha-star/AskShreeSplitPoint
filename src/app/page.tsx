@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export default async function OverviewPage() {
   return (
-    <AppShell title="Shree AI Worker" sidebarMode="home">
+    <AppShell title="Shree AI Worker" sidebarMode="none">
       <div
         className="flex-1 flex flex-col min-h-0 relative -mx-[26px] -mb-[26px] overflow-hidden"
         id="overviewView"

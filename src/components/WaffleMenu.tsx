@@ -4,13 +4,13 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Icon from "./Icon";
 
-type ToolCategory = "all" | "talent" | "legal_ops" | "productivity" | "enterprise";
+type ToolCategory = "all" | "departments" | "talent" | "legal_ops" | "productivity" | "enterprise";
 
 type ToolItem = {
   name: string;
   desc: string;
   href: string;
-  category: "talent" | "legal_ops" | "productivity" | "enterprise";
+  category: "departments" | "talent" | "legal_ops" | "productivity" | "enterprise";
   icon: string;
   badge?: string;
   color: string;
@@ -18,6 +18,53 @@ type ToolItem = {
 };
 
 const ALL_WAFFLE_TOOLS: ToolItem[] = [
+  // AI SYSTEMS & WORKSPACES — BY DEPARTMENT (Moved from Sidebar)
+  {
+    name: "Human Resources & Talent",
+    desc: "Autonomous AI sourcing, screening, interviews, offers, & requisitions",
+    href: "/departments/hr",
+    category: "departments",
+    icon: "users",
+    badge: "Department",
+    color: "bg-brand-wash text-brand border-brand/30",
+  },
+  {
+    name: "Legal & Compliance",
+    desc: "Contract review, offer agreements, & cryptographic eSign",
+    href: "/departments/legal",
+    category: "departments",
+    icon: "scale",
+    badge: "Department",
+    color: "bg-slate-100 text-slate-900 border-slate-300 dark:bg-slate-800 dark:text-slate-200",
+  },
+  {
+    name: "IT & Communication",
+    desc: "Real-time team messaging & organizational channels",
+    href: "/departments/it",
+    category: "departments",
+    icon: "database",
+    badge: "Department",
+    color: "bg-sky-100 text-sky-900 border-sky-300 dark:bg-sky-950/50 dark:text-sky-300",
+  },
+  {
+    name: "Customer Success & Support",
+    desc: "Autonomous support triage & Gauri.ai specialized copilot",
+    href: "/departments/support",
+    category: "departments",
+    icon: "headset",
+    badge: "Department",
+    color: "bg-lime-100 text-lime-900 border-lime-300 dark:bg-lime-950/50 dark:text-lime-300",
+  },
+  {
+    name: "Personal Tools",
+    desc: "Everyday workspace: Calculator, Notes, To-Do, & Calendar",
+    href: "/departments/widgets",
+    category: "departments",
+    icon: "grid",
+    badge: "Personal",
+    color: "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300",
+  },
+
   // TALENT & RECRUITMENT
   {
     name: "Shree AI Worker",
@@ -346,13 +393,13 @@ export default function WaffleMenu() {
           <div className="flex items-center justify-between pb-3 border-b border-border/70">
             <div>
               <div className="text-[13px] font-bold text-ink flex items-center gap-1.5 font-display">
-                <span>AskShree All-Tools Grid</span>
+                <span>AskShree Systems Grid</span>
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-wash text-brand border border-brand/20">
                   {ALL_WAFFLE_TOOLS.length} Systems
                 </span>
               </div>
               <p className="text-[11px] text-ink-muted mt-0.5">
-                Talent OS, Productivity &amp; SimpleNow Enterprise
+                Simpler ways. Smarter work. • Full Platform Directory
               </p>
             </div>
             <button
@@ -377,7 +424,7 @@ export default function WaffleMenu() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search all 29 tools & apps..."
+                placeholder={`Search all ${ALL_WAFFLE_TOOLS.length} systems, departments & tools...`}
                 className="w-full text-xs pl-8 pr-3 py-1.5 bg-page border border-border rounded-xl text-ink placeholder:text-ink-muted focus:border-brand focus:outline-none"
               />
               {search && (
@@ -402,6 +449,16 @@ export default function WaffleMenu() {
               }`}
             >
               All ({ALL_WAFFLE_TOOLS.length})
+            </button>
+            <button
+              onClick={() => setActiveCategory("departments")}
+              className={`px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition-colors ${
+                activeCategory === "departments"
+                  ? "bg-brand text-white shadow-soft-sm"
+                  : "text-ink-muted hover:text-ink hover:bg-page"
+              }`}
+            >
+              Departments (5)
             </button>
             <button
               onClick={() => setActiveCategory("talent")}
