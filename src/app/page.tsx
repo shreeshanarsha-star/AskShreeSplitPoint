@@ -323,11 +323,8 @@ export default function HomePage() {
             {/* Open Jobs Header: Total count, active filter, & clickable pagination arrows (Zero scrollbars) */}
             <div className="flex items-center justify-between text-xs px-1">
               <div className="flex items-center gap-2">
-                <span className="font-bold text-[13.5px] text-ink font-display tracking-tight flex items-center gap-1.5">
-                  <span>Open Jobs</span>
-                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-brand-wash text-brand border border-brand/20">
-                    {filteredJobs.length}
-                  </span>
+                <span className="font-bold text-[13.5px] text-ink font-display tracking-tight">
+                  Open Jobs
                 </span>
                 <button
                   type="button"
