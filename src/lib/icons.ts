@@ -83,6 +83,14 @@ export const ICONS: Record<string, string> = {
     "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M2 12h20 M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z",
   file:
     "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8",
+  volume2:
+    "M11 5L6 9H2v6h4l5 4V5z M15.54 8.46a5 5 0 0 1 0 7.07 M19.07 4.93a10 10 0 0 1 0 14.14",
+  volumeX:
+    "M11 5L6 9H2v6h4l5 4V5z M23 9l-6 6 M17 9l6 6",
+  speaker:
+    "M11 5L6 9H2v6h4l5 4V5z M15.54 8.46a5 5 0 0 1 0 7.07 M19.07 4.93a10 10 0 0 1 0 14.14",
+  speakerOff:
+    "M11 5L6 9H2v6h4l5 4V5z M23 9l-6 6 M17 9l6 6",
 };
 
 export function iconPaths(name: string): string[] {

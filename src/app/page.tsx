@@ -573,7 +573,7 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Controls & Mode Switcher */}
+              {/* Speaker Audio On/Off Toggle */}
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
@@ -585,14 +585,19 @@ export default function HomePage() {
                       setIsSpeaking(false);
                     }
                   }}
-                  title={voiceEnabled ? "Voice Enabled (click to mute)" : "Voice Muted (click to enable voice)"}
-                  className={`px-2.5 py-1 rounded-xl text-xs font-semibold border transition-all flex items-center gap-1 ${
+                  title={voiceEnabled ? "Speaker On • Click to mute" : "Speaker Off • Click to unmute"}
+                  aria-label={voiceEnabled ? "Mute speaker audio" : "Unmute speaker audio"}
+                  className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
                     voiceEnabled
-                      ? "bg-brand text-white border-brand shadow-button"
-                      : "bg-page text-ink-muted border-border hover:text-ink hover:border-brand/30"
+                      ? "bg-brand text-white border-brand shadow-button hover:bg-brand-dark"
+                      : "bg-page text-ink-muted border-border hover:text-brand hover:border-brand/40 shadow-soft-sm"
                   }`}
                 >
-                  <span>{voiceEnabled ? "🔊 Voice On" : "🔇 Voice Off"}</span>
+                  <Icon
+                    name={voiceEnabled ? "volume2" : "volumeX"}
+                    size={16}
+                    className="transition-transform duration-200 hover:scale-110"
+                  />
                 </button>
               </div>
             </div>
