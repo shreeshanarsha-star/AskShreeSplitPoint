@@ -235,24 +235,10 @@ export default function CareersLandingPage() {
         </div>
       </header>
 
-      {/* 2. Hero Section with Global Search Bar */}
-      <section className="border-b border-border bg-gradient-to-b from-surface via-surface to-page/60 pt-8 pb-10 px-4 sm:px-6">
-        <div className="max-w-4xl mx-auto text-center space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-wash border border-brand/20 text-brand text-[11px] font-semibold">
-            <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
-            <span>Autonomous AI Hiring Partner</span>
-          </div>
-          <h1 className="text-2xl sm:text-4xl font-bold font-display text-ink tracking-tight">
-            Build the Future of Hiring at AskShree
-          </h1>
-          <p className="text-xs sm:text-sm text-ink-muted max-w-xl mx-auto leading-relaxed">
-            Explore high-impact positions, experience zero-bias AI screening, and benchmark your market compensation with full pay transparency.
-          </p>
-
-          {/* Global Search Bar (Every User Front Door) */}
-          <div className="pt-4 max-w-2xl mx-auto">
-            <GlobalSearchBar />
-          </div>
+      {/* 2. Global Search Bar (Universal Front Door) */}
+      <section className="border-b border-border bg-surface/50 py-3 px-4 sm:px-6">
+        <div className="max-w-2xl mx-auto">
+          <GlobalSearchBar />
         </div>
       </section>
 
