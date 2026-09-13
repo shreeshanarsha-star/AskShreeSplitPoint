@@ -530,7 +530,7 @@ export default function HomePage() {
           {/* ================= LEFT PANEL: Job Postings List (6 Cols) ================= */}
           <div className="lg:col-span-6 bg-surface border border-border rounded-2xl shadow-soft overflow-hidden flex flex-col h-[calc(100vh-170px)] min-h-[580px] sticky top-20">
             {/* Top Open Jobs Header (Parallelly matching Shree AI Avatar section) */}
-            <div className="bg-gradient-to-b from-brand-wash/70 via-surface to-surface border-b border-border p-4 relative flex items-center justify-between flex-shrink-0">
+            <div className="bg-gradient-to-b from-brand-wash/70 via-surface to-surface border-b border-border p-4 relative flex items-center justify-between flex-shrink-0 min-h-[88px]">
               <div className="flex items-center gap-3.5">
                 <div className="relative flex-shrink-0">
                   <div className="relative block w-14 h-14 rounded-full bg-gradient-to-tr from-brand to-brand-dark p-0.5 shadow-emblem">
@@ -545,20 +545,6 @@ export default function HomePage() {
                     <h2 className="font-bold text-sm text-ink font-display">
                       Open Jobs
                     </h2>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const targetJob = selectedJob || jobs[0];
-                        if (targetJob) {
-                          setShareJob(targetJob);
-                          setShowShareModal(true);
-                        }
-                      }}
-                      title="Your Candidate Credits (Click to Share & Earn more)"
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-brand-wash text-brand border border-brand/20 font-bold hover:border-brand/40 transition-all shadow-soft-sm cursor-pointer"
-                    >
-                      <span>🎁 {candidateCredits} Credits</span>
-                    </button>
                     {matchedJobIds.length > 0 && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 font-bold shadow-soft-sm animate-pulse">
                         <span>✨ {matchedJobIds.length} AI Matched</span>
@@ -581,18 +567,11 @@ export default function HomePage() {
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-ink-muted mt-0.5">
-                    Verified Open Positions • Fast-Track AI Assessment & Direct Referral
-                  </p>
                 </div>
               </div>
 
-              {/* Status Indicator */}
-              <div className="flex items-center gap-1.5">
-                <span className="px-2.5 py-1 rounded-xl text-xs font-semibold border border-border bg-page text-ink-muted flex items-center gap-1">
-                  <span>⚡ Instant Apply</span>
-                </span>
-              </div>
+              {/* Blank Right Space (credits applicable only for logged-in users) */}
+              <div />
             </div>
 
             {/* Job Postings Body */}
@@ -742,7 +721,7 @@ export default function HomePage() {
           {/* ================= RIGHT PANEL: Shree AI Conversational Studio (6 Cols) ================= */}
           <div className="lg:col-span-6 bg-surface border border-border rounded-2xl shadow-soft overflow-hidden flex flex-col h-[calc(100vh-170px)] min-h-[580px] sticky top-20">
             {/* Top Avatar Visual & Audio Header */}
-            <div className="bg-gradient-to-b from-brand-wash/70 via-surface to-surface border-b border-border p-4 relative flex items-center justify-between">
+            <div className="bg-gradient-to-b from-brand-wash/70 via-surface to-surface border-b border-border p-4 relative flex items-center justify-between flex-shrink-0 min-h-[88px]">
               <div className="flex items-center gap-3.5">
                 <div className="relative flex-shrink-0">
                   <button
