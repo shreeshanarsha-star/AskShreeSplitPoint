@@ -386,11 +386,6 @@ export default function HomePage() {
                             {job.department || "Engineering"} • {job.location || "Remote"}
                           </p>
                         </div>
-                        {job.salary_range && (
-                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-good-wash border border-good/20 text-good-text whitespace-nowrap">
-                            {job.salary_range}
-                          </span>
-                        )}
                       </div>
 
                       {job.description && (
@@ -546,7 +541,7 @@ export default function HomePage() {
                 <span className="text-ink-muted text-[11px]">Context:</span>
                 {selectedJob ? (
                   <span className="font-semibold text-ink truncate text-[11.5px]">
-                    {selectedJob.title} {selectedJob.salary_range ? `• ${selectedJob.salary_range}` : ""}
+                    {selectedJob.title}
                   </span>
                 ) : (
                   <span className="text-ink-muted italic text-[11px]">All Open Jobs</span>

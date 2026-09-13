@@ -268,11 +268,6 @@ export default async function JobDetailPage({
                 }}
                 variant="button"
               />
-              {job.ctc_budget && (
-                <span className="text-sm sm:text-base font-bold text-good-text bg-good-wash border border-good/20 px-4 py-1.5 rounded-xl shadow-soft-sm whitespace-nowrap">
-                  {job.ctc_budget}
-                </span>
-              )}
             </div>
           </div>
 

@@ -63,8 +63,7 @@ export default function ShareToEarnModal({
 
   const origin = typeof window !== "undefined" ? window.location.origin : "https://www.askshree.com";
   const shareUrl = `${origin}/jobs/${job.id}?ref=candidate_share`;
-  const payInfo = job.salary_range || job.ctc_budget || "Competitive Pay Band";
-  const shareText = `Check out this open position at AskShree: ${job.title} (${payInfo}) in ${job.location || "Remote"}. Apply or consult Shree AI directly:`;
+  const shareText = `Check out this open position at AskShree: ${job.title} in ${job.location || "Remote"}. Apply or consult Shree AI directly:`;
 
   function handleShare(channel: "copy" | "whatsapp" | "linkedin" | "twitter" | "email") {
     if (!job) return;
@@ -90,7 +89,7 @@ export default function ShareToEarnModal({
       window.open(twUrl, "_blank", "noopener,noreferrer");
     } else if (channel === "email") {
       const subject = encodeURIComponent(`Exciting Opportunity: ${job.title} at AskShree`);
-      const body = encodeURIComponent(`Hi,\n\nI thought you might be interested in this role at AskShree:\n\n${job.title} (${payInfo})\n${shareUrl}\n\nBest regards!`);
+      const body = encodeURIComponent(`Hi,\n\nI thought you might be interested in this role at AskShree:\n\n${job.title}\n${shareUrl}\n\nBest regards!`);
       window.open(`mailto:?subject=${subject}&body=${body}`);
     }
   }
