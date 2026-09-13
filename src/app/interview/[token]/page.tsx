@@ -238,8 +238,12 @@ export default function InterviewRoomPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               {/* Shree AI Avatar Window */}
               <div className="aspect-video bg-brand-wash/40 rounded-2xl border border-brand/20 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-                <div className="w-16 h-16 rounded-full bg-brand/10 border-2 border-brand flex items-center justify-center text-3xl shadow-soft animate-pulse mb-2">
-                  👩‍💼
+                <div className="w-16 h-16 rounded-full bg-brand/10 border-2 border-brand overflow-hidden shadow-soft animate-pulse mb-2">
+                  <img
+                    src="/shree-avatar.jpg"
+                    alt="Shree AI Recruiter"
+                    className="w-full h-full object-cover select-none"
+                  />
                 </div>
                 <span className="text-xs font-semibold text-brand">Shree AI Recruiter</span>
                 <span className="text-[10px] text-ink-muted mt-0.5">Listening &amp; Calibrating</span>

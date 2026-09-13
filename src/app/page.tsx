@@ -56,6 +56,7 @@ export default function HomePage() {
   const [candidateCredits, setCandidateCredits] = useState(25);
   const [shareJob, setShareJob] = useState<JobPosting | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
   const chipsRef = useRef<HTMLDivElement | null>(null);
   const ROLES_PER_PAGE = 3;
 
@@ -121,6 +122,18 @@ export default function HomePage() {
   const [applySubmitting, setApplySubmitting] = useState(false);
   const [applySuccess, setApplySuccess] = useState(false);
   const [submittedInterviewToken, setSubmittedInterviewToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setShowAvatarModal(false);
+      }
+    }
+    if (showAvatarModal) {
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [showAvatarModal]);
 
   useEffect(() => {
     // Load live job postings
@@ -477,17 +490,27 @@ export default function HomePage() {
             <div className="bg-gradient-to-b from-brand-wash/70 via-surface to-surface border-b border-border p-4 relative flex items-center justify-between">
               <div className="flex items-center gap-3.5">
                 <div className="relative flex-shrink-0">
-                  <div
-                    className={`w-14 h-14 rounded-full bg-gradient-to-tr from-brand to-brand-dark p-0.5 shadow-emblem transition-transform ${
-                      isSpeaking ? "scale-105 ring-4 ring-brand/30" : ""
+                  <button
+                    type="button"
+                    onClick={() => setShowAvatarModal(true)}
+                    title="Click to expand Shree's portrait"
+                    className={`relative block w-14 h-14 rounded-full bg-gradient-to-tr from-brand to-brand-dark p-0.5 shadow-emblem transition-all group focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer ${
+                      isSpeaking ? "scale-105 ring-4 ring-brand/30" : "hover:scale-105 hover:ring-2 hover:ring-brand/40"
                     }`}
                   >
-                    <div className="w-full h-full rounded-full bg-surface flex items-center justify-center text-2xl select-none">
-                      👩‍💼
+                    <div className="w-full h-full rounded-full overflow-hidden bg-surface relative">
+                      <img
+                        src="/shree-avatar.jpg"
+                        alt="Shree — AI Talent Acquisition Partner"
+                        className="w-full h-full object-cover select-none transition-transform duration-300 group-hover:scale-110"
+                      />
+                      <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                        <Icon name="search" size={13} />
+                      </div>
                     </div>
-                  </div>
+                  </button>
                   {isSpeaking && (
-                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded-full bg-brand text-[8.5px] font-bold text-white uppercase tracking-wider animate-pulse shadow-soft-sm">
+                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded-full bg-brand text-[8.5px] font-bold text-white uppercase tracking-wider animate-pulse shadow-soft-sm pointer-events-none">
                       Speaking
                     </span>
                   )}
@@ -495,7 +518,14 @@ export default function HomePage() {
 
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="font-bold text-sm text-ink font-display">Shree</h2>
+                    <button
+                      type="button"
+                      onClick={() => setShowAvatarModal(true)}
+                      title="Click to view portrait"
+                      className="font-bold text-sm text-ink hover:text-brand transition-colors font-display text-left cursor-pointer"
+                    >
+                      Shree
+                    </button>
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-brand-wash text-brand border border-brand/20 font-medium">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       Live Conversational
@@ -815,6 +845,65 @@ export default function HomePage() {
             setShowApplyModal(true);
           }}
         />
+      )}
+
+      {/* 6. Expanded Avatar Portrait Modal */}
+      {showAvatarModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Expanded portrait of Shree"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200"
+          onClick={() => setShowAvatarModal(false)}
+        >
+          <div
+            className="relative max-w-md w-full bg-surface border border-border/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col items-center p-5 sm:p-6 gap-4 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="w-full flex items-center justify-between pb-3 border-b border-border">
+              <div className="flex items-center gap-2.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="font-bold text-sm text-ink font-display">
+                  Shree
+                </span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-wash text-brand border border-brand/20">
+                  Official AI Partner
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAvatarModal(false)}
+                aria-label="Close photo"
+                className="w-8 h-8 rounded-full bg-page hover:bg-brand-wash text-ink-muted hover:text-brand border border-border flex items-center justify-center text-sm font-bold transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Original Expanded Photo */}
+            <div className="relative w-full rounded-2xl overflow-hidden border border-border/60 shadow-soft-md bg-page flex items-center justify-center max-h-[62vh]">
+              <img
+                src="/shree-avatar.jpg"
+                alt="Shree — AI Talent Acquisition Partner"
+                className="w-full h-auto max-h-[62vh] object-contain rounded-2xl select-none"
+              />
+            </div>
+
+            {/* Caption / Profile Details */}
+            <div className="w-full text-center space-y-1">
+              <div className="font-bold text-sm text-ink font-display">
+                Shree
+              </div>
+              <p className="text-xs text-ink-muted">
+                AI Talent Acquisition Partner &amp; Hiring Copilot • AskShree
+              </p>
+              <p className="text-[11px] text-ink-muted/80">
+                Autonomous candidate calibration, real-time interview screening, and structured evaluations.
+              </p>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
