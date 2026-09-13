@@ -31,57 +31,13 @@ export default function RecruiterHomePage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-4">
           <Link
             href="/recruiter/requisitions/new"
             className="px-3.5 py-1.5 rounded-xl bg-brand hover:bg-brand-dark text-white text-xs font-bold shadow-button flex items-center gap-1.5 transition-all"
           >
             <span>+</span>
             <span>Create Requisition</span>
-          </Link>
-          <Link
-            href="/schedule"
-            className="px-3 py-1.5 rounded-xl border border-border text-ink-2 bg-surface hover:bg-page hover:text-ink text-xs font-semibold shadow-soft-sm flex items-center gap-1.5 transition-all"
-          >
-            <Icon name="calendar" size={13} />
-            <span>Interviews</span>
-          </Link>
-          <Link
-            href="/recruiter/publish"
-            className="px-3 py-1.5 rounded-xl border border-brand/30 text-brand bg-brand-wash hover:bg-brand-wash/80 text-xs font-semibold flex items-center gap-1.5 transition-all"
-          >
-            <Icon name="share" size={13} />
-            <span>Publish SM</span>
-          </Link>
-          <Link
-            href="/whatsapp"
-            className="px-3 py-1.5 rounded-xl border border-emerald-300 text-emerald-800 dark:text-emerald-300 bg-emerald-50/80 hover:bg-emerald-100 text-xs font-semibold flex items-center gap-1.5 transition-all"
-          >
-            <span className="w-2 h-2 rounded-full bg-good animate-pulse"></span>
-            <span>WhatsApp Bot</span>
-          </Link>
-          <Link
-            href="/recruiter/extension"
-            className="px-3 py-1.5 rounded-xl border border-amber-300 text-amber-900 dark:text-amber-300 bg-amber-50/80 hover:bg-amber-100 text-xs font-semibold flex items-center gap-1.5 transition-all"
-          >
-            <Icon name="zap" size={13} />
-            <span>1-Click Extension</span>
-          </Link>
-          <Link
-            href="/tools/offer-ai"
-            className="px-3 py-1.5 rounded-xl border border-purple-300 text-purple-900 dark:text-purple-300 bg-purple-50/80 hover:bg-purple-100 text-xs font-semibold flex items-center gap-1.5 transition-all"
-          >
-            <Icon name="file" size={13} />
-            <span>Offer.ai</span>
-          </Link>
-          <div className="h-4 w-px bg-border" />
-          <Link
-            href="/careers"
-            target="_blank"
-            className="text-xs text-ink-muted hover:text-brand flex items-center gap-1 transition-colors"
-          >
-            <Icon name="external" size={13} />
-            Public Careers
           </Link>
           <div className="h-4 w-px bg-border" />
           <TopbarStatus />
