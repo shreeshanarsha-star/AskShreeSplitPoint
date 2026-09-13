@@ -21,15 +21,21 @@ export async function POST(req: Request) {
     .maybeSingle();
 
   const orgId = requisition?.org_id;
-  let createdBy = (requisition as any)?.created_by || (requisition as any)?.owner_id;
+  let createdBy = (requisition as any)?.created_by;
   if (!createdBy) {
-    const { data: adminProfile } = await admin
+    const { data: profiles } = await admin
       .from("profiles")
       .select("id")
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    createdBy = adminProfile?.id;
+      .limit(1);
+    createdBy = profiles?.[0]?.id;
+  }
+  if (!createdBy) {
+    try {
+      const { data: authList } = await admin.auth.admin.listUsers({ page: 1, perPage: 1 });
+      createdBy = authList?.users?.[0]?.id;
+    } catch (e) {
+      console.warn("Auth list users fallback error:", e);
+    }
   }
 
   // 2. Parse candidate resume if provided
