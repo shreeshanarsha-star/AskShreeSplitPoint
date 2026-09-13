@@ -39,6 +39,39 @@ type JobPosting = {
   description?: string;
 };
 
+type MatchedRole = {
+  jobId: string;
+  title: string;
+  department?: string;
+  location?: string;
+  description?: string;
+  matchScore: number;
+  matchedSkills: string[];
+  missingSkills?: string[];
+  reason: string;
+};
+
+type ParsedCandidateData = {
+  name: string;
+  email: string | null;
+  phone: string | null;
+  location: string | null;
+  years_experience: number | null;
+  skills: string[];
+};
+
+type ChatMessage = {
+  id?: string;
+  role: "assistant" | "user";
+  text: string;
+  isCvUpload?: boolean;
+  fileName?: string;
+  matchedJobs?: MatchedRole[];
+  showConsent?: boolean;
+  candidateData?: ParsedCandidateData;
+  consentGranted?: boolean | null;
+};
+
 const SUGGESTED_QUESTIONS = [
   "What are the interview stages?",
   "What skills are prioritized for this role?",
@@ -61,10 +94,11 @@ export default function HomePage() {
   const ROLES_PER_PAGE = 3;
 
   // Shree AI Avatar & Conversational State
-  const [messages, setMessages] = useState<Array<{ role: "assistant" | "user"; text: string }>>([
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
+      id: "initial-welcome",
       role: "assistant",
-      text: "Hello! I am Shree, your autonomous AI Talent Acquisition partner. Select any open job on the left to discuss it, or ask me anything about our interview process, expectations, and culture.",
+      text: "Hello! I am Shree, your autonomous AI Talent Acquisition partner. Drop your CV below or click + Drop CV for instant role matching, or select any open job on the left to consult with me.",
     },
   ]);
   const [inputQuery, setInputQuery] = useState("");
@@ -74,6 +108,16 @@ export default function HomePage() {
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  // CV Drag-and-Drop & AI Matching State
+  const [isDraggingCv, setIsDraggingCv] = useState(false);
+  const [isAnalyzingCv, setIsAnalyzingCv] = useState(false);
+  const [matchedJobIds, setMatchedJobIds] = useState<string[]>([]);
+  const [matchedJobsMap, setMatchedJobsMap] = useState<Record<string, number>>({});
+  const [extractedCvText, setExtractedCvText] = useState("");
+  const [cvFileBase64, setCvFileBase64] = useState("");
+  const [uploadedCvFileName, setUploadedCvFileName] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   function toggleMic() {
     if (listening) {
@@ -248,6 +292,170 @@ export default function HomePage() {
     speakText(greeting);
   }
 
+  async function handleCvFile(file: File) {
+    if (!file) return;
+    const allowedExts = [".pdf", ".docx", ".doc", ".txt"];
+    const hasValidExt = allowedExts.some((ext) => file.name.toLowerCase().endsWith(ext));
+    if (!hasValidExt) {
+      alert("Please upload or drop a CV in .pdf, .docx, or .txt format.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      alert("File size exceeds 10MB limit. Please upload a smaller file.");
+      return;
+    }
+
+    const msgId = `cv-user-${Date.now()}`;
+    const assistantMsgId = `cv-asst-${Date.now()}`;
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: msgId,
+        role: "user",
+        text: `Uploaded CV: ${file.name}`,
+        isCvUpload: true,
+        fileName: file.name,
+      },
+    ]);
+
+    setIsThinking(true);
+    setIsAnalyzingCv(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/public/match-cv", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Failed to analyze CV.");
+      }
+
+      setExtractedCvText(data.resumeText || "");
+      setCvFileBase64(data.fileBase64 || "");
+      setUploadedCvFileName(data.fileName || file.name);
+
+      // Pre-fill apply modal inputs
+      if (data.candidate?.name && data.candidate.name !== "Unknown") {
+        setApplyName(data.candidate.name);
+      }
+      if (data.candidate?.email) {
+        setApplyEmail(data.candidate.email);
+      }
+      if (data.candidate?.phone) {
+        setApplyPhone(data.candidate.phone);
+      }
+      if (data.resumeText) {
+        setApplyResume(data.resumeText);
+      }
+
+      if (data.hasMatches && data.matches && data.matches.length > 0) {
+        const matchedIds: string[] = data.matches.map((m: MatchedRole) => m.jobId);
+        setMatchedJobIds(matchedIds);
+        const scoreMap: Record<string, number> = {};
+        data.matches.forEach((m: MatchedRole) => {
+          scoreMap[m.jobId] = m.matchScore;
+        });
+        setMatchedJobsMap(scoreMap);
+
+        const bestJob = jobs.find((j) => j.id === matchedIds[0]);
+        if (bestJob) {
+          setSelectedJob(bestJob);
+        }
+
+        const replyText =
+          data.summary ||
+          `I analyzed your CV! You have strong competencies in ${
+            data.candidate?.skills?.slice(0, 4).join(", ") || "software engineering"
+          }. Here are the active positions that best align with your background:`;
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: assistantMsgId,
+            role: "assistant",
+            text: replyText,
+            matchedJobs: data.matches,
+          },
+        ]);
+        speakText(replyText);
+      } else {
+        const candSkills = data.candidate?.skills?.slice(0, 3).join(", ") || "your field";
+        const replyText =
+          data.summary ||
+          `Thank you for sharing your CV! I analyzed your background in ${candSkills}. While we do not have an active opening that directly matches your profile at this moment, we would love to keep your CV in our priority talent pool for future openings.`;
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: assistantMsgId,
+            role: "assistant",
+            text: replyText,
+            showConsent: true,
+            candidateData: data.candidate,
+            consentGranted: null,
+          },
+        ]);
+        speakText(replyText);
+      }
+    } catch (err: unknown) {
+      console.error("CV Analysis Error:", err);
+      const errReply =
+        err instanceof Error
+          ? err.message
+          : "I was unable to process the uploaded file. Please make sure it contains readable text and try again.";
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: assistantMsgId,
+          role: "assistant",
+          text: errReply,
+        },
+      ]);
+      speakText(errReply);
+    } finally {
+      setIsThinking(false);
+      setIsAnalyzingCv(false);
+    }
+  }
+
+  async function handleConsent(messageId: string, candidateData: ParsedCandidateData | undefined, granted: boolean) {
+    try {
+      await fetch("/api/public/match-cv/consent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidate: candidateData,
+          resumeText: extractedCvText,
+          fileName: uploadedCvFileName,
+          fileBase64: cvFileBase64,
+          consentGranted: granted,
+        }),
+      });
+    } catch (err) {
+      console.warn("Consent recording failed:", err);
+    }
+
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId ? { ...msg, consentGranted: granted } : msg
+      )
+    );
+
+    if (granted) {
+      speakText(
+        "Consent recorded! Your CV is securely registered in our talent pool. We will reach out when an aligned role opens."
+      );
+    } else {
+      speakText("Understood! Your CV has not been stored.");
+    }
+  }
+
   async function handleQuickApply(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedJob || !applyName || !applyEmail || !applyConsented) return;
@@ -351,6 +559,11 @@ export default function HomePage() {
                     >
                       <span>🎁 {candidateCredits} Credits</span>
                     </button>
+                    {matchedJobIds.length > 0 && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 font-bold shadow-soft-sm animate-pulse">
+                        <span>✨ {matchedJobIds.length} AI Matched</span>
+                      </span>
+                    )}
                     {roleFilter && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-brand-wash text-brand border border-brand/20 font-medium">
                         <span>Filter: &quot;{roleFilter}&quot;</span>
@@ -405,12 +618,16 @@ export default function HomePage() {
                 <div className="flex-1 flex flex-col justify-start space-y-2.5">
                   {displayedJobs.map((job) => {
                     const isSelected = selectedJob?.id === job.id;
+                    const isMatched = matchedJobIds.includes(job.id);
+                    const matchScore = matchedJobsMap[job.id];
                     return (
                       <div
                         key={job.id}
                         onClick={() => router.push(`/jobs/${job.id}`)}
                         className={`group cursor-pointer p-3 sm:p-3.5 rounded-xl border transition-all ${
-                          isSelected
+                          isMatched
+                            ? "bg-surface border-amber-500/60 shadow-soft ring-1 ring-amber-500/30"
+                            : isSelected
                             ? "bg-surface border-brand shadow-soft ring-1 ring-brand/30"
                             : "bg-surface border-border hover:border-brand/40 shadow-soft-sm hover:shadow-soft"
                         }`}
@@ -421,6 +638,11 @@ export default function HomePage() {
                               <h3 className="font-bold text-sm text-ink group-hover:text-brand transition-colors">
                                 {job.title}
                               </h3>
+                              {isMatched && (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-950/60 text-emerald-400 border border-emerald-500/30">
+                                  ✨ {matchScore ? `${matchScore}% AI Match` : "AI Match"}
+                                </span>
+                              )}
                               {isSelected && (
                                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-wash text-brand border border-brand/20">
                                   Active Context
@@ -604,24 +826,162 @@ export default function HomePage() {
             <div className="flex-1 flex flex-col overflow-hidden bg-page">
               {/* Chat Messages Transcript */}
               <div className="flex-1 p-4 overflow-y-auto space-y-3 text-xs min-h-0">
-                {messages.map((m, i) => (
-                  <div
-                    key={i}
-                    className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`max-w-[85%] rounded-2xl px-4 py-2.5 leading-relaxed text-[12.5px] ${
-                        m.role === "user"
-                          ? "bg-brand text-white rounded-br-xs shadow-soft-sm"
-                          : "bg-surface border border-border text-ink rounded-bl-xs shadow-soft-sm"
-                      }`}
-                    >
-                      {m.text}
-                    </div>
-                  </div>
-                ))}
+                {messages.map((m, i) => {
+                  if (m.isCvUpload) {
+                    return (
+                      <div key={m.id || i} className="flex justify-end">
+                        <div className="max-w-[85%] rounded-2xl px-3.5 py-2.5 bg-brand text-white shadow-soft-sm flex items-center gap-2.5 rounded-br-xs">
+                          <span className="text-base">📄</span>
+                          <div>
+                            <div className="font-semibold text-xs">{m.fileName || "Uploaded Resume"}</div>
+                            <div className="text-[10px] opacity-85">Uploaded for instant AI role matching</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
 
-                {isThinking && (
+                  if (m.matchedJobs && m.matchedJobs.length > 0) {
+                    return (
+                      <div key={m.id || i} className="flex justify-start">
+                        <div className="max-w-[92%] rounded-2xl p-4 bg-surface border border-border text-ink space-y-3 shadow-soft-sm rounded-bl-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                            <span className="font-bold text-xs text-brand">CV Analysis Complete</span>
+                          </div>
+                          <p className="text-xs text-ink-muted leading-relaxed">
+                            {m.text}
+                          </p>
+
+                          <div className="space-y-2.5 pt-1">
+                            {m.matchedJobs.map((match) => (
+                              <div key={match.jobId} className="bg-page border border-brand/30 rounded-xl p-3 space-y-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <h4 className="font-bold text-xs text-ink">{match.title}</h4>
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-500/30">
+                                    🎯 {match.matchScore}% Match
+                                  </span>
+                                </div>
+                                {match.matchedSkills && match.matchedSkills.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {match.matchedSkills.map((sk, idx) => (
+                                      <span key={idx} className="px-1.5 py-0.5 rounded bg-surface border border-border text-[10px] text-ink-muted">
+                                        {sk}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                <p className="text-[11px] text-ink-muted leading-relaxed">
+                                  {match.reason}
+                                </p>
+                                <div className="flex items-center gap-2 pt-1 border-t border-border">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const targetJob = jobs.find((item) => item.id === match.jobId);
+                                      if (targetJob) setSelectedJob(targetJob);
+                                      setApplyConsented(true);
+                                      setShowApplyModal(true);
+                                    }}
+                                    className="h-6 px-2.5 rounded-lg bg-brand hover:bg-brand-dark text-white font-bold text-[10.5px] transition-all shadow-button cursor-pointer"
+                                  >
+                                    Quick Apply (Auto-Prefilled)
+                                  </button>
+                                  <Link
+                                    href={`/jobs/${match.jobId}`}
+                                    className="h-6 px-2.5 rounded-lg border border-border bg-surface text-ink-muted hover:text-ink text-[10.5px] transition-all flex items-center cursor-pointer"
+                                  >
+                                    View Specs ›
+                                  </Link>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <p className="text-[11px] text-ink-muted">
+                            Would you like me to share more details about the evaluation rubrics, or start a quick 3-minute interview screening?
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (m.showConsent) {
+                    return (
+                      <div key={m.id || i} className="flex justify-start">
+                        <div className="max-w-[92%] rounded-2xl p-4 bg-surface border border-border text-ink space-y-3 shadow-soft-sm rounded-bl-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-amber-500" />
+                            <span className="font-bold text-xs text-brand">No Direct Openings At The Moment</span>
+                          </div>
+                          <p className="text-xs text-ink-muted leading-relaxed">
+                            {m.text}
+                          </p>
+                          <div className="bg-page border border-brand/30 rounded-xl p-3.5 space-y-2.5">
+                            <div className="text-xs font-semibold text-ink flex items-center gap-1.5">
+                              <span>🛡️</span> Candidate Consent Request
+                            </div>
+                            <p className="text-[11px] text-ink-muted">
+                              May we have your consent to securely store your CV and proactively reach out as soon as a relevant role opens up?
+                            </p>
+                            {m.consentGranted === null || m.consentGranted === undefined ? (
+                              <div className="flex items-center gap-2 pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleConsent(m.id || `msg-${i}`, m.candidateData, true)}
+                                  className="h-7 px-3 rounded-lg bg-brand hover:bg-brand-dark text-white font-bold text-xs flex items-center gap-1 shadow-button transition-all cursor-pointer"
+                                >
+                                  <span>✓</span> Yes, Keep Me in Talent Pool
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleConsent(m.id || `msg-${i}`, m.candidateData, false)}
+                                  className="h-7 px-3 rounded-lg border border-border bg-surface text-ink-muted hover:text-ink text-xs transition-all cursor-pointer"
+                                >
+                                  No, Thanks
+                                </button>
+                              </div>
+                            ) : m.consentGranted === true ? (
+                              <div className="text-xs text-emerald-400 font-medium p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/30 flex items-center gap-2">
+                                <span>✓</span> Consent recorded! Your CV is securely registered in our talent pool. We will reach out when an aligned role opens.
+                              </div>
+                            ) : (
+                              <div className="text-xs text-ink-muted font-medium p-2.5 rounded-lg bg-surface border border-border">
+                                Understood! Your CV has not been stored. Feel free to check back anytime.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={m.id || i}
+                      className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-[85%] rounded-2xl px-4 py-2.5 leading-relaxed text-[12.5px] ${
+                          m.role === "user"
+                            ? "bg-brand text-white rounded-br-xs shadow-soft-sm"
+                            : "bg-surface border border-border text-ink rounded-bl-xs shadow-soft-sm"
+                        }`}
+                      >
+                        {m.text}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {isAnalyzingCv && (
+                  <div className="flex items-center gap-2.5 text-xs text-brand font-medium pl-2 py-1.5 bg-brand-wash/30 rounded-xl border border-brand/20">
+                    <span className="w-2 h-2 rounded-full bg-brand animate-ping" />
+                    <span>Analyzing CV against active requisitions & competencies...</span>
+                  </div>
+                )}
+
+                {isThinking && !isAnalyzingCv && (
                   <div className="flex items-center gap-2 text-xs text-ink-muted italic pl-2 py-1">
                     <span className="w-2 h-2 rounded-full bg-brand animate-ping" />
                     <span>Shree is thinking...</span>
@@ -666,49 +1026,108 @@ export default function HomePage() {
                 </button>
               </div>
 
-              {/* Global Search Bar Capsule (Wired to Shree AI Avatar) */}
-              <div className="p-3 border-t border-border bg-surface">
-                <form
-                  onSubmit={handleSendQuery}
-                  className="w-full bg-page border border-border rounded-full shadow-search flex items-center px-3.5 py-1.5 gap-2.5 transition-all focus-within:border-brand focus-within:shadow-search-focus"
-                >
-                  <Icon name="search" className="w-[16px] h-[16px] text-ink-muted flex-shrink-0" />
-                  <input
-                    type="text"
-                    value={inputQuery}
-                    onChange={(e) => setInputQuery(e.target.value)}
-                    placeholder={
-                      selectedJob
-                        ? `Ask Shree about ${selectedJob.title}, culture, rubrics...`
-                        : "Ask Shree about open jobs, benefits, culture, or rubrics..."
-                    }
-                    className="flex-1 bg-transparent border-none outline-none text-ink text-xs placeholder:text-ink-muted leading-tight"
-                  />
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
+              {/* Global Search Bar Capsule with Drag-and-Drop & + Drop CV button */}
+              <div
+                className="p-3 border-t border-border bg-surface"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!isDraggingCv) setIsDraggingCv(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDraggingCv(false);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDraggingCv(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) handleCvFile(file);
+                }}
+              >
+                {/* Hidden File Input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleCvFile(file);
+                    e.target.value = "";
+                  }}
+                  accept=".pdf,.docx,.doc,.txt"
+                  className="hidden"
+                />
+
+                {isDraggingCv ? (
+                  <div className="w-full bg-brand-wash/40 border-2 border-dashed border-brand rounded-full py-2 px-4 flex items-center justify-center gap-2 text-center shadow-soft animate-pulse">
+                    <span className="text-base">📥</span>
+                    <span className="text-xs font-bold text-brand">
+                      Release to drop your CV (.pdf, .docx, .txt) for instant AI role match
+                    </span>
+                  </div>
+                ) : (
+                  <form
+                    onSubmit={handleSendQuery}
+                    className="w-full bg-page border border-border rounded-full shadow-search flex items-center px-3.5 py-1.5 gap-2 transition-all focus-within:border-brand focus-within:shadow-search-focus"
+                  >
+                    <Icon name="search" className="w-[16px] h-[16px] text-ink-muted flex-shrink-0" />
+
+                    {/* + Drop CV Action Button */}
                     <button
                       type="button"
-                      onClick={toggleMic}
-                      aria-label="Ask Shree with your voice"
-                      title={listening ? "Listening... (click to stop)" : "Dictate your question"}
-                      className={`w-7 h-7 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors ${
-                        listening
-                          ? "border-brand/40 bg-brand-wash text-brand animate-pulse"
-                          : "border-border bg-surface text-ink-muted hover:border-border-strong hover:text-brand"
-                      }`}
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isAnalyzingCv || isThinking}
+                      title="Drop CV or click to upload (.pdf, .docx, .txt)"
+                      className="h-7 px-2.5 rounded-lg border border-border bg-surface hover:border-brand/40 text-xs font-semibold text-brand hover:text-brand-dark flex items-center gap-1 transition-all flex-shrink-0 shadow-soft-sm cursor-pointer group disabled:opacity-50"
                     >
-                      <Icon name="mic" className="w-[13px] h-[13px]" />
+                      <span className="text-sm font-bold text-brand group-hover:scale-110 transition-transform">+</span>
+                      <span className="text-[11px] font-medium">Drop CV</span>
                     </button>
-                    <button
-                      type="submit"
-                      disabled={!inputQuery.trim() || isThinking}
-                      aria-label="Send message to Shree"
-                      title="Ask Shree"
-                      className="w-7 h-7 rounded-full bg-[radial-gradient(circle_at_35%_30%,var(--accent-btn-1),var(--accent-btn-2))] text-white border-none flex items-center justify-center flex-shrink-0 shadow-button hover:brightness-110 transition-all disabled:opacity-40"
-                    >
-                      <Icon name="arrowUp" className="w-[13px] h-[13px]" />
-                    </button>
-                  </div>
-                </form>
+
+                    <input
+                      type="text"
+                      value={inputQuery}
+                      onChange={(e) => setInputQuery(e.target.value)}
+                      placeholder={
+                        isAnalyzingCv
+                          ? "Analyzing your CV against active requisitions..."
+                          : selectedJob
+                          ? `Ask Shree about ${selectedJob.title}, or drop CV here...`
+                          : "Ask Shree or drop your CV here (.pdf, .docx, .txt)..."
+                      }
+                      disabled={isAnalyzingCv}
+                      className="flex-1 bg-transparent border-none outline-none text-ink text-xs placeholder:text-ink-muted leading-tight disabled:opacity-50"
+                    />
+
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={toggleMic}
+                        disabled={isAnalyzingCv}
+                        aria-label="Ask Shree with your voice"
+                        title={listening ? "Listening... (click to stop)" : "Dictate your question"}
+                        className={`w-7 h-7 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors ${
+                          listening
+                            ? "border-brand/40 bg-brand-wash text-brand animate-pulse"
+                            : "border-border bg-surface text-ink-muted hover:border-border-strong hover:text-brand"
+                        }`}
+                      >
+                        <Icon name="mic" className="w-[13px] h-[13px]" />
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={!inputQuery.trim() || isThinking || isAnalyzingCv}
+                        aria-label="Send message to Shree"
+                        title="Ask Shree"
+                        className="w-7 h-7 rounded-full bg-[radial-gradient(circle_at_35%_30%,var(--accent-btn-1),var(--accent-btn-2))] text-white border-none flex items-center justify-center flex-shrink-0 shadow-button hover:brightness-110 transition-all disabled:opacity-40"
+                      >
+                        <Icon name="arrowUp" className="w-[13px] h-[13px]" />
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
             </div>
           </div>
