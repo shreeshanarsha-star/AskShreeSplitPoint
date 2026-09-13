@@ -5,8 +5,27 @@ import Link from "next/link";
 import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
 import TopbarStatus from "@/components/TopbarStatus";
-import GlobalSearchBar from "@/components/GlobalSearchBar";
 import { createClient } from "@/lib/supabase/client";
+
+type SpeechRecognitionLike = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onresult: ((e: { results: { [i: number]: { [j: number]: { transcript: string } } }; length?: number }) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+function getSpeechRecognition(): (new () => SpeechRecognitionLike) | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as {
+    SpeechRecognition?: new () => SpeechRecognitionLike;
+    webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+  };
+  return w.SpeechRecognition || w.webkitSpeechRecognition || null;
+}
 
 type JobPosting = {
   id: string;
@@ -54,7 +73,46 @@ export default function CareersLandingPage() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  function toggleMic() {
+    if (listening) {
+      recognitionRef.current?.stop();
+      setListening(false);
+      return;
+    }
+    const Ctor = getSpeechRecognition();
+    if (!Ctor) {
+      alert("Voice input is not supported in this browser. Please try Chrome, Edge, or Safari.");
+      return;
+    }
+    try {
+      const rec = new Ctor();
+      recognitionRef.current = rec;
+      rec.lang = "en-US";
+      rec.interimResults = true;
+      rec.continuous = false;
+      rec.onresult = (e) => {
+        const transcript = e.results[0]?.[0]?.transcript;
+        if (transcript) {
+          setInputQuery(transcript);
+        }
+      };
+      rec.onerror = () => {
+        setListening(false);
+      };
+      rec.onend = () => {
+        setListening(false);
+      };
+      rec.start();
+      setListening(true);
+    } catch (err) {
+      console.error("Speech recognition error:", err);
+      setListening(false);
+    }
+  }
 
   // Quick Apply Form State
   const [applyName, setApplyName] = useState("");
@@ -235,14 +293,7 @@ export default function CareersLandingPage() {
         </div>
       </header>
 
-      {/* 2. Global Search Bar (Universal Front Door) */}
-      <section className="border-b border-border bg-surface/50 py-3 px-4 sm:px-6">
-        <div className="max-w-2xl mx-auto">
-          <GlobalSearchBar />
-        </div>
-      </section>
-
-      {/* 3. Main Dual-Panel Viewport: Job Postings (Left) + AI Avatar Candidate Studio (Right) */}
+      {/* 2. Main Dual-Panel Viewport: Job Postings (Left) + AI Avatar Candidate Studio (Right) */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col space-y-5">
         {/* Department Filter Pills */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -525,31 +576,50 @@ export default function CareersLandingPage() {
                   ))}
                 </div>
 
-                {/* Chat Input Bar */}
-                <form
-                  onSubmit={handleSendQuery}
-                  className="p-3 border-t border-border bg-surface flex items-center gap-2"
-                >
-                  <input
-                    type="text"
-                    value={inputQuery}
-                    onChange={(e) => setInputQuery(e.target.value)}
-                    placeholder={
-                      selectedJob
-                        ? `Ask Shree about ${selectedJob.title}, team, or expectations...`
-                        : "Ask Shree about roles, process, or expectations..."
-                    }
-                    className="flex-1 text-xs bg-page border border-border rounded-xl px-3.5 py-2.5 text-ink placeholder:text-ink-muted focus:outline-none focus:border-brand"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!inputQuery.trim() || isThinking}
-                    className="p-2.5 bg-brand hover:bg-brand-dark disabled:opacity-40 text-white rounded-xl transition-colors shadow-button flex-shrink-0"
-                    title="Send message"
+                {/* Global Search Bar Capsule (Wired to Shree AI Avatar) */}
+                <div className="p-3 border-t border-border bg-surface">
+                  <form
+                    onSubmit={handleSendQuery}
+                    className="w-full bg-page border border-border rounded-full shadow-search flex items-center px-3.5 py-1.5 gap-2.5 transition-all focus-within:border-brand focus-within:shadow-search-focus"
                   >
-                    <Icon name="arrowRight" size={14} />
-                  </button>
-                </form>
+                    <Icon name="search" className="w-[16px] h-[16px] text-ink-muted flex-shrink-0" />
+                    <input
+                      type="text"
+                      value={inputQuery}
+                      onChange={(e) => setInputQuery(e.target.value)}
+                      placeholder={
+                        selectedJob
+                          ? `Ask Shree about ${selectedJob.title}, culture, rubrics...`
+                          : "Ask Shree about open roles, benefits, culture, or rubrics..."
+                      }
+                      className="flex-1 bg-transparent border-none outline-none text-ink text-xs placeholder:text-ink-muted leading-tight"
+                    />
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={toggleMic}
+                        aria-label="Ask Shree with your voice"
+                        title={listening ? "Listening... (click to stop)" : "Dictate your question"}
+                        className={`w-7 h-7 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors ${
+                          listening
+                            ? "border-brand/40 bg-brand-wash text-brand animate-pulse"
+                            : "border-border bg-surface text-ink-muted hover:border-border-strong hover:text-brand"
+                        }`}
+                      >
+                        <Icon name="mic" className="w-[13px] h-[13px]" />
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={!inputQuery.trim() || isThinking}
+                        aria-label="Send message to Shree"
+                        title="Ask Shree"
+                        className="w-7 h-7 rounded-full bg-[radial-gradient(circle_at_35%_30%,var(--accent-btn-1),var(--accent-btn-2))] text-white border-none flex items-center justify-center flex-shrink-0 shadow-button hover:brightness-110 transition-all disabled:opacity-40"
+                      >
+                        <Icon name="arrowUp" className="w-[13px] h-[13px]" />
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
             ) : (
               /* Role Specs Tab */

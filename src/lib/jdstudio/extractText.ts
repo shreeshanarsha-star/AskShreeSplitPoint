@@ -6,7 +6,7 @@
 export interface ExtractedFile {
   fullText: string;
   table: Record<string, string>[] | null; // rows with header-derived keys, spreadsheets only
-  sourceKind: "pdf" | "docx" | "doc" | "xlsx" | "csv" | "txt" | "unknown";
+  sourceKind: "pdf" | "docx" | "doc" | "xlsx" | "csv" | "txt" | "md" | "unknown";
 }
 
 export async function extractFileText(buffer: Buffer, fileName: string, mimeType: string): Promise<ExtractedFile> {
@@ -69,6 +69,10 @@ export async function extractFileText(buffer: Buffer, fileName: string, mimeType
 
   if (mimeType === "text/plain" || lowerName.endsWith(".txt")) {
     return { fullText: buffer.toString("utf-8").trim(), table: null, sourceKind: "txt" };
+  }
+
+  if (mimeType === "text/markdown" || lowerName.endsWith(".md") || lowerName.endsWith(".markdown")) {
+    return { fullText: buffer.toString("utf-8").trim(), table: null, sourceKind: "md" };
   }
 
   return { fullText: "", table: null, sourceKind: "unknown" };
