@@ -350,33 +350,6 @@ export default function HomePage() {
                   </span>
                 )}
               </div>
-
-              {/* Clickable Pagination Arrows */}
-              {totalPages > 1 && (
-                <div className="flex items-center gap-1.5 text-xs">
-                  <span className="text-[11px] text-ink-muted">
-                    Page {currentPage} of {totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    aria-label="Previous jobs page"
-                    className="w-6 h-6 rounded-lg border border-border bg-surface text-ink-muted hover:text-brand hover:border-brand/40 flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none transition-all shadow-soft-sm text-sm"
-                  >
-                    ‹
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    aria-label="Next jobs page"
-                    className="w-6 h-6 rounded-lg border border-border bg-surface text-ink-muted hover:text-brand hover:border-brand/40 flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none transition-all shadow-soft-sm text-sm"
-                  >
-                    ›
-                  </button>
-                </div>
-              )}
             </div>
 
             {filteredJobs.length === 0 ? (
@@ -480,15 +453,15 @@ export default function HomePage() {
                 {/* Bottom Pagination Bar (Zero scrollbars) */}
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between text-xs pt-2 px-1 text-ink-muted">
-                    <span className="text-[11px]">
-                      Showing {(currentPage - 1) * ROLES_PER_PAGE + 1}–{Math.min(currentPage * ROLES_PER_PAGE, filteredJobs.length)} of {filteredJobs.length} roles
+                    <span className="text-[11.5px]">
+                      Showing {(currentPage - 1) * ROLES_PER_PAGE + 1}–{Math.min(currentPage * ROLES_PER_PAGE, filteredJobs.length)} of {filteredJobs.length} jobs <span className="text-ink-muted/60">•</span> Page {currentPage} of {totalPages}
                     </span>
                     <div className="flex items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                         disabled={currentPage === 1}
-                        className="px-2 py-1 rounded-lg border border-border bg-surface text-xs text-ink-muted hover:text-brand hover:border-brand/40 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                        className="px-2.5 py-1 rounded-lg border border-border bg-surface text-xs font-medium text-ink-muted hover:text-brand hover:border-brand/40 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1 shadow-soft-sm"
                       >
                         <span>‹</span> Previous
                       </button>
@@ -496,7 +469,7 @@ export default function HomePage() {
                         type="button"
                         onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                         disabled={currentPage === totalPages}
-                        className="px-2 py-1 rounded-lg border border-border bg-surface text-xs text-ink-muted hover:text-brand hover:border-brand/40 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                        className="px-2.5 py-1 rounded-lg border border-border bg-surface text-xs font-medium text-ink-muted hover:text-brand hover:border-brand/40 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1 shadow-soft-sm"
                       >
                         Next <span>›</span>
                       </button>
