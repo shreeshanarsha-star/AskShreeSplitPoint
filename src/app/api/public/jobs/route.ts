@@ -19,7 +19,6 @@ export async function GET() {
         department: "Engineering & Technology",
         location: r.location || "Bangalore / Remote",
         type: "Full-Time",
-        salary_range: "$80k - $140k",
         description: r.description,
       }))
     : [
@@ -29,7 +28,6 @@ export async function GET() {
           department: "Product Engineering",
           location: "Bangalore / Remote",
           type: "Full-Time",
-          salary_range: "₹25L - ₹40L",
           description: "Build high-throughput web applications with Next.js, TypeScript, and Supabase.",
         },
         {
@@ -38,7 +36,6 @@ export async function GET() {
           department: "Sales & Partnerships",
           location: "Mumbai / Hybrid",
           type: "Full-Time",
-          salary_range: "₹18L - ₹32L",
           description: "Drive strategic enterprise B2B sales cycles with Fortune 500 accounts.",
         },
         {
@@ -47,7 +44,6 @@ export async function GET() {
           department: "Human Resources",
           location: "Remote",
           type: "Full-Time",
-          salary_range: "₹15L - ₹25L",
           description: "Partner with engineering leadership to source and calibrate top-tier distributed teams.",
         },
       ];

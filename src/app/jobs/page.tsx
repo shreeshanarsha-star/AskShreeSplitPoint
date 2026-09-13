@@ -19,7 +19,7 @@ export default async function JobsPage() {
   const { data: jobs } = await supabase
     .from("job_postings")
     .select(
-      "id, title, company, location, employment_type, ctc_budget, industry, created_at, expires_at"
+      "id, title, company, location, employment_type, industry, created_at, expires_at"
     )
     .eq("status", "published")
     .or(`expires_at.is.null,expires_at.gt.${nowIso}`)

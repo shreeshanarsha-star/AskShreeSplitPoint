@@ -16,8 +16,6 @@ export type ShareJob = {
   title: string;
   company?: string;
   location?: string;
-  salary_range?: string;
-  ctc_budget?: string;
 };
 
 interface ShareToEarnModalProps {

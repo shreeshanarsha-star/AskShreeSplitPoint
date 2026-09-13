@@ -49,7 +49,7 @@ export async function POST(req: Request) {
 
     // 3. Assemble Site Data Context
     const siteContext = contextJob
-      ? `Selected Open Requisition: "${contextJob.title}" | Department: ${contextJob.department || "Engineering"} | Location: ${contextJob.location || "Remote"} | Compensation: ${contextJob.salary_range || "Competitive"} | Overview: ${contextJob.description || ""}`
+      ? `Selected Open Requisition: "${contextJob.title}" | Department: ${contextJob.department || "Engineering"} | Location: ${contextJob.location || "Remote"} | Overview: ${contextJob.description || ""}`
       : "AskShree: Currently hiring across Engineering, Product, Sales, and Operations.";
 
     // 4. Assemble Uploaded Documents Context
@@ -100,9 +100,9 @@ Shree Response:`;
         const cleaned = topDoc.excerpt.replace(/\n+/g, " ").trim();
         reply = `Based on AskShree's verified documents (${topDoc.documentTitle}): ${cleaned}`;
       } else if (contextJob) {
-        reply = `For the ${contextJob.title} position in ${contextJob.department || "Engineering"} (${contextJob.salary_range || "Competitive"}), we prioritize structured problem solving, continuous learning, and high craft. Feel free to Quick Apply to start the screening process!`;
+        reply = `For the ${contextJob.title} position in ${contextJob.department || "Engineering"}, we prioritize structured problem solving, continuous learning, and high craft. Feel free to Quick Apply to start the screening process!`;
       } else {
-        reply = "AskShree is built on continuous learning, transparent compensation, and zero-bias hiring. Select any role on the left or type a question to learn more!";
+        reply = "AskShree is built on continuous learning, zero-bias hiring, and high-craft talent acquisition. Select any role on the left or type a question to learn more!";
       }
     }
 

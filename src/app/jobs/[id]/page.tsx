@@ -22,7 +22,6 @@ type NormalizedJob = {
   qualification?: string | null;
   min_years_experience?: number | null;
   industry?: string | null;
-  ctc_budget?: string | null;
   created_at?: string;
   expires_at?: string | null;
 };
@@ -43,7 +42,7 @@ export default async function JobDetailPage({
     const { data: posting } = await admin
       .from("job_postings")
       .select(
-        "id, title, company, company_url, location, employment_type, description, ai_polished_description, must_have_skills, good_to_have_skills, qualification, min_years_experience, industry, ctc_budget, created_at, expires_at, status"
+        "id, title, company, company_url, location, employment_type, description, ai_polished_description, must_have_skills, good_to_have_skills, qualification, min_years_experience, industry, created_at, expires_at, status"
       )
       .eq("id", id)
       .maybeSingle();
@@ -65,7 +64,6 @@ export default async function JobDetailPage({
         qualification: posting.qualification,
         min_years_experience: posting.min_years_experience,
         industry: posting.industry || "Engineering & Technology",
-        ctc_budget: posting.ctc_budget,
         created_at: posting.created_at,
         expires_at: posting.expires_at,
       };
@@ -103,10 +101,6 @@ export default async function JobDetailPage({
           qualification: "Bachelor's or equivalent practical experience",
           min_years_experience: 3,
           industry: req.department || "Engineering & Technology",
-          ctc_budget:
-            req.comp_min && req.comp_max
-              ? `₹${req.comp_min} - ₹${req.comp_max}`
-              : "$80k - $140k",
           created_at: req.created_at,
           expires_at: null,
         };
@@ -143,7 +137,6 @@ export default async function JobDetailPage({
           "B.Tech / M.Tech in Computer Science or equivalent practical experience",
         min_years_experience: 5,
         industry: "Engineering & Technology",
-        ctc_budget: "₹25L - ₹40L",
       },
       "demo-req-2": {
         id: "demo-req-2",
@@ -163,7 +156,6 @@ export default async function JobDetailPage({
         qualification: "Bachelor's degree in Business or related discipline",
         min_years_experience: 4,
         industry: "Sales & Partnerships",
-        ctc_budget: "₹18L - ₹32L",
       },
       "demo-req-3": {
         id: "demo-req-3",
@@ -183,7 +175,6 @@ export default async function JobDetailPage({
         qualification: "Bachelor's degree or equivalent practical experience",
         min_years_experience: 3,
         industry: "Human Resources",
-        ctc_budget: "₹15L - ₹25L",
       },
     };
     job = DEMO_JOBS[id] || null;
@@ -264,7 +255,6 @@ export default async function JobDetailPage({
                   title: job.title,
                   company: job.company,
                   location: job.location,
-                  ctc_budget: job.ctc_budget || undefined,
                 }}
                 variant="button"
               />
@@ -322,7 +312,6 @@ export default async function JobDetailPage({
                 title: job.title,
                 company: job.company,
                 location: job.location,
-                ctc_budget: job.ctc_budget || undefined,
               }}
               variant="button"
             />

@@ -36,17 +36,14 @@ type JobPosting = {
   department?: string;
   location?: string;
   type?: string;
-  salary_range?: string;
   description?: string;
 };
-
-
 
 const SUGGESTED_QUESTIONS = [
   "What are the interview stages?",
   "What skills are prioritized for this role?",
   "Tell me about AskShree team culture",
-  "What is the hiring timeline & compensation band?",
+  "What is the hiring timeline & interview process?",
 ];
 
 export default function HomePage() {
@@ -416,7 +413,6 @@ export default function HomePage() {
                               title: job.title,
                               company: job.department,
                               location: job.location,
-                              salary_range: job.salary_range,
                             }}
                             variant="pill"
                           />
@@ -557,7 +553,6 @@ export default function HomePage() {
                         title: selectedJob.title,
                         company: selectedJob.department,
                         location: selectedJob.location,
-                        salary_range: selectedJob.salary_range,
                       }}
                       variant="pill"
                     />
@@ -852,7 +847,6 @@ export default function HomePage() {
             title: shareJob.title,
             company: shareJob.department,
             location: shareJob.location,
-            salary_range: shareJob.salary_range,
           }}
           onConsultCv={(j) => {
             const query = `Shree, please review and consult on my CV for the ${j.title} role. What critical competencies and keywords should I emphasize?`;
