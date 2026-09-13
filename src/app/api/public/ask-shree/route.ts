@@ -90,7 +90,21 @@ ${webContext}
 Candidate Question: "${trimmedQuery}"
 Shree Response:`;
 
-    const reply = await callTextModel(prompt, 350);
+    let reply = "";
+    try {
+      reply = await callTextModel(prompt, 350);
+    } catch (llmErr) {
+      console.warn("[ask-shree] LLM call failed or key not configured, synthesizing from grounded documents:", llmErr);
+      if (docMatches.length > 0) {
+        const topDoc = docMatches[0];
+        const cleaned = topDoc.excerpt.replace(/\n+/g, " ").trim();
+        reply = `Based on AskShree's verified documents (${topDoc.documentTitle}): ${cleaned}`;
+      } else if (contextJob) {
+        reply = `For the ${contextJob.title} position in ${contextJob.department || "Engineering"} (${contextJob.salary_range || "Competitive"}), we prioritize structured problem solving, continuous learning, and high craft. Feel free to Quick Apply to start the screening process!`;
+      } else {
+        reply = "AskShree is built on continuous learning, transparent compensation, and zero-bias hiring. Select any role on the left or type a question to learn more!";
+      }
+    }
 
     const sourcesUsed = docMatches.map((m) => ({
       title: m.documentTitle,
@@ -105,7 +119,7 @@ Shree Response:`;
       groundedInWeb: !!webSearchData,
     });
   } catch (err) {
-    console.error("[ask-shree error]:", err);
+    console.error("[ask-shree fatal error]:", err);
     return NextResponse.json({
       reply:
         "Thank you for asking! AskShree is built on continuous learning, transparent compensation, and zero-bias hiring. Feel free to Quick Apply to start the screening process.",

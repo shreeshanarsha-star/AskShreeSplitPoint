@@ -345,7 +345,7 @@ export default function CareersLandingPage() {
                 No roles currently match &quot;{search || selectedDept}&quot;. Try selecting &quot;All Roles&quot;.
               </div>
             ) : (
-              <div className="space-y-3 max-h-[640px] overflow-y-auto pr-1">
+              <div className="space-y-3 max-h-[calc(100vh-170px)] min-h-[580px] overflow-y-auto pr-1">
                 {filteredJobs.map((job) => {
                   const isSelected = selectedJob?.id === job.id;
                   return (
@@ -423,7 +423,7 @@ export default function CareersLandingPage() {
           </div>
 
           {/* ================= RIGHT PANEL: Shree AI Avatar Candidate Studio (6 Cols) ================= */}
-          <div className="lg:col-span-6 bg-surface border border-border rounded-2xl shadow-soft overflow-hidden flex flex-col h-[640px] sticky top-20">
+          <div className="lg:col-span-6 bg-surface border border-border rounded-2xl shadow-soft overflow-hidden flex flex-col h-[calc(100vh-170px)] min-h-[580px] sticky top-20">
             {/* Top Avatar Visual & Audio Header */}
             <div className="bg-gradient-to-b from-brand-wash/70 via-surface to-surface border-b border-border p-4 relative flex items-center justify-between">
               <div className="flex items-center gap-3.5">
@@ -534,7 +534,7 @@ export default function CareersLandingPage() {
             {rightPanelTab === "chat" ? (
               <div className="flex-1 flex flex-col overflow-hidden bg-page">
                 {/* Chat Messages Transcript */}
-                <div className="flex-1 p-4 overflow-y-auto space-y-3 text-xs">
+                <div className="flex-1 p-4 overflow-y-auto space-y-3 text-xs min-h-0">
                   {messages.map((m, i) => (
                     <div
                       key={i}
