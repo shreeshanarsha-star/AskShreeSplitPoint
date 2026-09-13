@@ -495,10 +495,7 @@ export default function HomePage() {
             </div>
 
             {/* Bottom Pagination Bar (Zero scrollbars) */}
-            <div className="p-3 border-t border-border bg-surface flex items-center justify-between text-xs text-ink-muted flex-shrink-0">
-              <span className="text-[11.5px]">
-                Showing {(currentPage - 1) * ROLES_PER_PAGE + 1}–{Math.min(currentPage * ROLES_PER_PAGE, filteredJobs.length)} of {filteredJobs.length} jobs <span className="text-ink-muted/60">•</span> Page {currentPage} of {totalPages}
-              </span>
+            <div className="p-3 border-t border-border bg-surface flex items-center justify-end text-xs text-ink-muted flex-shrink-0">
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
