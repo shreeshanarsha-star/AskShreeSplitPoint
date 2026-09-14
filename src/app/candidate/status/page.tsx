@@ -265,6 +265,17 @@ function CandidateStatusContent() {
                     {candidate.stage === "rejected" &&
                       "Thank you for interviewing with us. While this specific role wasn't an exact match, your profile remains in our talent pool for priority future matching."}
                   </p>
+
+                  {(candidate.stage === "hm_review" || candidate.stage.startsWith("interview")) && (
+                    <div className="mt-3.5 pt-3 border-t border-border flex items-center gap-3">
+                      <Link
+                        href={`/schedule/${encodeURIComponent(candidate.id)}`}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand hover:bg-brand-dark text-white text-xs font-bold shadow-soft transition-all hover:scale-[1.02]"
+                      >
+                        <span>📅</span> {candidate.stage.startsWith("interview") ? "View Interview Schedule & Meet Link ›" : "Choose Interview Time Slot ›"}
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

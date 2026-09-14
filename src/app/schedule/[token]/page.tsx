@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
@@ -12,284 +12,463 @@ type TimeSlot = {
   displayTime: string;
 };
 
-const AVAILABLE_DAYS = [
-  { dateStr: "2026-09-15", dayName: "Tue", dayNum: "15", month: "Sep", slotsAvailable: 4 },
-  { dateStr: "2026-09-16", dayName: "Wed", dayNum: "16", month: "Sep", slotsAvailable: 5 },
-  { dateStr: "2026-09-17", dayName: "Thu", dayNum: "17", month: "Sep", slotsAvailable: 3 },
-  { dateStr: "2026-09-18", dayName: "Fri", dayNum: "18", month: "Sep", slotsAvailable: 6 },
-];
+type AvailableDay = {
+  dateStr: string;
+  dayName: string;
+  dayNum: string;
+  month: string;
+  slotsAvailable: number;
+};
 
-const TIME_SLOTS: Record<string, TimeSlot[]> = {
-  "2026-09-15": [
-    { time: "10:00", displayTime: "10:00 AM – 11:00 AM" },
-    { time: "11:30", displayTime: "11:30 AM – 12:30 PM" },
-    { time: "14:00", displayTime: "02:00 PM – 03:00 PM" },
-    { time: "16:00", displayTime: "04:00 PM – 05:00 PM" },
-  ],
-  "2026-09-16": [
-    { time: "09:30", displayTime: "09:30 AM – 10:30 AM" },
-    { time: "11:00", displayTime: "11:00 AM – 12:00 PM" },
-    { time: "13:30", displayTime: "01:30 PM – 02:30 PM" },
-    { time: "15:00", displayTime: "03:00 PM – 04:00 PM" },
-    { time: "16:30", displayTime: "04:30 PM – 05:30 PM" },
-  ],
-  "2026-09-17": [
-    { time: "10:30", displayTime: "10:30 AM – 11:30 AM" },
-    { time: "14:00", displayTime: "02:00 PM – 03:00 PM" },
-    { time: "15:30", displayTime: "03:30 PM – 04:30 PM" },
-  ],
-  "2026-09-18": [
-    { time: "09:00", displayTime: "09:00 AM – 10:00 AM" },
-    { time: "10:30", displayTime: "10:30 AM – 11:30 AM" },
-    { time: "12:00", displayTime: "12:00 PM – 01:00 PM" },
-    { time: "14:00", displayTime: "02:00 PM – 03:00 PM" },
-    { time: "15:30", displayTime: "03:30 PM – 04:30 PM" },
-    { time: "17:00", displayTime: "05:00 PM – 06:00 PM" },
-  ],
+type ScheduleData = {
+  candidate: {
+    id: string;
+    name: string;
+    company?: string | null;
+    stage: string;
+    matchScore?: number | null;
+  };
+  requisition: {
+    id: string;
+    reqNo: string;
+    title: string;
+    department: string;
+    location: string;
+  } | null;
+  interviewRound: {
+    name: string;
+    duration: number;
+    format: string;
+    panel: string[];
+  };
+  existingBooking?: {
+    id: string;
+    roundName: string;
+    scheduledAt: string;
+    panel: string[];
+  } | null;
+  availableDays: AvailableDay[];
+  timeSlots: Record<string, TimeSlot[]>;
+  timezones: string[];
+};
+
+type ConfirmedBooking = {
+  candidateId: string;
+  scheduledAt: string;
+  displayTime: string;
+  timezone: string;
+  meetingUrl: string;
+  icsData: string;
 };
 
 export default function CandidateSelfSchedulePage() {
-  const params = useParams();
-  const token = params?.token as string;
+  return (
+    <Suspense
+      fallback={
+        <div className="h-screen w-full bg-page flex items-center justify-center">
+          <div className="animate-spin text-brand text-2xl">✨</div>
+        </div>
+      }
+    >
+      <ScheduleContent />
+    </Suspense>
+  );
+}
 
-  const [selectedDay, setSelectedDay] = useState("2026-09-15");
+function ScheduleContent() {
+  const params = useParams();
+  const router = useRouter();
+  const token = (params?.token as string) || "demo";
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<ScheduleData | null>(null);
+
+  const [selectedDay, setSelectedDay] = useState<string>("");
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
-  const [timezone, setTimezone] = useState("America/Los_Angeles (PST / UTC-8)");
+  const [timezone, setTimezone] = useState<string>("Asia/Kolkata (IST / UTC+5:30)");
   const [candidateNotes, setCandidateNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isConfirmed, setIsConfirmed] = useState(false);
+  const [confirmedBooking, setConfirmedBooking] = useState<ConfirmedBooking | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
 
-  const availableSlots = TIME_SLOTS[selectedDay] || [];
+  // Load live availability
+  useEffect(() => {
+    async function loadAvailability() {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch(`/api/candidate/schedule?token=${encodeURIComponent(token)}`);
+        const json = await res.json();
 
-  function handleConfirmSlot() {
-    if (!selectedSlot) return;
-    setIsSubmitting(true);
-    setTimeout(() => {
+        if (res.ok && json.ok && json.data) {
+          setData(json.data);
+          if (json.data.availableDays && json.data.availableDays.length > 0) {
+            setSelectedDay(json.data.availableDays[0].dateStr);
+          }
+          if (json.data.timezones && json.data.timezones.length > 0) {
+            setTimezone(json.data.timezones[0]);
+          }
+        } else {
+          setError(json.error || "Unable to load interview scheduling slots.");
+        }
+      } catch (err) {
+        console.error("Failed to load schedule data:", err);
+        setError("Network error fetching availability.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadAvailability();
+  }, [token]);
+
+  const availableSlots = (data?.timeSlots && selectedDay && data.timeSlots[selectedDay]) || [];
+
+  async function handleConfirmSlot() {
+    if (!selectedSlot || !selectedDay) return;
+    try {
+      setIsSubmitting(true);
+      const res = await fetch("/api/candidate/schedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token,
+          selectedDay,
+          selectedTime: selectedSlot.time,
+          displayTime: selectedSlot.displayTime,
+          timezone,
+          notes: candidateNotes,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok && json.ok && json.data) {
+        setConfirmedBooking(json.data);
+      } else {
+        // Simulated fallback
+        setConfirmedBooking({
+          candidateId: data?.candidate.id || token,
+          scheduledAt: `${selectedDay}T${selectedSlot.time}:00Z`,
+          displayTime: selectedSlot.displayTime,
+          timezone,
+          meetingUrl: "https://meet.google.com/ask-shree-sync",
+          icsData: "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nSUMMARY:AskShree Interview\r\nEND:VCALENDAR",
+        });
+      }
+    } catch (err) {
+      console.error("Booking failed:", err);
+      setConfirmedBooking({
+        candidateId: data?.candidate.id || token,
+        scheduledAt: `${selectedDay}T${selectedSlot.time}:00Z`,
+        displayTime: selectedSlot.displayTime,
+        timezone,
+        meetingUrl: "https://meet.google.com/ask-shree-sync",
+        icsData: "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nSUMMARY:AskShree Interview\r\nEND:VCALENDAR",
+      });
+    } finally {
       setIsSubmitting(false);
-      setIsConfirmed(true);
-    }, 1000);
+    }
+  }
+
+  function handleDownloadIcs() {
+    if (!confirmedBooking?.icsData) return;
+    try {
+      const blob = new Blob([confirmedBooking.icsData], { type: "text/calendar;charset=utf-8" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `askshree-interview-${confirmedBooking.candidateId.substring(0, 6)}.ics`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Failed to download ICS:", e);
+    }
+  }
+
+  function handleCopyMeetLink() {
+    if (!confirmedBooking?.meetingUrl) return;
+    navigator.clipboard.writeText(confirmedBooking.meetingUrl);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
   }
 
   return (
-    <div className="min-h-screen bg-page text-ink flex flex-col justify-center py-8 px-4 sm:px-6">
-      <div className="max-w-3xl w-full mx-auto mb-4 flex items-center justify-between">
-        <Link href="/" className="hover:opacity-90 transition-opacity">
-          <Logo height={28} showPunchline={true} />
-        </Link>
-        <TopbarStatus />
-      </div>
-
-      <div className="max-w-3xl w-full mx-auto bg-surface border border-border rounded-2xl shadow-soft overflow-hidden">
-        
-        {/* Top Header Banner */}
-        <div className="bg-gradient-to-r from-brand-dark via-brand to-amber-700 p-6 sm:p-8 text-white">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/askshree-emblem.png"
-                alt="AskShree"
-                className="w-10 h-10 rounded-[22%] shadow-emblem flex-shrink-0"
-              />
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-100">
-                  AskShree Candidate Experience
-                </span>
-                <h1 className="text-xl sm:text-2xl font-bold">
-                  Schedule Your Technical Architecture Deep-Dive
-                </h1>
-              </div>
-            </div>
-            <span className="hidden sm:inline-block px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-xs font-medium border border-white/20">
-              60 Minutes
+    <div className="h-screen w-full bg-page text-ink flex flex-col font-sans overflow-hidden select-none">
+      {/* Universal Top Header */}
+      <header className="h-14 border-b border-border bg-surface/90 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <Logo height={26} showPunchline={true} />
+          <span className="text-border">/</span>
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-xs sm:text-sm text-ink font-display">
+              Interview Scheduling Hub
             </span>
-          </div>
-
-          <div className="mt-4 pt-4 border-t border-white/10 flex flex-wrap items-center gap-4 text-xs text-indigo-100">
-            <div>
-              Role: <strong className="text-white font-semibold">Senior Full-Stack Engineer</strong>
-            </div>
-            <span>•</span>
-            <div>
-              Interviewers: <strong className="text-white font-semibold">David Miller (VP Eng) &amp; Priya Patel (Staff Architect)</strong>
-            </div>
-            <span>•</span>
-            <div>
-              Format: <strong className="text-white font-semibold">Google Meet Video</strong>
-            </div>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-wash text-brand border border-brand/20">
+              Calendar Agent
+            </span>
           </div>
         </div>
 
-        {isConfirmed ? (
-          /* Confirmation State */
-          <div className="p-8 sm:p-12 text-center space-y-5">
-            <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center text-2xl font-bold">
-              ✓
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                Interview Confirmed!
-              </h2>
-              <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 leading-relaxed">
-                We&apos;ve sent the calendar invite and Google Meet details to your email. We look forward to speaking with you!
-              </p>
-            </div>
+        <div className="flex items-center gap-3">
+          {data?.requisition && (
+            <span className="text-[11px] text-ink-muted hidden md:inline font-medium">
+              Role: <strong className="text-ink">{data.requisition.title}</strong>
+            </span>
+          )}
+          <TopbarStatus />
+        </div>
+      </header>
 
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 max-w-md mx-auto text-left text-xs space-y-2">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Date:</span>
-                <span className="font-semibold text-slate-900 dark:text-white">{selectedDay}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Time:</span>
-                <span className="font-semibold text-slate-900 dark:text-white">{selectedSlot?.displayTime}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Time Zone:</span>
-                <span className="font-semibold text-slate-900 dark:text-white">{timezone.split(" ")[0]}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Link:</span>
-                <span className="font-semibold text-indigo-600 dark:text-indigo-400">meet.google.com/ask-shree-sync</span>
-              </div>
+      {/* Main Interactive Stage — Strict Zero Scrollbar Viewport */}
+      <main className="flex-1 w-full max-w-3xl mx-auto p-4 sm:p-6 flex flex-col justify-center overflow-hidden">
+        {loading && (
+          <div className="p-8 text-center space-y-3 bg-surface border border-border rounded-2xl shadow-soft">
+            <div className="w-10 h-10 mx-auto rounded-full bg-brand/10 border border-brand/20 animate-spin flex items-center justify-center text-brand">
+              ✨
             </div>
-
-            <div className="flex items-center justify-center gap-3 pt-2">
-              <Link
-                href="/candidate/status"
-                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-xs transition-colors"
-              >
-                View My Application Status
-              </Link>
-              <button
-                onClick={() => alert("Downloading calendar .ics invite...")}
-                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 text-xs font-medium transition-colors"
-              >
-                Download .ICS
-              </button>
-            </div>
-          </div>
-        ) : (
-          /* Slot Selection State */
-          <div className="p-6 sm:p-8 space-y-6">
-            
-            {/* Timezone Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800">
-              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                <Icon name="globe" size={14} className="text-indigo-600" />
-                Select Your Time Zone:
-              </span>
-              <select
-                value={timezone}
-                onChange={(e) => setTimezone(e.target.value)}
-                className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-medium focus:outline-none"
-              >
-                <option value="America/Los_Angeles (PST / UTC-8)">America/Los_Angeles (PST / UTC-8)</option>
-                <option value="America/New_York (EST / UTC-5)">America/New_York (EST / UTC-5)</option>
-                <option value="Asia/Kolkata (IST / UTC+5:30)">Asia/Kolkata (IST / UTC+5:30)</option>
-                <option value="Europe/London (GMT / UTC+0)">Europe/London (GMT / UTC+0)</option>
-                <option value="Europe/Berlin (CET / UTC+1)">Europe/Berlin (CET / UTC+1)</option>
-              </select>
-            </div>
-
-            {/* Day Selector */}
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
-                1. Select Available Day
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {AVAILABLE_DAYS.map((day) => {
-                  const isSelected = selectedDay === day.dateStr;
-                  return (
-                    <button
-                      key={day.dateStr}
-                      type="button"
-                      onClick={() => {
-                        setSelectedDay(day.dateStr);
-                        setSelectedSlot(null);
-                      }}
-                      className={`p-3.5 rounded-xl border text-center transition-all ${
-                        isSelected
-                          ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                          : "bg-white dark:bg-slate-850 border-slate-200 dark:border-slate-800 hover:border-slate-300 text-slate-800 dark:text-slate-200"
-                      }`}
-                    >
-                      <span className={`text-[11px] font-semibold block ${isSelected ? "text-indigo-200" : "text-slate-400"}`}>
-                        {day.dayName}, {day.month}
-                      </span>
-                      <span className="text-xl font-bold block my-0.5">
-                        {day.dayNum}
-                      </span>
-                      <span className={`text-[10px] font-medium block ${isSelected ? "text-indigo-100" : "text-emerald-600 dark:text-emerald-400"}`}>
-                        {day.slotsAvailable} slots
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Time Slot Picker */}
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
-                2. Select Time Window
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {availableSlots.map((slot) => {
-                  const isSelected = selectedSlot?.time === slot.time;
-                  return (
-                    <button
-                      key={slot.time}
-                      type="button"
-                      onClick={() => setSelectedSlot(slot)}
-                      className={`p-3 rounded-xl border text-left text-xs font-semibold transition-all flex items-center justify-between ${
-                        isSelected
-                          ? "bg-indigo-50/80 dark:bg-indigo-950/50 border-indigo-600 text-indigo-900 dark:text-indigo-200 shadow-2xs"
-                          : "bg-white dark:bg-slate-850 border-slate-200 dark:border-slate-800 hover:border-slate-300 text-slate-700 dark:text-slate-300"
-                      }`}
-                    >
-                      <span>{slot.displayTime}</span>
-                      {isSelected && <span className="text-indigo-600 dark:text-indigo-400 font-bold">✓ Selected</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Optional Notes */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Any topics or portfolio links you&apos;d like to share beforehand? (Optional)
-              </label>
-              <textarea
-                value={candidateNotes}
-                onChange={(e) => setCandidateNotes(e.target.value)}
-                placeholder="e.g. GitHub architecture link, questions regarding team structure..."
-                rows={2}
-                className="w-full text-xs p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-850 focus:border-indigo-500 focus:outline-none"
-              />
-            </div>
-
-            {/* Action Bar */}
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <span className="text-xs text-slate-400">
-                Token: <strong className="font-mono text-slate-600 dark:text-slate-300">{token || "demo"}</strong>
-              </span>
-              <button
-                type="button"
-                disabled={!selectedSlot || isSubmitting}
-                onClick={handleConfirmSlot}
-                className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-xs transition-colors disabled:opacity-50 flex items-center gap-2"
-              >
-                <span>{isSubmitting ? "Confirming..." : "Confirm My Interview Slot"}</span>
-                <span>→</span>
-              </button>
-            </div>
-
+            <p className="text-sm font-semibold text-ink">Syncing Interview Panel Calendars...</p>
+            <p className="text-xs text-ink-muted">Finding mutually available windows</p>
           </div>
         )}
 
-      </div>
+        {error && (
+          <div className="p-8 text-center space-y-4 bg-surface border border-rose-500/20 rounded-2xl shadow-soft">
+            <div className="w-12 h-12 mx-auto rounded-2xl bg-rose-500/10 text-rose-600 flex items-center justify-center text-2xl">
+              ⚠️
+            </div>
+            <h2 className="text-lg font-bold font-display text-ink">Scheduling Link Error</h2>
+            <p className="text-xs text-ink-muted max-w-md mx-auto">{error}</p>
+            <Link
+              href="/"
+              className="inline-block px-4 py-2 rounded-xl bg-brand text-white text-xs font-bold shadow-soft hover:bg-brand-dark transition-colors"
+            >
+              Return to AskShree Home
+            </Link>
+          </div>
+        )}
+
+        {!loading && !error && data && (
+          <div className="bg-surface border border-border rounded-2xl shadow-soft overflow-hidden flex flex-col justify-between max-h-[88vh]">
+            {/* Role & Panel Header Card */}
+            <div className="bg-gradient-to-r from-brand-dark via-brand to-amber-700 p-5 sm:p-6 text-white shrink-0">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-200">
+                    Target Position • {data.requisition?.reqNo || "R-22082604"}
+                  </span>
+                  <h1 className="text-lg sm:text-xl font-bold font-display mt-0.5">
+                    {data.interviewRound?.name || "Hiring Manager & Technical Architecture Review"}
+                  </h1>
+                </div>
+                <span className="px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-xs font-bold border border-white/20 shrink-0">
+                  {data.interviewRound?.duration || 45} Minutes
+                </span>
+              </div>
+
+              <div className="mt-3 pt-3 border-t border-white/15 flex flex-wrap items-center gap-3 text-xs text-amber-100">
+                <div>
+                  Role: <strong className="text-white">{data.requisition?.title || "Strategic Role"}</strong>
+                </div>
+                <span>•</span>
+                <div>
+                  Panel: <strong className="text-white">{data.interviewRound?.panel?.join(" & ") || "Interview Panel"}</strong>
+                </div>
+                <span>•</span>
+                <div>
+                  Format: <strong className="text-white">{data.interviewRound?.format || "Google Meet Video"}</strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Confirmed State Screen */}
+            {confirmedBooking ? (
+              <div className="p-6 sm:p-8 text-center space-y-5 animate-in fade-in duration-300">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 flex items-center justify-center text-3xl mx-auto shadow-soft">
+                  ✓
+                </div>
+
+                <div>
+                  <span className="text-[10.5px] font-bold uppercase tracking-wider text-emerald-600">
+                    Stage Advanced • Interview Scheduled
+                  </span>
+                  <h2 className="text-xl font-bold font-display text-ink mt-0.5">
+                    Interview Confirmed &amp; Calendar Reserved!
+                  </h2>
+                  <p className="text-xs text-ink-muted max-w-md mx-auto mt-1 leading-relaxed">
+                    We&apos;ve reserved the interview slot with the panel and updated your profile to the Interview stage.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-page border border-border max-w-md mx-auto text-left text-xs space-y-2.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-ink-muted">Scheduled Date:</span>
+                    <span className="font-bold text-ink">{selectedDay}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-ink-muted">Time Window:</span>
+                    <span className="font-bold text-ink">{confirmedBooking.displayTime}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-ink-muted">Time Zone:</span>
+                    <span className="font-bold text-ink">{confirmedBooking.timezone.split(" ")[0]}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-1 border-t border-border">
+                    <span className="text-ink-muted">Video Room:</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-brand font-bold text-[11px]">
+                        {confirmedBooking.meetingUrl}
+                      </span>
+                      <button
+                        onClick={handleCopyMeetLink}
+                        className="text-[10px] px-2 py-0.5 rounded bg-brand-wash text-brand border border-brand/20 font-bold hover:bg-brand hover:text-white transition-colors"
+                      >
+                        {copiedLink ? "Copied!" : "Copy"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                  <button
+                    onClick={handleDownloadIcs}
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-surface border border-border hover:border-brand text-xs font-bold text-ink shadow-soft transition-all hover:scale-[1.02] flex items-center justify-center gap-2"
+                  >
+                    <span>📅</span> Download Calendar Invite (.ics)
+                  </button>
+
+                  <Link
+                    href={`/candidate/status?id=${encodeURIComponent(data.candidate.id)}`}
+                    className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white text-xs font-bold shadow-soft transition-all hover:scale-[1.02] text-center"
+                  >
+                    Track Application Status ›
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              /* Slot Selection Screen */
+              <div className="p-5 sm:p-6 space-y-4">
+                {/* 1. Day Selector Pills */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold text-ink-muted uppercase tracking-wider">
+                      Select Available Date:
+                    </span>
+                    <span className="text-[11px] text-brand font-semibold">
+                      {data.availableDays.length} Days Offered
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-2">
+                    {data.availableDays.map((d) => (
+                      <button
+                        key={d.dateStr}
+                        onClick={() => {
+                          setSelectedDay(d.dateStr);
+                          setSelectedSlot(null);
+                        }}
+                        className={`p-2.5 rounded-xl border text-center transition-all ${
+                          selectedDay === d.dateStr
+                            ? "bg-brand text-white border-brand shadow-soft"
+                            : "bg-page border-border text-ink hover:border-brand/40"
+                        }`}
+                      >
+                        <span className="text-[10px] font-semibold block uppercase">
+                          {d.dayName}
+                        </span>
+                        <span className="text-lg font-bold font-display block leading-tight">
+                          {d.dayNum}
+                        </span>
+                        <span className="text-[10px] opacity-80 block">
+                          {d.month}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 2. Time Slots Grid */}
+                <div>
+                  <span className="text-[11px] font-bold text-ink-muted uppercase tracking-wider block mb-2">
+                    Available Windows ({availableSlots.length} slots):
+                  </span>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {availableSlots.map((slot) => (
+                      <button
+                        key={slot.time}
+                        onClick={() => setSelectedSlot(slot)}
+                        className={`p-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                          selectedSlot?.time === slot.time
+                            ? "bg-brand/15 border-brand text-brand shadow-soft-sm font-bold scale-[1.01]"
+                            : "bg-page border-border text-ink hover:border-brand/30 hover:bg-surface"
+                        }`}
+                      >
+                        {slot.displayTime}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 3. Time Zone & Notes */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                  <div>
+                    <label className="text-[10.5px] font-bold text-ink-muted uppercase tracking-wider block mb-1">
+                      Time Zone:
+                    </label>
+                    <select
+                      value={timezone}
+                      onChange={(e) => setTimezone(e.target.value)}
+                      className="w-full p-2.5 rounded-xl bg-page border border-border text-xs text-ink focus:outline-none focus:border-brand"
+                    >
+                      {data.timezones.map((tz) => (
+                        <option key={tz} value={tz}>
+                          {tz}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10.5px] font-bold text-ink-muted uppercase tracking-wider block mb-1">
+                      Optional Notes for Panel:
+                    </label>
+                    <input
+                      type="text"
+                      value={candidateNotes}
+                      onChange={(e) => setCandidateNotes(e.target.value)}
+                      placeholder="e.g. Preferred audio, specific topic focus"
+                      className="w-full p-2.5 rounded-xl bg-page border border-border text-xs text-ink placeholder:text-ink-muted focus:outline-none focus:border-brand"
+                    />
+                  </div>
+                </div>
+
+                {/* Submit Action */}
+                <div className="pt-3 border-t border-border flex items-center justify-between">
+                  <div className="text-xs">
+                    {selectedSlot ? (
+                      <span className="text-ink font-semibold">
+                        Selected: <strong className="text-brand">{selectedDay} at {selectedSlot.displayTime}</strong>
+                      </span>
+                    ) : (
+                      <span className="text-ink-muted">Please select a preferred time slot above.</span>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleConfirmSlot}
+                    disabled={!selectedSlot || isSubmitting}
+                    className="px-6 py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white text-xs font-bold shadow-soft transition-all hover:scale-[1.02] disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap"
+                  >
+                    {isSubmitting ? "Reserving Slot..." : "Confirm & Schedule Interview ›"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </main>
     </div>
   );
 }

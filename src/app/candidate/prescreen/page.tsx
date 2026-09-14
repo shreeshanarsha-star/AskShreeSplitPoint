@@ -690,7 +690,25 @@ function PrescreenRoomContent() {
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="p-4 rounded-xl bg-gradient-to-r from-brand-wash/40 to-amber-50 dark:to-brand-wash/20 border border-brand/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-bold text-ink block">
+                      ✨ Priority Interview Fast-Track Available
+                    </span>
+                    <span className="text-[11px] text-ink-muted">
+                      Your evaluation qualifies for direct round scheduling with the interview panel.
+                    </span>
+                  </div>
+
+                  <Link
+                    href={`/schedule/${encodeURIComponent(candidate.id)}`}
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white text-xs font-bold shadow-soft transition-all hover:scale-[1.02] text-center whitespace-nowrap"
+                  >
+                    📅 Choose Interview Slot ›
+                  </Link>
+                </div>
+
+                <div className="pt-2 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3">
                   <Link
                     href="/"
                     className="text-xs text-ink-muted hover:text-ink font-semibold"
@@ -700,7 +718,7 @@ function PrescreenRoomContent() {
 
                   <Link
                     href={`/candidate/status?id=${candidate.id}`}
-                    className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white text-xs font-bold shadow-soft transition-all hover:scale-[1.02] text-center"
+                    className="text-xs text-brand hover:text-brand-dark font-bold text-center"
                   >
                     Track Application Status ›
                   </Link>
