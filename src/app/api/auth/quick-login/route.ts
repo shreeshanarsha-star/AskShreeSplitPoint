@@ -56,15 +56,26 @@ export async function POST(request: Request) {
     } else if (persona === "candidate") {
       redirectUrl = "/candidate";
     } else {
-      // Determine by clearance
+      // Determine by clearance & status
       const { data: profile } = await supabase
         .from("profiles")
-        .select("is_admin, org_role")
+        .select("is_admin, org_role, status, persona")
         .eq("id", data.user.id)
         .maybeSingle();
 
       if (profile?.is_admin) {
         redirectUrl = "/admin";
+      } else if (profile?.status === "pending_approval") {
+        redirectUrl = "/waiting-room";
+      } else if (profile?.status === "suspended") {
+        return NextResponse.json(
+          { error: "Your account is suspended. Please contact the platform owner." },
+          { status: 403 }
+        );
+      } else if (profile?.persona === "candidate") {
+        redirectUrl = "/candidate";
+      } else if (profile?.persona === "recruiter") {
+        redirectUrl = "/recruiter";
       } else {
         const { data: userRoles } = await supabase
           .from("talent_user_roles")

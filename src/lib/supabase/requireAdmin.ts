@@ -51,17 +51,32 @@ export async function requireFeatureAccess(featureKey: string) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("is_admin, org_id")
+    .select("is_admin, org_id, status, persona")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
   if (profile?.is_admin) {
     return { user, supabase, isAdmin: true, orgId: profile.org_id as string | null };
   }
 
+  // 1. Gauri.ai is strictly owner-exclusive
+  if (featureKey === "Gauri.ai") {
+    throw unauthorized("Gauri.ai is strictly reserved for the platform owner.", 403);
+  }
+
+  // 2. Pending & Suspended accounts are blocked from tools
+  if (profile?.status === "pending_approval") {
+    throw unauthorized(
+      "Your account is still pending approval from the platform owner.",
+      403
+    );
+  }
+  if (profile?.status === "suspended") {
+    throw unauthorized("Your account has been suspended.", 403);
+  }
+
   // Owner-console kill switch: pausing a tool blocks every non-owner
-  // immediately, no redeploy needed. Checked after the is_admin bypass
-  // above so the owner can always get back in to un-pause it.
+  // immediately, no redeploy needed.
   if (await isToolPaused(supabase, featureKey)) {
     throw unauthorized(
       `${featureKey} is temporarily unavailable. Please try again shortly.`,
@@ -69,9 +84,29 @@ export async function requireFeatureAccess(featureKey: string) {
     );
   }
 
+  // 3. Check direct user-level feature grant (user_feature_access)
+  const { data: userGrant } = await supabase
+    .from("user_feature_access")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("feature_key", featureKey)
+    .maybeSingle();
+
+  if (userGrant) {
+    return { user, supabase, isAdmin: false, orgId: profile?.org_id as string | null };
+  }
+
+  // 4. JD Studio.ai is exclusive to Recruiters
+  if (featureKey === "JD Studio.ai") {
+    if (profile?.persona !== "recruiter") {
+      throw unauthorized("JD Studio.ai is exclusive to Recruiters.", 403);
+    }
+  }
+
+  // 5. Check organization-level feature grant
   if (!profile?.org_id) {
     throw unauthorized(
-      "Your account isn't part of an organization yet. Create one or ask your organization's admin to add you.",
+      `Your account doesn't have access to "${featureKey}". Ask the platform owner to grant it.`,
       403
     );
   }

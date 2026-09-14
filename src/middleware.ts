@@ -35,31 +35,24 @@ export async function middleware(request: NextRequest) {
 
   // Everything under /admin and /tools is owner-only for now — there's no
   // public-facing flow yet (Apply.ai, the candidate side, is deferred).
+  // Protected tools & portals (widgets-ai is public for guests)
   const isProtectedRoute =
     request.nextUrl.pathname.startsWith("/admin") ||
-    request.nextUrl.pathname.startsWith("/tools") ||
+    request.nextUrl.pathname.startsWith("/recruiter") ||
     request.nextUrl.pathname.startsWith("/org") ||
     request.nextUrl.pathname.startsWith("/chat") ||
-    request.nextUrl.pathname.startsWith("/recruiter") ||
-    request.nextUrl.pathname.startsWith("/agent");
+    request.nextUrl.pathname.startsWith("/gauri") ||
+    request.nextUrl.pathname.startsWith("/agent") ||
+    (request.nextUrl.pathname.startsWith("/tools") && !request.nextUrl.pathname.startsWith("/tools/widgets-ai"));
   const isLoginRoute = request.nextUrl.pathname === "/login";
 
-  // A short, explicit allowlist of tools that offer a no-signup guest
-  // trial (see lib/guestAccess.ts for the cap/window rules). Everything
-  // else under /tools stays owner-only as before. A first-time visitor
-  // here has no session at all yet, so sign them in anonymously right
-  // now — a real Supabase auth user, just unconfirmed — so every
-  // existing owner_id/RLS-shaped route downstream works completely
-  // unchanged; only the per-tool usage cap in guestAccess.ts is new.
-  const GUEST_ACCESSIBLE_PATHS = ["/tools/jd-studio-ai"];
+  // JD Studio.ai is now recruiter-exclusive, so guest auto-trial is removed.
+  const GUEST_ACCESSIBLE_PATHS: string[] = [];
   const isGuestAccessiblePath = GUEST_ACCESSIBLE_PATHS.some((p) =>
     request.nextUrl.pathname.startsWith(p)
   );
 
   if (!user && isGuestAccessiblePath) {
-    // Owner-console kill switch: if the guest trial has been paused, skip
-    // the anonymous sign-in entirely -- the visitor falls through to the
-    // normal "not signed in" path below instead of getting a session.
     const guestTrialEnabled = await isGuestTrialEnabled(supabase);
     if (guestTrialEnabled) {
       const { data, error } = await supabase.auth.signInAnonymously();
@@ -72,6 +65,21 @@ export async function middleware(request: NextRequest) {
     url.pathname = "/login";
     url.searchParams.set("next", request.nextUrl.pathname);
     return NextResponse.redirect(url);
+  }
+
+  // If authenticated user is pending approval, redirect away from protected tools to waiting room
+  if (user && isProtectedRoute && !request.nextUrl.pathname.startsWith("/admin")) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("status, is_admin")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!profile?.is_admin && profile?.status === "pending_approval") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/waiting-room";
+      return NextResponse.redirect(url);
+    }
   }
 
   if (isLoginRoute && user) {

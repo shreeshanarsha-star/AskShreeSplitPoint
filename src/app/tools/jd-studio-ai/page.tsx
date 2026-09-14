@@ -6,15 +6,6 @@ import { isGuestTrialEnabled } from "@/lib/platformSettings";
 
 const TOOL_KEY = "JD Studio.ai";
 
-// JD Studio.ai -- a Personal Tool, same "requireUser() only, owner_id
-// alone" rule as Jotz / Shortlist.ai / Contracts & eSign -- with one
-// addition: it's also the pilot for the no-signup guest trial. Anyone
-// hitting this route with no session gets signed in anonymously by
-// middleware.ts before this ever runs, so `user` below is essentially
-// always present now; the real gating (3-day window / 5-action cap /
-// credits once signed up) happens per-action in the API routes, using
-// checkGuestGate() from lib/guestAccess.ts. This page just resolves the
-// guest's current standing once, up front, so the UI can show it.
 export default async function JdStudioPage() {
   const supabase = await createClient();
   const {
@@ -33,9 +24,39 @@ export default async function JdStudioPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("org_id, is_admin, is_anonymous, credits, guest_tool_usage, created_at")
+    .select("org_id, is_admin, is_anonymous, credits, guest_tool_usage, created_at, persona, status")
     .eq("id", user.id)
     .single();
+
+  // JD Studio is exclusive to verified Recruiters & Owner
+  const isOwner = !!profile?.is_admin;
+  const isApprovedRecruiter = profile?.persona === "recruiter" && profile?.status === "active";
+
+  const { data: userGrant } = await supabase
+    .from("user_feature_access")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("feature_key", TOOL_KEY)
+    .maybeSingle();
+
+  if (!isOwner && !isApprovedRecruiter && !userGrant) {
+    return (
+      <AppShell title="JD Studio.ai">
+        <div className="flex items-center justify-center p-8">
+          <div className="max-w-md w-full border border-border rounded-xl p-6 bg-surface text-center shadow-soft">
+            <div className="text-[28px] mb-2">💼</div>
+            <h2 className="text-[17px] font-bold text-ink mb-1 font-display">Recruiter Exclusive Tool</h2>
+            <p className="text-[12.5px] text-ink-muted mb-4 leading-relaxed">
+              JD Studio.ai is an advanced job architecture studio exclusively available to verified Recruiters and Talent Acquisition Partners.
+            </p>
+            <div className="text-[11.5px] text-ink-muted bg-page/60 border border-border rounded-lg p-3">
+              If you are a recruiter, please ensure your account has been approved by the platform owner or request access.
+            </div>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
 
   let guestStatus: GuestGateResult | null = null;
   if (profile) {

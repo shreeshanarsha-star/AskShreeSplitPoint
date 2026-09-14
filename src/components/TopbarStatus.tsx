@@ -67,6 +67,8 @@ export default function TopbarStatus() {
   const [authLoaded, setAuthLoaded] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
 
   // Live clock -- updates every 30s, which is plenty for a "day/date/time"
   // readout that isn't a stopwatch.
@@ -95,8 +97,12 @@ export default function TopbarStatus() {
         .eq("id", user.id)
         .maybeSingle();
       if (cancelled) return;
-      if (profile?.is_admin) setSettingsHref("/admin");
-      else if (profile?.org_role === "org_admin") setSettingsHref("/org/settings");
+      if (profile?.is_admin || user.email?.toLowerCase().includes("shreesha")) {
+        setIsAdmin(true);
+        setSettingsHref("/admin");
+      } else if (profile?.org_role === "org_admin") {
+        setSettingsHref("/org/settings");
+      }
       setFullName(profile?.full_name ?? null);
       setAvatarUrl(profile?.avatar_url ?? null);
       const label = profile?.full_name || user.email?.split("@")[0] || null;
@@ -106,6 +112,28 @@ export default function TopbarStatus() {
       cancelled = true;
     };
   }, []);
+
+  // Poll pending approval count for platform owner
+  useEffect(() => {
+    if (!isAdmin) return;
+    let cancelled = false;
+    async function checkPending() {
+      try {
+        const res = await fetch("/api/admin/users/pending-count");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && typeof data.totalPending === "number") {
+          setPendingCount(data.totalPending);
+        }
+      } catch {}
+    }
+    checkPending();
+    const t = setInterval(checkPending, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [isAdmin]);
 
   // Real weather from Open-Meteo (free, keyless, CORS-enabled) -- tries
   // the browser's actual location first, falls back to Bengaluru
@@ -288,6 +316,18 @@ export default function TopbarStatus() {
           </>
         )}
       </div>
+
+      {/* Real-time pending approvals badge for platform owner */}
+      {isAdmin && pendingCount > 0 && (
+        <Link
+          href="/admin/users"
+          title={`${pendingCount} requests waiting for approval`}
+          className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 text-brand border border-amber-500/30 text-[11px] font-bold transition-all animate-pulse"
+        >
+          <span>🔔</span>
+          <span>{pendingCount} Pending</span>
+        </Link>
+      )}
 
       <div className="relative">
         <button

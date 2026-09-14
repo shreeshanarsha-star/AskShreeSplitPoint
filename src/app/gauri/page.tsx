@@ -1,5 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import Logo from "@/components/Logo";
+import TopbarStatus from "@/components/TopbarStatus";
+import { createClient } from "@/lib/supabase/client";
 import GauriFace3D from "@/components/gauri/GauriFace3D";
 import GauriThemeBackground from "@/components/gauri/GauriThemeBackground";
 import { DEFAULT_THEME, getThemeAccentStyle } from "@/components/gauri/gauriThemes";
@@ -54,6 +58,7 @@ interface SpeechRecognitionLike {
 }
 
 export default function GauriAvatarPage() {
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [language, setLanguage] = useState("Hindi");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -69,6 +74,27 @@ export default function GauriAvatarPage() {
   const [caseCreated, setCaseCreated] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
   const [needsTap, setNeedsTap] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) {
+        setIsAdmin(false);
+        return;
+      }
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profile?.is_admin || user.email?.toLowerCase().includes("shreesha")) {
+        setIsAdmin(true);
+      } else {
+        setIsAdmin(false);
+      }
+    });
+  }, []);
   const [micBlocked, setMicBlocked] = useState(false);
   const [viseme, setViseme] = useState("closed");
 
@@ -330,6 +356,34 @@ export default function GauriAvatarPage() {
   const accentStyle = getThemeAccentStyle(DEFAULT_THEME);
   const expression: "neutral" | "happy" | "concerned" =
     micBlocked || note ? "concerned" : showConfirmForm ? "happy" : "neutral";
+
+  if (isAdmin === false) {
+    return (
+      <div className="min-h-screen flex flex-col bg-page">
+        <header className="px-6 py-3.5 border-b border-border bg-surface flex items-center justify-between">
+          <Link href="/" className="hover:opacity-90 transition-opacity">
+            <Logo height={28} showPunchline={true} />
+          </Link>
+          <TopbarStatus />
+        </header>
+        <div className="flex-1 flex items-center justify-center px-4 py-8">
+          <div className="w-full max-w-sm bg-surface border border-border rounded-2xl p-8 text-center shadow-soft">
+            <div className="text-[32px] mb-2">👑</div>
+            <h1 className="text-[18px] font-bold m-0 mb-2 font-display text-ink">Owner Exclusive</h1>
+            <p className="text-[13px] text-ink-muted m-0 mb-5 leading-relaxed">
+              Gauri.ai is an executive copilot strictly reserved for the platform owner (Shreesha).
+            </p>
+            <Link
+              href="/"
+              className="inline-block w-full py-2.5 px-4 rounded-lg bg-brand text-white text-[12.5px] font-bold hover:bg-brand-dark transition-colors shadow-soft-sm"
+            >
+              Return to Open Roles
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (caseCreated) {
     return (

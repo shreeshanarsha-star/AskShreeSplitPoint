@@ -95,11 +95,22 @@ function LoginForm() {
       if (!params.get("next") && clientData.user) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("is_admin, org_role")
+          .select("is_admin, org_role, status, persona")
           .eq("id", clientData.user.id)
           .maybeSingle();
+
         if (profile?.is_admin) {
           destination = "/admin";
+        } else if (profile?.status === "pending_approval") {
+          destination = "/waiting-room";
+        } else if (profile?.status === "suspended") {
+          setLoading(false);
+          setError("Your account has been suspended. Please contact the platform owner.");
+          return;
+        } else if (profile?.persona === "candidate") {
+          destination = "/candidate";
+        } else if (profile?.persona === "recruiter") {
+          destination = "/recruiter";
         }
       }
 
@@ -112,9 +123,20 @@ function LoginForm() {
     }
   }
 
-  function handleGoogleSignIn() {
+  async function handleGoogleSignIn() {
     setError(null);
-    setShowGoogleNotice(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
+      });
+      if (error) {
+        setShowGoogleNotice(true);
+      }
+    } catch {
+      setShowGoogleNotice(true);
+    }
   }
 
   return (
