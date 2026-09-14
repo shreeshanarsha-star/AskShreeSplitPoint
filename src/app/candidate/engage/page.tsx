@@ -241,27 +241,74 @@ function CandidateEngageContent() {
                       {confirming ? "Confirming..." : "✓ Yes, I'm Interested — Apply"}
                     </button>
                   ) : (
-                    <Link
-                      href={`/candidate/status?id=${candidate.id}`}
-                      className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold shadow-soft-sm transition-colors text-center whitespace-nowrap"
-                    >
-                      Track Application Status ›
-                    </Link>
+                    <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                      <Link
+                        href={`/candidate/prescreen?token=${encodeURIComponent(candidate.id)}`}
+                        className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white text-xs font-bold shadow-soft-sm transition-colors text-center whitespace-nowrap"
+                      >
+                        Start AI Pre-Screening ›
+                      </Link>
+                      <Link
+                        href={`/candidate/status?id=${candidate.id}`}
+                        className="px-3.5 py-2.5 rounded-xl bg-page border border-border hover:bg-surface text-ink text-xs font-semibold transition-colors text-center whitespace-nowrap hidden sm:inline-block"
+                      >
+                        Status
+                      </Link>
+                    </div>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Confirmed Banner */}
+            {/* Confirmed Banner & Instant Pre-Screening Fast-Track */}
             {confirmed && (
-              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium space-y-1">
-                <div className="font-bold flex items-center gap-1.5">
-                  <span>✓</span> Application Successfully Confirmed!
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-300 text-xs font-medium space-y-1">
+                  <div className="font-bold flex items-center gap-1.5">
+                    <span>✓</span> Application Successfully Confirmed!
+                  </div>
+                  <p className="text-emerald-700 dark:text-emerald-400">
+                    Your profile has officially moved into the <strong>Applied</strong> stage.
+                    Our team and Shree AI are reviewing your credentials.
+                  </p>
                 </div>
-                <p className="text-emerald-700">
-                  Your profile has officially moved into the <strong>Applied</strong> stage.
-                  Our team and Shree AI are reviewing your credentials.
-                </p>
+
+                <div className="p-6 rounded-2xl bg-gradient-to-br from-surface to-brand-wash/40 border border-brand/30 shadow-soft space-y-4">
+                  <div className="flex items-start justify-between flex-wrap gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-brand text-white flex items-center justify-center text-xl shadow-soft shrink-0">
+                        🎙️
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-brand">
+                          Fast-Track Your Candidacy
+                        </span>
+                        <h3 className="text-base font-bold font-display text-ink">
+                          Shree AI 5-Minute Pre-Screening Room
+                        </h3>
+                      </div>
+                    </div>
+                    <span className="text-[10.5px] font-bold px-2.5 py-0.5 rounded-full bg-brand-wash text-brand border border-brand/20">
+                      Autonomous Fast-Track
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-ink-muted leading-relaxed">
+                    Stand out immediately by answering 4 short, role-tailored competency questions with Shree AI. Upon completion, your synthesized scorecard is routed directly to the hiring manager for priority review.
+                  </p>
+
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <span className="text-[11px] text-ink-muted">
+                      Takes ~5 minutes • Voice or Written Text Mode
+                    </span>
+                    <Link
+                      href={`/candidate/prescreen?token=${encodeURIComponent(candidate.id)}`}
+                      className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white text-xs font-bold shadow-soft transition-all hover:scale-[1.02] text-center"
+                    >
+                      Enter Pre-Screening Room ›
+                    </Link>
+                  </div>
+                </div>
               </div>
             )}
           </div>
