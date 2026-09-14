@@ -8,6 +8,9 @@ import type { ShreeDecisionRecord, LaneTrustRecord } from "@/lib/agent/shreeOrch
 export type SourcedCandidate = {
   id: string;
   name: string;
+  email?: string;
+  stage?: string;
+  experience_years?: number | string | null;
   current_company: string | null;
   current_location: string | null;
   linkedin_url: string | null;
@@ -52,9 +55,11 @@ export default function ShreeRecruiterCockpit({
   const [decisions, setDecisions] = useState<ShreeDecisionRecord[]>([]);
   const [lanes, setLanes] = useState<LaneTrustRecord[]>([]);
   const [sourcedCandidates, setSourcedCandidates] = useState<SourcedCandidate[]>([]);
+  const [offerCandidates, setOfferCandidates] = useState<SourcedCandidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"queue" | "outreach" | "trust">("queue");
+  const [generatingOfferId, setGeneratingOfferId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"queue" | "outreach" | "offers" | "trust">("queue");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Outreach Modal State
@@ -81,19 +86,46 @@ export default function ShreeRecruiterCockpit({
       const loadedDecisions = decData.decisions && decData.decisions.length > 0 ? decData.decisions : SAMPLE_DECISIONS;
       const loadedLanes = trustData.lanes && trustData.lanes.length > 0 ? trustData.lanes : SAMPLE_LANES;
       
-      const sourced = (candData.candidates || []).filter((c: any) => c.stage === "sourced");
+      const allCandidates = candData.candidates || [];
+      const sourced = allCandidates.filter((c: any) => c.stage === "sourced");
       const loadedSourced = sourced.length > 0 ? sourced : SAMPLE_SOURCED;
+      const forOffers = allCandidates.filter((c: any) => ["interview", "offer", "hired"].includes(c.stage));
 
       setDecisions(loadedDecisions);
       setLanes(loadedLanes);
       setSourcedCandidates(loadedSourced);
+      setOfferCandidates(forOffers);
     } catch (err) {
       console.error("Failed to load Shree cockpit data:", err);
       setDecisions(SAMPLE_DECISIONS);
       setLanes(SAMPLE_LANES);
       setSourcedCandidates(SAMPLE_SOURCED);
+      setOfferCandidates([]);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleGenerateOffer(candId: string) {
+    try {
+      setGeneratingOfferId(candId);
+      const res = await fetch("/api/candidate/offer/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidateId: candId }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        await loadData();
+        if (onCandidateUpdated) onCandidateUpdated();
+      } else {
+        alert(json.error || "Failed to generate offer.");
+      }
+    } catch (e) {
+      console.error("Offer generation failed:", e);
+      alert("Network error generating offer.");
+    } finally {
+      setGeneratingOfferId(null);
     }
   }
 
@@ -276,6 +308,23 @@ export default function ShreeRecruiterCockpit({
             {sourcedCandidates.length > 0 && (
               <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-white text-brand font-bold">
                 {sourcedCandidates.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab("offers")}
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 ${
+              activeTab === "offers"
+                ? "bg-brand text-white shadow-button"
+                : "text-ink-2 hover:bg-page hover:text-ink"
+            }`}
+          >
+            <Icon name="briefcase" size={14} />
+            Offers &amp; Handoff
+            {offerCandidates.length > 0 && (
+              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-white text-brand font-bold">
+                {offerCandidates.length}
               </span>
             )}
           </button>
@@ -493,6 +542,116 @@ export default function ShreeRecruiterCockpit({
                 </div>
               ))}
             </div>
+          </div>
+        ) : activeTab === "offers" ? (
+          /* TAB 3: OFFERS & HANDOFF VIEW */
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h4 className="text-sm font-bold text-ink font-display">
+                  Autonomous Offer Orchestration &amp; Day-One Handoff
+                </h4>
+                <p className="text-xs text-ink-muted">
+                  Orchestrate executive compensation, review digital signature envelopes, and monitor Day-One onboarding.
+                </p>
+              </div>
+              <span className="text-xs text-brand font-bold px-3 py-1 rounded-full bg-brand-wash border border-brand/20">
+                {offerCandidates.length} Pipeline Candidates
+              </span>
+            </div>
+
+            {offerCandidates.length === 0 ? (
+              <div className="py-12 text-center text-ink-muted bg-page rounded-xl border border-border">
+                <div className="w-12 h-12 mx-auto rounded-full bg-surface border border-border flex items-center justify-center text-ink-muted mb-2 text-xl">
+                  📄
+                </div>
+                <p className="text-sm font-medium text-ink">No candidates in interview or offer stage yet.</p>
+                <p className="text-xs mt-1 text-ink-muted">
+                  Candidates who complete screening and interview rounds appear here for 1-click offer generation.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {offerCandidates.map((c) => (
+                  <div
+                    key={c.id}
+                    className="p-4 rounded-xl bg-surface border border-border hover:border-brand/40 transition-all flex flex-wrap items-center justify-between gap-3 shadow-soft-sm"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-brand-wash text-brand border border-brand/20 flex items-center justify-center font-bold text-sm">
+                        {c.name.charAt(0)}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h5 className="text-sm font-bold text-ink font-display">{c.name}</h5>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              c.stage === "hired"
+                                ? "bg-good-wash text-good-text border border-good/20"
+                                : c.stage === "offer"
+                                ? "bg-brand-wash text-brand border border-brand/20"
+                                : "bg-blue-500/10 text-blue-600 border border-blue-500/20"
+                            }`}
+                          >
+                            {(c.stage || "candidate").toUpperCase()}
+                          </span>
+                        </div>
+                        <p className="text-xs text-ink-muted">
+                          {c.email} • {c.current_company || "Direct Talent"} {c.experience_years ? `• ${c.experience_years}y exp` : ""}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {c.stage === "interview" && (
+                        <button
+                          onClick={() => handleGenerateOffer(c.id)}
+                          disabled={generatingOfferId === c.id}
+                          className="px-4 py-2 rounded-xl bg-brand hover:bg-brand-dark text-white text-xs font-bold shadow-soft transition-all hover:scale-[1.02] flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          <span>✨</span>
+                          <span>{generatingOfferId === c.id ? "Generating..." : "Generate Executive Offer ›"}</span>
+                        </button>
+                      )}
+
+                      {c.stage === "offer" && (
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/candidate/offer/${encodeURIComponent(c.id)}`}
+                            target="_blank"
+                            className="px-4 py-2 rounded-xl bg-brand hover:bg-brand-dark text-white text-xs font-bold shadow-soft transition-all hover:scale-[1.02] flex items-center gap-1.5"
+                          >
+                            <span>📄</span>
+                            <span>Review Offer Portal ›</span>
+                          </Link>
+                          <button
+                            onClick={() => handleCopy(`${window.location.origin}/candidate/offer/${c.id}`, `offer-${c.id}`)}
+                            className="px-3 py-2 rounded-xl bg-page border border-border text-ink hover:border-brand/40 text-xs font-semibold transition-all"
+                          >
+                            {copiedKey === `offer-${c.id}` ? "Copied Link! ✓" : "Copy Signing Link"}
+                          </button>
+                        </div>
+                      )}
+
+                      {c.stage === "hired" && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-good flex items-center gap-1 px-3 py-1.5 rounded-xl bg-good-wash border border-good/20">
+                            <span>✓</span> Officially Hired
+                          </span>
+                          <Link
+                            href={`/candidate/offer/${encodeURIComponent(c.id)}`}
+                            target="_blank"
+                            className="px-3 py-1.5 rounded-xl bg-page border border-border hover:border-brand/40 text-xs font-bold text-ink"
+                          >
+                            View Agreement ›
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           /* TAB 3: TRUST GRADUATION VIEW */

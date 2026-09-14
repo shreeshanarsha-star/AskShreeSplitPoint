@@ -90,13 +90,20 @@ function CandidateStatusContent() {
   const stagesList = ["applied", "screening", "hm_review", "interview_1", "offer"];
 
   function getStageState(stageKey: string, currentStage: string) {
-    const currentIndex = stagesList.indexOf(currentStage);
+    const normalizedCurrent =
+      currentStage === "interview"
+        ? "interview_1"
+        : currentStage === "hired"
+        ? "offer"
+        : currentStage;
+    const currentIndex = stagesList.indexOf(normalizedCurrent);
     const targetIndex = stagesList.indexOf(stageKey);
 
     if (currentStage === "rejected") {
       if (stageKey === "applied") return "completed";
       return "failed";
     }
+    if (currentStage === "hired" && stageKey === "offer") return "completed";
     if (currentIndex > targetIndex) return "completed";
     if (currentIndex === targetIndex) return "current";
     return "upcoming";
@@ -262,6 +269,10 @@ function CandidateStatusContent() {
                       "Congratulations! You passed initial screening. The hiring manager is currently reviewing your dossier to schedule your panel rounds."}
                     {candidate.stage.startsWith("interview") &&
                       "You are currently in active interview stages. Review the role requirements and test your audio/video setup prior to your call."}
+                    {candidate.stage === "offer" &&
+                      "Congratulations! You have received a formal executive employment offer from AskShree. Review your compensation breakdown and execute your digital signature."}
+                    {candidate.stage === "hired" &&
+                      "Welcome aboard! You have officially accepted the offer and are hired. Review your Day-One onboarding guide and team introduction below."}
                     {candidate.stage === "rejected" &&
                       "Thank you for interviewing with us. While this specific role wasn't an exact match, your profile remains in our talent pool for priority future matching."}
                   </p>
@@ -273,6 +284,17 @@ function CandidateStatusContent() {
                         className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand hover:bg-brand-dark text-white text-xs font-bold shadow-soft transition-all hover:scale-[1.02]"
                       >
                         <span>📅</span> {candidate.stage.startsWith("interview") ? "View Interview Schedule & Meet Link ›" : "Choose Interview Time Slot ›"}
+                      </Link>
+                    </div>
+                  )}
+
+                  {(candidate.stage === "offer" || candidate.stage === "hired") && (
+                    <div className="mt-3.5 pt-3 border-t border-border flex items-center gap-3">
+                      <Link
+                        href={`/candidate/offer/${encodeURIComponent(candidate.id)}`}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand hover:bg-brand-dark text-white text-xs font-bold shadow-soft transition-all hover:scale-[1.02]"
+                      >
+                        <span>📄</span> {candidate.stage === "hired" ? "View Signed Offer & Day-One Briefing ›" : "Review & Sign Executive Offer Letter ›"}
                       </Link>
                     </div>
                   )}
