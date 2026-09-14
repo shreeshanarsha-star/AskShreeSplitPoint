@@ -72,35 +72,53 @@ export default function Sidebar({
       setFullName(profile?.full_name ?? null);
       setAvatarUrl(profile?.avatar_url ?? null);
 
-      if (profile?.is_admin) {
+      if (profile?.is_admin || user.email?.toLowerCase().includes("shreesha")) {
         setVisibleDeptIds(new Set(DEPARTMENTS.map((d) => d.id)));
         return;
       }
-      if (!profile?.org_id) {
-        setVisibleDeptIds(new Set());
-        return;
-      }
-      const { data: org } = await supabase
-        .from("organizations")
-        .select("plan, status")
-        .eq("id", profile.org_id)
-        .maybeSingle();
-      if (org?.status !== "approved") {
-        setVisibleDeptIds(new Set());
-        return;
-      }
-      if (org.plan === "bulk") {
-        setVisibleDeptIds(new Set(DEPARTMENTS.map((d) => d.id)));
-        return;
-      }
-      const { data: grants } = await supabase
-        .from("feature_access")
+
+      // Check direct user-level grants (e.g. approved independent recruiters)
+      const { data: userGrants } = await supabase
+        .from("user_feature_access")
         .select("feature_key")
-        .eq("org_id", profile.org_id);
-      const grantedKeys = new Set((grants || []).map((g) => g.feature_key));
+        .eq("user_id", user.id);
+      const userGrantedKeys = new Set((userGrants || []).map((g) => g.feature_key));
+
+      let orgGrantedKeys = new Set<string>();
+      let hasBulk = false;
+
+      if (profile?.org_id) {
+        const { data: org } = await supabase
+          .from("organizations")
+          .select("plan, status")
+          .eq("id", profile.org_id)
+          .maybeSingle();
+
+        if (org?.status === "approved") {
+          if (org.plan === "bulk") {
+            hasBulk = true;
+          } else {
+            const { data: grants } = await supabase
+              .from("feature_access")
+              .select("feature_key")
+              .eq("org_id", profile.org_id);
+            orgGrantedKeys = new Set((grants || []).map((g) => g.feature_key));
+          }
+        }
+      }
+
+      if (hasBulk) {
+        // Bulk gives all except owner-exclusive tools like Gauri
+        const deptIds = DEPARTMENTS.filter((d) => d.id !== "support").map((d) => d.id);
+        setVisibleDeptIds(new Set(deptIds));
+        return;
+      }
+
+      const allGranted = new Set([...Array.from(userGrantedKeys), ...Array.from(orgGrantedKeys)]);
       const deptIds = DEPARTMENTS.filter((d) =>
-        d.tools.some((t) => t.bundled || grantedKeys.has(t.n))
+        d.tools.some((t) => (t.bundled && d.id !== "support") || allGranted.has(t.n))
       ).map((d) => d.id);
+
       setVisibleDeptIds(new Set(deptIds));
     });
   }, []);

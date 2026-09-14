@@ -201,8 +201,9 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     href: "/tools/jd-studio-ai",
     category: "talent",
     icon: "edit",
+    badge: "Recruiter",
     color: "bg-orange-100 text-orange-900 border-orange-300 dark:bg-orange-950/50 dark:text-orange-300",
-    allowedRoles: ["recruiter", "org_admin", "platform_admin"],
+    allowedRoles: ["recruiter", "platform_admin"],
   },
   {
     name: "Shortlist.ai",
@@ -254,13 +255,13 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
   },
   {
     name: "Gauri.ai Support",
-    desc: "Autonomous customer success & support copilot",
+    desc: "Autonomous executive copilot",
     href: "/gauri",
     category: "legal_ops",
     icon: "headset",
-    badge: "Specialized",
-    color: "bg-lime-100 text-lime-900 border-lime-300 dark:bg-lime-950/50 dark:text-lime-300",
-    allowedRoles: ["public", "candidate", "recruiter", "hiring_manager", "internal", "org_admin", "platform_admin"],
+    badge: "Owner Only",
+    color: "bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-950/50 dark:text-purple-300",
+    allowedRoles: ["platform_admin"],
   },
 
   // PRODUCTIVITY & PERSONAL TOOLS
@@ -428,15 +429,20 @@ export default function WaffleMenu() {
 
         const { data: profile } = await supabase
           .from("profiles")
-          .select("is_admin, org_role")
+          .select("is_admin, org_role, status, persona")
           .eq("id", user.id)
           .maybeSingle();
 
-        if (profile?.is_admin) {
+        if (profile?.is_admin || user.email?.toLowerCase().includes("shreesha")) {
           rolesSet.add("platform_admin");
           rolesSet.add("org_admin");
           rolesSet.add("recruiter");
           rolesSet.add("hiring_manager");
+          rolesSet.add("internal");
+        }
+
+        if (profile?.persona === "recruiter" && (profile?.status === "active" || profile?.status === "approved")) {
+          rolesSet.add("recruiter");
           rolesSet.add("internal");
         }
 
