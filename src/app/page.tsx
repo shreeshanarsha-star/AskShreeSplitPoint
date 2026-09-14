@@ -99,7 +99,7 @@ export default function HomePage() {
     {
       id: "initial-welcome",
       role: "assistant",
-      text: "Hello! I am Shree, your autonomous AI Talent Acquisition partner. Drop your CV below or click + Drop CV for instant role matching, or select any open job on the left to consult with me.",
+      text: "Hello! I am Shree, your AI hiring partner. Drop your CV for instant feedback, explore open roles with zero ghosting, or select any job on the left for a free consultation.",
     },
   ]);
   const [inputQuery, setInputQuery] = useState("");
@@ -880,7 +880,7 @@ export default function HomePage() {
                     </span>
                   </div>
                   <p className="text-[11px] text-ink-muted mt-0.5">
-                    AI Talent Acquisition Partner • Real-time Candidate Guidance
+                    Your AI Hiring Partner • Instant Feedback • No Ghosting • Free Consultation
                   </p>
                 </div>
               </div>
@@ -1507,7 +1507,7 @@ export default function HomePage() {
                   Shree
                 </span>
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-wash text-brand border border-brand/20">
-                  Official AI Partner
+                  Your AI Partner
                 </span>
               </div>
               <button
@@ -1521,25 +1521,62 @@ export default function HomePage() {
             </div>
 
             {/* Original Expanded Photo */}
-            <div className="relative w-full rounded-2xl overflow-hidden border border-border/60 shadow-soft-md bg-page flex items-center justify-center max-h-[62vh]">
+            <div className="relative w-full rounded-2xl overflow-hidden border border-border/60 shadow-soft-md bg-page flex items-center justify-center max-h-[58vh]">
               <img
                 src="/shree-avatar.jpg"
-                alt="Shree — AI Talent Acquisition Partner"
-                className="w-full h-auto max-h-[62vh] object-contain rounded-2xl select-none"
+                alt="Shree — Your AI Hiring Partner"
+                className="w-full h-auto max-h-[58vh] object-contain rounded-2xl select-none"
               />
             </div>
 
             {/* Caption / Profile Details */}
-            <div className="w-full text-center space-y-1">
-              <div className="font-bold text-sm text-ink font-display">
-                Shree
+            <div className="w-full text-center space-y-2.5">
+              <div>
+                <div className="font-bold text-base text-ink font-display">
+                  Shree
+                </div>
+                <p className="text-xs font-semibold text-brand">
+                  Your AI Hiring Partner
+                </p>
               </div>
-              <p className="text-xs text-ink-muted">
-                AI Talent Acquisition Partner &amp; Hiring Copilot • AskShree
-              </p>
-              <p className="text-[11px] text-ink-muted/80">
-                Autonomous candidate calibration, real-time interview screening, and structured evaluations.
-              </p>
+
+              {/* 3 Core Pillars */}
+              <div className="flex flex-wrap items-center justify-center gap-1.5 pt-0.5">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-brand-wash text-brand border border-brand/20">
+                  <span>⚡</span> Instant Feedback
+                </span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  <span>🤝</span> No Ghosting
+                </span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                  <span>🎁</span> Free Consultation
+                </span>
+              </div>
+
+              {/* Quick Action CTAs */}
+              <div className="flex items-center justify-center gap-2 pt-1 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAvatarModal(false);
+                    const q = "Hello Shree, I'd like a free consultation on my career and relevant openings.";
+                    handleSendQuery(undefined, q);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-brand hover:bg-brand-dark text-white text-xs font-bold transition-all shadow-button flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>💬</span> Consult Shree Now
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAvatarModal(false);
+                    fileInputRef.current?.click();
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-page hover:bg-surface text-ink text-xs font-semibold border border-border transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>📄</span> Drop CV for Review
+                </button>
+              </div>
             </div>
           </div>
         </div>
