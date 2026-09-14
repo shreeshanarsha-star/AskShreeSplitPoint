@@ -3,7 +3,7 @@
 import Logo from "@/components/Logo";
 import TopbarStatus from "@/components/TopbarStatus";
 import GoogleAuthNoticeModal from "@/components/GoogleAuthNoticeModal";
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -25,6 +25,12 @@ function LoginForm() {
   const [persona, setPersona] = useState<PersonaType>(
     requestedPersona === "recruiter" || requestedPersona === "organization" ? requestedPersona : "candidate"
   );
+
+  useEffect(() => {
+    if (requestedPersona === "recruiter" || requestedPersona === "organization" || requestedPersona === "candidate") {
+      setPersona(requestedPersona);
+    }
+  }, [requestedPersona]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
