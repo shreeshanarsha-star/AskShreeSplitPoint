@@ -409,6 +409,14 @@ export default function TopbarStatus() {
                         <span>My Applications (Candidate)</span>
                       </Link>
                       <Link
+                        href="/agent"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="px-2 py-1.5 rounded-lg hover:bg-page text-ink flex items-center gap-2 font-medium transition-colors"
+                      >
+                        <Icon name="sparkle" className="w-3.5 h-3.5 text-brand" />
+                        <span>Master Agent Mission Control</span>
+                      </Link>
+                      <Link
                         href="/recruiter"
                         onClick={() => setUserMenuOpen(false)}
                         className="px-2 py-1.5 rounded-lg hover:bg-page text-ink flex items-center gap-2 font-medium transition-colors"

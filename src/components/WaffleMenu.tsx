@@ -76,6 +76,15 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     color: "bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300",
   },
   {
+    name: "Master AI Agent Mission Control",
+    desc: "Autonomous command center for all 5 hiring sub-agents",
+    href: "/agent",
+    category: "talent",
+    icon: "sparkle",
+    badge: "Master AI",
+    color: "bg-brand text-white border-brand shadow-soft-sm",
+  },
+  {
     name: "Recruiter Cockpit",
     desc: "Shadow Mode queue & sourcing triage (Recruiters only)",
     href: "/recruiter",
