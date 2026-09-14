@@ -15,11 +15,11 @@ export interface AiAvatarHeaderProps {
 
 export default function AiAvatarHeader({
   title = "Shree",
-  subtitle = "AI Talent Acquisition Partner • Real-time Guidance",
+  subtitle = "Your AI Hiring Partner • Instant Feedback • No Ghosting • Free Consultation",
   badgeText = "Live-Interactive 24/7",
   isSpeaking = false,
   avatarSrc = "/shree-avatar.jpg",
-  avatarAlt = "Shree — AI Talent Partner",
+  avatarAlt = "Shree — Your AI Hiring Partner",
   rightAction,
 }: AiAvatarHeaderProps) {
   const [showPortrait, setShowPortrait] = useState(false);
@@ -128,7 +128,7 @@ export default function AiAvatarHeader({
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-surface border border-border rounded-3xl p-5 max-w-sm w-full shadow-2xl flex flex-col items-center gap-3 relative"
+            className="bg-surface border border-border rounded-3xl p-5 sm:p-6 max-w-sm w-full shadow-2xl flex flex-col items-center gap-3.5 relative"
           >
             <button
               type="button"
@@ -138,16 +138,51 @@ export default function AiAvatarHeader({
             >
               ✕
             </button>
-            <div className="w-56 h-56 rounded-full overflow-hidden p-1 bg-gradient-to-tr from-brand to-brand-dark shadow-emblem">
+            <div className="w-52 h-52 rounded-full overflow-hidden p-1 bg-gradient-to-tr from-brand to-brand-dark shadow-emblem">
               <img
                 src={avatarSrc}
                 alt={avatarAlt}
                 className="w-full h-full object-cover rounded-full"
               />
             </div>
-            <div className="text-center">
+            <div className="text-center space-y-1">
               <h3 className="font-display font-bold text-base text-ink">{title}</h3>
-              <p className="text-xs text-ink-muted mt-0.5">{subtitle}</p>
+              <p className="text-xs font-semibold text-brand">Your AI Hiring Partner</p>
+            </div>
+
+            {/* 3 Core Pillars */}
+            <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-brand-wash text-brand border border-brand/20">
+                <svg viewBox="0 0 24 24" className="w-3 h-3" fill="currentColor">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                </svg>
+                Instant Feedback
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  <polyline points="9 12 11 14 15 10" />
+                </svg>
+                No Ghosting
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <polyline points="20 12 20 22 4 22 4 12" />
+                  <rect x="2" y="7" width="20" height="5" />
+                </svg>
+                Free Consultation
+              </span>
+            </div>
+
+            <div className="pt-1">
+              <a
+                href="/avatar"
+                onClick={() => setShowPortrait(false)}
+                className="text-[11px] font-medium text-brand hover:underline inline-flex items-center gap-1"
+              >
+                <span>View Full Avatar Profile &amp; Mission</span>
+                <span>&rarr;</span>
+              </a>
             </div>
           </div>
         </div>

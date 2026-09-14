@@ -41,7 +41,7 @@ export type GuestToolId =
   | "calendarPlanner"
   | "manualHandbook";
 
-interface GuestTool {
+export interface GuestTool {
   name: string;
   desc: string;
   href: string;
@@ -52,7 +52,7 @@ interface GuestTool {
   spanTwo?: boolean;
 }
 
-const GUEST_TOOLS: GuestTool[] = [
+export const GUEST_TOOLS: GuestTool[] = [
   {
     name: "Prepare ATS CV",
     desc: "ATS match score, keyword gaps & 1-click format fix",
@@ -155,7 +155,7 @@ const GUEST_TOOLS: GuestTool[] = [
   },
 ];
 
-function PremiumIcon({ id, className = "w-4 h-4" }: { id: GuestToolId; className?: string }) {
+export function PremiumIcon({ id, className = "w-4 h-4" }: { id: GuestToolId; className?: string }) {
   switch (id) {
     case "atsScan":
       return (
