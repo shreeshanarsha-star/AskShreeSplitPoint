@@ -40,7 +40,8 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/tools") ||
     request.nextUrl.pathname.startsWith("/org") ||
     request.nextUrl.pathname.startsWith("/chat") ||
-    request.nextUrl.pathname.startsWith("/recruiter");
+    request.nextUrl.pathname.startsWith("/recruiter") ||
+    request.nextUrl.pathname.startsWith("/agent");
   const isLoginRoute = request.nextUrl.pathname === "/login";
 
   // A short, explicit allowlist of tools that offer a no-signup guest
@@ -90,6 +91,16 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/tools/:path*", "/org/:path*", "/chat/:path*", "/recruiter/:path*", "/recruiter", "/login"],
+  matcher: [
+    "/admin/:path*",
+    "/tools/:path*",
+    "/org/:path*",
+    "/chat/:path*",
+    "/recruiter/:path*",
+    "/recruiter",
+    "/agent/:path*",
+    "/agent",
+    "/login",
+  ],
 };
 

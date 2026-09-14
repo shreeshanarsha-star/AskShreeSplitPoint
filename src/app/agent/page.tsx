@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
@@ -140,13 +140,70 @@ const INITIAL_LOGS: AgentLogEvent[] = [
   },
 ];
 
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+
 export default function MasterAgentDashboardPage() {
+  const router = useRouter();
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
+  const [userRoleLabel, setUserRoleLabel] = useState<string>("Talent Operator");
+
   const [agents, setAgents] = useState<SubAgent[]>(INITIAL_SUB_AGENTS);
   const [logs, setLogs] = useState<AgentLogEvent[]>(INITIAL_LOGS);
   const [masterAutonomy, setMasterAutonomy] = useState<"full" | "copilot" | "paused">("full");
   const [simulating, setSimulating] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("sourcing");
   const [apiPingStatus, setApiPingStatus] = useState<"idle" | "pinging" | "ok">("idle");
+
+  useEffect(() => {
+    async function verifyAccess() {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          router.push("/login?next=/agent");
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_admin, org_role")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        const { data: userRoles } = await supabase
+          .from("talent_user_roles")
+          .select("role")
+          .eq("user_id", user.id);
+
+        const roles = (userRoles || []).map((r: { role: string }) => r.role);
+        const isOwner = Boolean(profile?.is_admin);
+        const isOrgAdmin = profile?.org_role === "org_admin";
+        const isRecruiter = roles.some((r) =>
+          ["recruiter", "ta_head", "lead_recruiter", "admin"].includes(r)
+        );
+
+        if (isOwner || isOrgAdmin || isRecruiter) {
+          setAuthorized(true);
+          setUserRoleLabel(
+            isOwner
+              ? "Platform Super Admin"
+              : isOrgAdmin
+              ? "Organization Admin"
+              : "Lead Recruiter"
+          );
+        } else {
+          setAuthorized(false);
+        }
+      } catch (err) {
+        console.error("Auth check failed:", err);
+      } finally {
+        setCheckingAuth(false);
+      }
+    }
+    verifyAccess();
+  }, [router]);
 
   function toggleAgentMode(agentId: string) {
     setAgents((prev) =>
@@ -220,6 +277,57 @@ export default function MasterAgentDashboardPage() {
       setLogs((prev) => [newLog3, ...prev]);
       setSimulating(false);
     }, 2400);
+  }
+
+  if (checkingAuth) {
+    return (
+      <div className="h-screen bg-page text-ink flex flex-col items-center justify-center">
+        <div className="text-xs text-ink-muted flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-brand animate-pulse" />
+          Verifying Master Agent authorization…
+        </div>
+      </div>
+    );
+  }
+
+  if (!authorized) {
+    return (
+      <div className="min-h-screen bg-page text-ink flex flex-col">
+        <header className="px-6 py-3.5 border-b border-border bg-surface flex items-center justify-between">
+          <Link href="/" className="hover:opacity-90 transition-opacity">
+            <Logo height={28} showPunchline={true} />
+          </Link>
+          <TopbarStatus />
+        </header>
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="max-w-md w-full bg-surface border border-border rounded-2xl p-8 text-center shadow-soft space-y-4">
+            <div className="w-12 h-12 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 flex items-center justify-center mx-auto text-amber-600 text-lg">
+              🛡️
+            </div>
+            <h2 className="text-base font-bold text-ink font-display m-0">
+              Access Restricted
+            </h2>
+            <p className="text-xs text-ink-muted leading-relaxed m-0">
+              The <strong>Master AI Agent Mission Control</strong> is restricted to authorized Talent Acquisition personnel, Recruiters, TA Heads, and Organization Admins.
+            </p>
+            <div className="pt-2 flex items-center justify-center gap-2">
+              <Link
+                href="/recruiter"
+                className="px-4 py-2 text-xs font-bold rounded-xl bg-brand text-white shadow-soft-sm hover:opacity-90"
+              >
+                Go to Recruiter Cockpit
+              </Link>
+              <Link
+                href="/"
+                className="px-4 py-2 text-xs font-semibold rounded-xl border border-border text-ink hover:bg-page"
+              >
+                Return to Home
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const selectedAgent = agents.find((a) => a.id === selectedAgentId) || agents[0];
