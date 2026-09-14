@@ -406,7 +406,7 @@ export default function TopbarStatus() {
                         className="px-2 py-1.5 rounded-lg hover:bg-page text-ink flex items-center gap-2 font-medium transition-colors"
                       >
                         <Icon name="check" className="w-3.5 h-3.5 text-brand" />
-                        <span>My Applications</span>
+                        <span>My Applications (Candidate)</span>
                       </Link>
                       <Link
                         href="/recruiter"
@@ -416,14 +416,39 @@ export default function TopbarStatus() {
                         <Icon name="briefcase" className="w-3.5 h-3.5 text-brand" />
                         <span>Recruiter Cockpit</span>
                       </Link>
-                      {settingsHref && (
+                      <Link
+                        href="/hm"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="px-2 py-1.5 rounded-lg hover:bg-page text-ink flex items-center gap-2 font-medium transition-colors"
+                      >
+                        <Icon name="users" className="w-3.5 h-3.5 text-brand" />
+                        <span>Hiring Manager Portal</span>
+                      </Link>
+                      <Link
+                        href="/recruiter/extension"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="px-2 py-1.5 rounded-lg hover:bg-page text-ink flex items-center gap-2 font-medium transition-colors"
+                      >
+                        <Icon name="sparkle" className="w-3.5 h-3.5 text-brand" />
+                        <span>Sourcing Extension</span>
+                      </Link>
+                      {settingsHref ? (
                         <Link
                           href={settingsHref}
                           onClick={() => setUserMenuOpen(false)}
                           className="px-2 py-1.5 rounded-lg hover:bg-page text-ink flex items-center gap-2 font-medium transition-colors"
                         >
                           <Icon name="gear" className="w-3.5 h-3.5 text-ink-muted" />
-                          <span>Settings</span>
+                          <span>{settingsHref === "/admin" ? "Platform Owner Console" : "Org Settings"}</span>
+                        </Link>
+                      ) : (
+                        <Link
+                          href="/org/settings"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="px-2 py-1.5 rounded-lg hover:bg-page text-ink flex items-center gap-2 font-medium transition-colors"
+                        >
+                          <Icon name="gear" className="w-3.5 h-3.5 text-ink-muted" />
+                          <span>Org Settings</span>
                         </Link>
                       )}
                       <button

@@ -20,6 +20,7 @@ export default function OrgSettingsPanel({ org, meId }: { org: Org; meId: string
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
   const [inviteRole, setInviteRole] = useState<"member" | "org_admin">("member");
+  const [inviteTalentRole, setInviteTalentRole] = useState<string>("recruiter");
   const [inviting, setInviting] = useState(false);
   const [inviteNotice, setInviteNotice] = useState<{ ok: boolean; text: string; link?: string } | null>(null);
 
@@ -62,7 +63,12 @@ export default function OrgSettingsPanel({ org, meId }: { org: Org; meId: string
       const res = await fetch("/api/org/members/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: inviteEmail.trim(), fullName: inviteName.trim(), orgRole: inviteRole }),
+        body: JSON.stringify({
+          email: inviteEmail.trim(),
+          fullName: inviteName.trim(),
+          orgRole: inviteRole,
+          talentRole: inviteTalentRole,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not create the account.");
@@ -82,6 +88,7 @@ export default function OrgSettingsPanel({ org, meId }: { org: Org; meId: string
       setInviteEmail("");
       setInviteName("");
       setInviteRole("member");
+      setInviteTalentRole("recruiter");
       loadMembers();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create the account.");
@@ -177,18 +184,35 @@ export default function OrgSettingsPanel({ org, meId }: { org: Org; meId: string
             value={inviteName}
             onChange={(e) => setInviteName(e.target.value)}
             placeholder="Full name"
-            className="input flex-1 min-w-[160px]"
+            className="input flex-1 min-w-[150px]"
           />
           <input
             type="email"
             value={inviteEmail}
             onChange={(e) => setInviteEmail(e.target.value)}
             placeholder="employee@company.com"
-            className="input flex-1 min-w-[200px]"
+            className="input flex-1 min-w-[180px]"
           />
-          <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as "member" | "org_admin")} className="input w-auto">
-            <option value="member">Member</option>
-            <option value="org_admin">Org admin</option>
+          <select
+            value={inviteTalentRole}
+            onChange={(e) => setInviteTalentRole(e.target.value)}
+            className="input w-auto text-xs"
+            title="Talent AI Role"
+          >
+            <option value="recruiter">Role: Recruiter (Cockpit &amp; Sourcing)</option>
+            <option value="hiring_manager">Role: Hiring Manager (HM Review)</option>
+            <option value="ta_head">Role: TA Head / Lead Recruiter</option>
+            <option value="hr_approver">Role: HR Approver</option>
+            <option value="employee">Role: General Member</option>
+          </select>
+          <select
+            value={inviteRole}
+            onChange={(e) => setInviteRole(e.target.value as "member" | "org_admin")}
+            className="input w-auto text-xs"
+            title="Organization Permission"
+          >
+            <option value="member">Org Permission: Member</option>
+            <option value="org_admin">Org Permission: Org Admin</option>
           </select>
           <button
             type="submit"

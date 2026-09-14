@@ -85,6 +85,24 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     color: "bg-brand-wash text-brand border-brand/30",
   },
   {
+    name: "Hiring Manager Portal",
+    desc: "Calibrated candidate review, fit analysis & 1-click decisions",
+    href: "/hm",
+    category: "talent",
+    icon: "users",
+    badge: "HM Auth",
+    color: "bg-indigo-100 text-indigo-900 border-indigo-300 dark:bg-indigo-950/50 dark:text-indigo-300",
+  },
+  {
+    name: "Sourcing Chrome Extension",
+    desc: "1-Click candidate ingestion from LinkedIn & GitHub",
+    href: "/recruiter/extension",
+    category: "talent",
+    icon: "sparkle",
+    badge: "Extension",
+    color: "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300",
+  },
+  {
     name: "Candidate Status",
     desc: "Real-time application milestone tracker (Registered candidates)",
     href: "/candidate/status",
@@ -309,6 +327,24 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     color: "bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-950/50 dark:text-purple-300",
     isExternal: true,
   },
+  {
+    name: "Organization Settings",
+    desc: "Manage organization profile, team members & permissions",
+    href: "/org/settings",
+    category: "enterprise",
+    icon: "gear",
+    badge: "Org Admin",
+    color: "bg-stone-100 text-stone-900 border-stone-300 dark:bg-stone-900 dark:text-stone-300",
+  },
+  {
+    name: "Platform Owner Console",
+    desc: "Global organization approvals & system oversight",
+    href: "/admin",
+    category: "enterprise",
+    icon: "award",
+    badge: "Owner",
+    color: "bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300",
+  },
 ];
 
 export default function WaffleMenu() {
@@ -340,6 +376,17 @@ export default function WaffleMenu() {
     };
   }, [open]);
 
+  const counts = useMemo(() => {
+    return {
+      all: ALL_WAFFLE_TOOLS.length,
+      departments: ALL_WAFFLE_TOOLS.filter((t) => t.category === "departments").length,
+      talent: ALL_WAFFLE_TOOLS.filter((t) => t.category === "talent").length,
+      legal_ops: ALL_WAFFLE_TOOLS.filter((t) => t.category === "legal_ops").length,
+      productivity: ALL_WAFFLE_TOOLS.filter((t) => t.category === "productivity").length,
+      enterprise: ALL_WAFFLE_TOOLS.filter((t) => t.category === "enterprise").length,
+    };
+  }, []);
+
   const filteredTools = useMemo(() => {
     return ALL_WAFFLE_TOOLS.filter((t) => {
       const matchCat = activeCategory === "all" || t.category === activeCategory;
@@ -358,7 +405,7 @@ export default function WaffleMenu() {
       <button
         type="button"
         aria-label="AskShree Ecosystem Apps & Tools"
-        title="AskShree Apps & Tools (All 29 Systems)"
+        title="AskShree Apps & Tools"
         onClick={() => setOpen((prev) => !prev)}
         className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors flex-shrink-0 ${
           open
@@ -387,7 +434,7 @@ export default function WaffleMenu() {
               <div className="text-[13px] font-bold text-ink flex items-center gap-1.5 font-display">
                 <span>AskShree Systems Grid</span>
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-wash text-brand border border-brand/20">
-                  {ALL_WAFFLE_TOOLS.length} Systems
+                  {counts.all} Systems
                 </span>
               </div>
               <p className="text-[11px] text-ink-muted mt-0.5">
@@ -416,7 +463,7 @@ export default function WaffleMenu() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder={`Search all ${ALL_WAFFLE_TOOLS.length} systems, departments & tools...`}
+                placeholder={`Search all ${counts.all} systems, departments & tools...`}
                 className="w-full text-xs pl-8 pr-3 py-1.5 bg-page border border-border rounded-xl text-ink placeholder:text-ink-muted focus:border-brand focus:outline-none"
               />
               {search && (
@@ -440,7 +487,7 @@ export default function WaffleMenu() {
                   : "text-ink-muted hover:text-ink hover:bg-page"
               }`}
             >
-              All ({ALL_WAFFLE_TOOLS.length})
+              All ({counts.all})
             </button>
             <button
               onClick={() => setActiveCategory("departments")}
@@ -450,7 +497,7 @@ export default function WaffleMenu() {
                   : "text-ink-muted hover:text-ink hover:bg-page"
               }`}
             >
-              Departments (5)
+              Departments ({counts.departments})
             </button>
             <button
               onClick={() => setActiveCategory("talent")}
@@ -460,7 +507,7 @@ export default function WaffleMenu() {
                   : "text-ink-muted hover:text-ink hover:bg-page"
               }`}
             >
-              Talent AI (14)
+              Talent AI ({counts.talent})
             </button>
             <button
               onClick={() => setActiveCategory("legal_ops")}
@@ -470,7 +517,7 @@ export default function WaffleMenu() {
                   : "text-ink-muted hover:text-ink hover:bg-page"
               }`}
             >
-              Legal &amp; Ops (3)
+              Legal &amp; Ops ({counts.legal_ops})
             </button>
             <button
               onClick={() => setActiveCategory("productivity")}
@@ -480,7 +527,7 @@ export default function WaffleMenu() {
                   : "text-ink-muted hover:text-ink hover:bg-page"
               }`}
             >
-              Productivity (8)
+              Productivity ({counts.productivity})
             </button>
             <button
               onClick={() => setActiveCategory("enterprise")}
@@ -490,7 +537,7 @@ export default function WaffleMenu() {
                   : "text-ink-muted hover:text-ink hover:bg-page"
               }`}
             >
-              SimpleNow (4)
+              Enterprise ({counts.enterprise})
             </button>
           </div>
 

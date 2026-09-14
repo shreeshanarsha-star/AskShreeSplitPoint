@@ -60,7 +60,9 @@ function LoginForm() {
         if (roles.some((r) => ["recruiter", "ta_head", "lead_recruiter"].includes(r))) {
           destination = "/recruiter";
         } else if (roles.some((r) => ["hiring_manager", "reporting_manager"].includes(r))) {
-          destination = "/hm/demo";
+          destination = "/hm";
+        } else if (profile?.org_role === "org_admin") {
+          destination = "/org/settings";
         }
       }
     }
