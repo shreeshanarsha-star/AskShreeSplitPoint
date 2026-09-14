@@ -312,16 +312,10 @@ export default function MasterAgentDashboardPage() {
             </p>
             <div className="pt-2 flex items-center justify-center gap-2">
               <Link
-                href="/recruiter"
+                href="/"
                 className="px-4 py-2 text-xs font-bold rounded-xl bg-brand text-white shadow-soft-sm hover:opacity-90"
               >
-                Go to Recruiter Cockpit
-              </Link>
-              <Link
-                href="/"
-                className="px-4 py-2 text-xs font-semibold rounded-xl border border-border text-ink hover:bg-page"
-              >
-                Return to Home
+                Return to Career Portal
               </Link>
             </div>
           </div>

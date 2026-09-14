@@ -177,24 +177,59 @@ export default function HomePage() {
   const [accountError, setAccountError] = useState<string | null>(null);
   const [isCandidateLoggedIn, setIsCandidateLoggedIn] = useState(false);
 
-  // Listen to candidate auth session
+  // Listen to candidate auth session & dispatch internal staff to respective cockpits
   useEffect(() => {
     async function checkCandidateAuth() {
       try {
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          setIsCandidateLoggedIn(true);
+        if (!user) {
+          setIsCandidateLoggedIn(false);
+          return;
         }
-        supabase.auth.onAuthStateChange((_event, session) => {
-          setIsCandidateLoggedIn(!!session?.user);
-        });
+        setIsCandidateLoggedIn(true);
+
+        // Allow previewing the candidate portal if explicit query param is passed
+        if (typeof window !== "undefined") {
+          const params = new URLSearchParams(window.location.search);
+          if (params.get("view") === "candidate" || params.get("mode") === "candidate" || params.get("role")) {
+            return;
+          }
+        }
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_admin, org_role")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (profile?.is_admin) {
+          router.replace("/admin");
+          return;
+        }
+
+        const { data: userRoles } = await supabase
+          .from("talent_user_roles")
+          .select("role")
+          .eq("user_id", user.id);
+
+        const roles = (userRoles || []).map((r: { role: string }) => r.role);
+        if (roles.some((r) => ["recruiter", "ta_head", "lead_recruiter"].includes(r))) {
+          router.replace("/recruiter");
+          return;
+        } else if (roles.some((r) => ["hiring_manager", "reporting_manager"].includes(r))) {
+          router.replace("/hm");
+          return;
+        } else if (profile?.org_role === "org_admin") {
+          router.replace("/org/settings");
+          return;
+        }
       } catch (err) {
         console.warn("Auth check failed:", err);
       }
     }
     checkCandidateAuth();
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {

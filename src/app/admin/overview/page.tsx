@@ -2,8 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import AppShell from "@/components/AppShell";
-import AdminNav from "@/components/admin/AdminNav";
+import AdminPlatformShell from "@/components/admin/AdminPlatformShell";
 
 interface OverviewData {
   orgs: { total: number; pending: number; approved: number; suspended: number };
@@ -81,8 +80,7 @@ export default function AdminOverviewPage() {
   }
 
   return (
-    <AppShell title="Admin — Overview">
-      <AdminNav />
+    <AdminPlatformShell>
       <div className="mb-6 flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="m-0 text-[19px] font-bold">Overview</h2>
@@ -242,6 +240,6 @@ export default function AdminOverviewPage() {
           </section>
         </div>
       )}
-    </AppShell>
+    </AdminPlatformShell>
   );
 }

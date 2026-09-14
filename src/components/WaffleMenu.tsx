@@ -3,8 +3,18 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Icon from "./Icon";
+import { createClient } from "@/lib/supabase/client";
 
 type ToolCategory = "all" | "departments" | "talent" | "legal_ops" | "productivity" | "enterprise";
+
+export type RoleClearance =
+  | "candidate"
+  | "public"
+  | "recruiter"
+  | "hiring_manager"
+  | "internal"
+  | "org_admin"
+  | "platform_admin";
 
 type ToolItem = {
   name: string;
@@ -15,10 +25,11 @@ type ToolItem = {
   badge?: string;
   color: string;
   isExternal?: boolean;
+  allowedRoles: RoleClearance[];
 };
 
 const ALL_WAFFLE_TOOLS: ToolItem[] = [
-  // AI SYSTEMS & WORKSPACES — BY DEPARTMENT (Moved from Sidebar)
+  // AI SYSTEMS & WORKSPACES — BY DEPARTMENT (Internal Enterprise)
   {
     name: "Human Resources & Talent",
     desc: "Autonomous AI sourcing, screening, interviews, offers, & requisitions",
@@ -27,6 +38,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     icon: "users",
     badge: "Department",
     color: "bg-brand-wash text-brand border-brand/30",
+    allowedRoles: ["recruiter", "internal", "org_admin", "platform_admin"],
   },
   {
     name: "Legal & Compliance",
@@ -36,6 +48,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     icon: "scale",
     badge: "Department",
     color: "bg-slate-100 text-slate-900 border-slate-300 dark:bg-slate-800 dark:text-slate-200",
+    allowedRoles: ["internal", "org_admin", "platform_admin"],
   },
   {
     name: "IT & Communication",
@@ -45,6 +58,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     icon: "database",
     badge: "Department",
     color: "bg-sky-100 text-sky-900 border-sky-300 dark:bg-sky-950/50 dark:text-sky-300",
+    allowedRoles: ["internal", "org_admin", "platform_admin"],
   },
   {
     name: "Customer Success & Support",
@@ -54,6 +68,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     icon: "headset",
     badge: "Department",
     color: "bg-lime-100 text-lime-900 border-lime-300 dark:bg-lime-950/50 dark:text-lime-300",
+    allowedRoles: ["internal", "org_admin", "platform_admin"],
   },
   {
     name: "Personal Tools",
@@ -63,6 +78,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     icon: "grid",
     badge: "Personal",
     color: "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300",
+    allowedRoles: ["public", "candidate", "recruiter", "hiring_manager", "internal", "org_admin", "platform_admin"],
   },
 
   // TALENT & RECRUITMENT
@@ -74,6 +90,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     icon: "users",
     badge: "Front Door",
     color: "bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300",
+    allowedRoles: ["public", "candidate", "recruiter", "hiring_manager", "internal", "org_admin", "platform_admin"],
   },
   {
     name: "Master AI Agent Mission Control",
@@ -83,6 +100,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     icon: "sparkle",
     badge: "Master AI",
     color: "bg-brand text-white border-brand shadow-soft-sm",
+    allowedRoles: ["recruiter", "org_admin", "platform_admin"],
   },
   {
     name: "Recruiter Cockpit",
@@ -92,6 +110,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     icon: "briefcase",
     badge: "Recruiter Auth",
     color: "bg-brand-wash text-brand border-brand/30",
+    allowedRoles: ["recruiter", "org_admin", "platform_admin"],
   },
   {
     name: "Hiring Manager Portal",
@@ -101,6 +120,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     icon: "users",
     badge: "HM Auth",
     color: "bg-indigo-100 text-indigo-900 border-indigo-300 dark:bg-indigo-950/50 dark:text-indigo-300",
+    allowedRoles: ["hiring_manager", "recruiter", "org_admin", "platform_admin"],
   },
   {
     name: "Sourcing Chrome Extension",
@@ -110,14 +130,16 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     icon: "sparkle",
     badge: "Extension",
     color: "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300",
+    allowedRoles: ["recruiter", "org_admin", "platform_admin"],
   },
   {
-    name: "Candidate Status",
-    desc: "Real-time application milestone tracker (Registered candidates)",
-    href: "/candidate/status",
+    name: "Candidate Talent Portal",
+    desc: "Application tracker, referrals, ATS CV optimizer & interview prep",
+    href: "/candidate",
     category: "talent",
     icon: "check",
     color: "bg-teal-100 text-teal-900 border-teal-300 dark:bg-teal-950/50 dark:text-teal-300",
+    allowedRoles: ["public", "candidate", "recruiter", "hiring_manager", "internal", "org_admin", "platform_admin"],
   },
   {
     name: "Interview.ai & Calendar",
@@ -126,6 +148,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     category: "talent",
     icon: "calendar",
     color: "bg-blue-100 text-blue-900 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300",
+    allowedRoles: ["public", "candidate", "recruiter", "hiring_manager", "internal", "org_admin", "platform_admin"],
   },
   {
     name: "Smart Source.ai",
@@ -134,6 +157,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     category: "talent",
     icon: "search",
     color: "bg-cyan-100 text-cyan-900 border-cyan-300 dark:bg-cyan-950/50 dark:text-cyan-300",
+    allowedRoles: ["recruiter", "org_admin", "platform_admin"],
   },
   {
     name: "Smart Screen.ai",
@@ -142,6 +166,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     category: "talent",
     icon: "award",
     color: "bg-indigo-100 text-indigo-900 border-indigo-300 dark:bg-indigo-950/50 dark:text-indigo-300",
+    allowedRoles: ["recruiter", "org_admin", "platform_admin"],
   },
   {
     name: "Assessment.ai",
@@ -150,6 +175,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     category: "talent",
     icon: "flask",
     color: "bg-violet-100 text-violet-900 border-violet-300 dark:bg-violet-950/50 dark:text-violet-300",
+    allowedRoles: ["recruiter", "org_admin", "platform_admin"],
   },
   {
     name: "Talent.ai (ATS)",
@@ -158,6 +184,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     category: "talent",
     icon: "chart",
     color: "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300",
+    allowedRoles: ["recruiter", "org_admin", "platform_admin"],
   },
   {
     name: "Job Postings.ai",
@@ -166,6 +193,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     category: "talent",
     icon: "megaphone",
     color: "bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300",
+    allowedRoles: ["recruiter", "org_admin", "platform_admin"],
   },
   {
     name: "JD Studio.ai",
@@ -174,6 +202,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     category: "talent",
     icon: "edit",
     color: "bg-orange-100 text-orange-900 border-orange-300 dark:bg-orange-950/50 dark:text-orange-300",
+    allowedRoles: ["recruiter", "org_admin", "platform_admin"],
   },
   {
     name: "Shortlist.ai",
@@ -182,6 +211,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     category: "talent",
     icon: "star",
     color: "bg-yellow-100 text-yellow-900 border-yellow-300 dark:bg-yellow-950/50 dark:text-yellow-300",
+    allowedRoles: ["recruiter", "org_admin", "platform_admin"],
   },
   {
     name: "Offer.ai",
@@ -190,6 +220,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     category: "talent",
     icon: "gift",
     color: "bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-950/50 dark:text-purple-300",
+    allowedRoles: ["recruiter", "org_admin", "platform_admin"],
   },
   {
     name: "WhatsApp Talent Bot",
@@ -198,6 +229,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     category: "talent",
     icon: "whatsapp",
     color: "bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300",
+    allowedRoles: ["recruiter", "org_admin", "platform_admin"],
   },
 
   // LEGAL, OPERATIONS & SUPPORT
@@ -209,6 +241,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     icon: "penSignature",
     badge: "Vault",
     color: "bg-slate-100 text-slate-900 border-slate-300 dark:bg-slate-800 dark:text-slate-200",
+    allowedRoles: ["internal", "recruiter", "org_admin", "platform_admin"],
   },
   {
     name: "Team Chat",
@@ -217,6 +250,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     category: "legal_ops",
     icon: "chat",
     color: "bg-sky-100 text-sky-900 border-sky-300 dark:bg-sky-950/50 dark:text-sky-300",
+    allowedRoles: ["internal", "recruiter", "org_admin", "platform_admin"],
   },
   {
     name: "Gauri.ai Support",
@@ -226,6 +260,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     icon: "headset",
     badge: "Specialized",
     color: "bg-lime-100 text-lime-900 border-lime-300 dark:bg-lime-950/50 dark:text-lime-300",
+    allowedRoles: ["public", "candidate", "recruiter", "hiring_manager", "internal", "org_admin", "platform_admin"],
   },
 
   // PRODUCTIVITY & PERSONAL TOOLS
@@ -237,6 +272,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     icon: "book",
     badge: "Popular",
     color: "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300",
+    allowedRoles: ["public", "candidate", "recruiter", "hiring_manager", "internal", "org_admin", "platform_admin"],
   },
   {
     name: "Calculator",
@@ -245,6 +281,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     category: "productivity",
     icon: "dollar",
     color: "bg-stone-100 text-stone-900 border-stone-300 dark:bg-stone-900 dark:text-stone-300",
+    allowedRoles: ["public", "candidate", "recruiter", "hiring_manager", "internal", "org_admin", "platform_admin"],
   },
   {
     name: "Quick Notes",
@@ -253,6 +290,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     category: "productivity",
     icon: "receipt",
     color: "bg-yellow-100 text-yellow-900 border-yellow-300 dark:bg-yellow-950/50 dark:text-yellow-300",
+    allowedRoles: ["public", "candidate", "recruiter", "hiring_manager", "internal", "org_admin", "platform_admin"],
   },
   {
     name: "To-Do List",
@@ -261,6 +299,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     category: "productivity",
     icon: "check",
     color: "bg-green-100 text-green-900 border-green-300 dark:bg-green-950/50 dark:text-green-300",
+    allowedRoles: ["public", "candidate", "recruiter", "hiring_manager", "internal", "org_admin", "platform_admin"],
   },
   {
     name: "Calendar",
@@ -269,6 +308,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     category: "productivity",
     icon: "calendar",
     color: "bg-blue-100 text-blue-900 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300",
+    allowedRoles: ["public", "candidate", "recruiter", "hiring_manager", "internal", "org_admin", "platform_admin"],
   },
   {
     name: "World Clock",
@@ -277,6 +317,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     category: "productivity",
     icon: "globe",
     color: "bg-indigo-100 text-indigo-900 border-indigo-300 dark:bg-indigo-950/50 dark:text-indigo-300",
+    allowedRoles: ["public", "candidate", "recruiter", "hiring_manager", "internal", "org_admin", "platform_admin"],
   },
   {
     name: "Focus Timer",
@@ -285,6 +326,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     category: "productivity",
     icon: "bell",
     color: "bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300",
+    allowedRoles: ["public", "candidate", "recruiter", "hiring_manager", "internal", "org_admin", "platform_admin"],
   },
   {
     name: "Unit Converter",
@@ -293,6 +335,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     category: "productivity",
     icon: "gear",
     color: "bg-cyan-100 text-cyan-900 border-cyan-300 dark:bg-cyan-950/50 dark:text-cyan-300",
+    allowedRoles: ["public", "candidate", "recruiter", "hiring_manager", "internal", "org_admin", "platform_admin"],
   },
 
   // SIMPLENOW.AI ENTERPRISE SUITE
@@ -305,6 +348,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     badge: "SimpleNow",
     color: "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300",
     isExternal: true,
+    allowedRoles: ["public", "candidate", "recruiter", "hiring_manager", "internal", "org_admin", "platform_admin"],
   },
   {
     name: "Finance & Margin AI",
@@ -315,6 +359,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     badge: "SimpleNow",
     color: "bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300",
     isExternal: true,
+    allowedRoles: ["public", "candidate", "recruiter", "hiring_manager", "internal", "org_admin", "platform_admin"],
   },
   {
     name: "Sales & Pipeline AI",
@@ -325,6 +370,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     badge: "SimpleNow",
     color: "bg-blue-100 text-blue-900 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300",
     isExternal: true,
+    allowedRoles: ["public", "candidate", "recruiter", "hiring_manager", "internal", "org_admin", "platform_admin"],
   },
   {
     name: "Marketing & Creative AI",
@@ -335,6 +381,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     badge: "SimpleNow",
     color: "bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-950/50 dark:text-purple-300",
     isExternal: true,
+    allowedRoles: ["public", "candidate", "recruiter", "hiring_manager", "internal", "org_admin", "platform_admin"],
   },
   {
     name: "Organization Settings",
@@ -344,6 +391,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     icon: "gear",
     badge: "Org Admin",
     color: "bg-stone-100 text-stone-900 border-stone-300 dark:bg-stone-900 dark:text-stone-300",
+    allowedRoles: ["org_admin", "platform_admin"],
   },
   {
     name: "Platform Owner Console",
@@ -353,6 +401,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     icon: "award",
     badge: "Owner",
     color: "bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300",
+    allowedRoles: ["platform_admin"],
   },
 ];
 
@@ -360,8 +409,70 @@ export default function WaffleMenu() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<ToolCategory>("all");
+  const [userRoles, setUserRoles] = useState<Set<RoleClearance>>(new Set(["public", "candidate"]));
   const menuRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    async function loadUserRoles() {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setUserRoles(new Set(["public", "candidate"]));
+          return;
+        }
+
+        const rolesSet = new Set<RoleClearance>(["public", "candidate"]);
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_admin, org_role")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (profile?.is_admin) {
+          rolesSet.add("platform_admin");
+          rolesSet.add("org_admin");
+          rolesSet.add("recruiter");
+          rolesSet.add("hiring_manager");
+          rolesSet.add("internal");
+        }
+
+        if (profile?.org_role === "org_admin") {
+          rolesSet.add("org_admin");
+          rolesSet.add("recruiter");
+          rolesSet.add("hiring_manager");
+          rolesSet.add("internal");
+        }
+
+        const { data: talentRoles } = await supabase
+          .from("talent_user_roles")
+          .select("role")
+          .eq("user_id", user.id);
+
+        const roles = (talentRoles || []).map((r: { role: string }) => r.role);
+        if (roles.some((r) => ["recruiter", "ta_head", "lead_recruiter"].includes(r))) {
+          rolesSet.add("recruiter");
+          rolesSet.add("internal");
+        }
+        if (roles.some((r) => ["hiring_manager", "reporting_manager"].includes(r))) {
+          rolesSet.add("hiring_manager");
+          rolesSet.add("internal");
+        }
+        if (roles.includes("admin")) {
+          rolesSet.add("org_admin");
+          rolesSet.add("recruiter");
+          rolesSet.add("internal");
+        }
+
+        setUserRoles(rolesSet);
+      } catch (err) {
+        console.error("Failed to load user permissions for waffle menu:", err);
+      }
+    }
+    loadUserRoles();
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -385,19 +496,33 @@ export default function WaffleMenu() {
     };
   }, [open]);
 
+  const availableTools = useMemo(() => {
+    return ALL_WAFFLE_TOOLS.filter((t) => {
+      if (!t.allowedRoles || t.allowedRoles.length === 0) return true;
+      return t.allowedRoles.some((r) => userRoles.has(r));
+    });
+  }, [userRoles]);
+
   const counts = useMemo(() => {
     return {
-      all: ALL_WAFFLE_TOOLS.length,
-      departments: ALL_WAFFLE_TOOLS.filter((t) => t.category === "departments").length,
-      talent: ALL_WAFFLE_TOOLS.filter((t) => t.category === "talent").length,
-      legal_ops: ALL_WAFFLE_TOOLS.filter((t) => t.category === "legal_ops").length,
-      productivity: ALL_WAFFLE_TOOLS.filter((t) => t.category === "productivity").length,
-      enterprise: ALL_WAFFLE_TOOLS.filter((t) => t.category === "enterprise").length,
+      all: availableTools.length,
+      departments: availableTools.filter((t) => t.category === "departments").length,
+      talent: availableTools.filter((t) => t.category === "talent").length,
+      legal_ops: availableTools.filter((t) => t.category === "legal_ops").length,
+      productivity: availableTools.filter((t) => t.category === "productivity").length,
+      enterprise: availableTools.filter((t) => t.category === "enterprise").length,
     };
-  }, []);
+  }, [availableTools]);
+
+  // Reset category if active category has 0 items
+  useEffect(() => {
+    if (activeCategory !== "all" && counts[activeCategory] === 0) {
+      setActiveCategory("all");
+    }
+  }, [counts, activeCategory]);
 
   const filteredTools = useMemo(() => {
-    return ALL_WAFFLE_TOOLS.filter((t) => {
+    return availableTools.filter((t) => {
       const matchCat = activeCategory === "all" || t.category === activeCategory;
       const q = search.trim().toLowerCase();
       const matchSearch =
@@ -407,7 +532,7 @@ export default function WaffleMenu() {
         (t.badge && t.badge.toLowerCase().includes(q));
       return matchCat && matchSearch;
     });
-  }, [search, activeCategory]);
+  }, [availableTools, search, activeCategory]);
 
   return (
     <div className="relative" ref={menuRef}>
@@ -447,7 +572,7 @@ export default function WaffleMenu() {
                 </span>
               </div>
               <p className="text-[11px] text-ink-muted mt-0.5">
-                AI powered hiring partner • Full Platform Directory
+                AI powered hiring partner • Platform Directory
               </p>
             </div>
             <button
@@ -472,7 +597,7 @@ export default function WaffleMenu() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder={`Search all ${counts.all} systems, departments & tools...`}
+                placeholder={`Search ${counts.all} accessible systems...`}
                 className="w-full text-xs pl-8 pr-3 py-1.5 bg-page border border-border rounded-xl text-ink placeholder:text-ink-muted focus:border-brand focus:outline-none"
               />
               {search && (
@@ -486,7 +611,7 @@ export default function WaffleMenu() {
             </div>
           </div>
 
-          {/* Category Chips */}
+          {/* Category Chips - Only render chips that have items */}
           <div className="flex flex-wrap items-center gap-1 pb-2 text-[11px]">
             <button
               onClick={() => setActiveCategory("all")}
@@ -498,56 +623,66 @@ export default function WaffleMenu() {
             >
               All ({counts.all})
             </button>
-            <button
-              onClick={() => setActiveCategory("departments")}
-              className={`px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition-colors ${
-                activeCategory === "departments"
-                  ? "bg-brand text-white shadow-soft-sm"
-                  : "text-ink-muted hover:text-ink hover:bg-page"
-              }`}
-            >
-              Departments ({counts.departments})
-            </button>
-            <button
-              onClick={() => setActiveCategory("talent")}
-              className={`px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition-colors ${
-                activeCategory === "talent"
-                  ? "bg-brand text-white shadow-soft-sm"
-                  : "text-ink-muted hover:text-ink hover:bg-page"
-              }`}
-            >
-              Talent AI ({counts.talent})
-            </button>
-            <button
-              onClick={() => setActiveCategory("legal_ops")}
-              className={`px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition-colors ${
-                activeCategory === "legal_ops"
-                  ? "bg-brand text-white shadow-soft-sm"
-                  : "text-ink-muted hover:text-ink hover:bg-page"
-              }`}
-            >
-              Legal &amp; Ops ({counts.legal_ops})
-            </button>
-            <button
-              onClick={() => setActiveCategory("productivity")}
-              className={`px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition-colors ${
-                activeCategory === "productivity"
-                  ? "bg-brand text-white shadow-soft-sm"
-                  : "text-ink-muted hover:text-ink hover:bg-page"
-              }`}
-            >
-              Productivity ({counts.productivity})
-            </button>
-            <button
-              onClick={() => setActiveCategory("enterprise")}
-              className={`px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition-colors ${
-                activeCategory === "enterprise"
-                  ? "bg-brand text-white shadow-soft-sm"
-                  : "text-ink-muted hover:text-ink hover:bg-page"
-              }`}
-            >
-              Enterprise ({counts.enterprise})
-            </button>
+            {counts.departments > 0 && (
+              <button
+                onClick={() => setActiveCategory("departments")}
+                className={`px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition-colors ${
+                  activeCategory === "departments"
+                    ? "bg-brand text-white shadow-soft-sm"
+                    : "text-ink-muted hover:text-ink hover:bg-page"
+                }`}
+              >
+                Departments ({counts.departments})
+              </button>
+            )}
+            {counts.talent > 0 && (
+              <button
+                onClick={() => setActiveCategory("talent")}
+                className={`px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition-colors ${
+                  activeCategory === "talent"
+                    ? "bg-brand text-white shadow-soft-sm"
+                    : "text-ink-muted hover:text-ink hover:bg-page"
+                }`}
+              >
+                Talent AI ({counts.talent})
+              </button>
+            )}
+            {counts.legal_ops > 0 && (
+              <button
+                onClick={() => setActiveCategory("legal_ops")}
+                className={`px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition-colors ${
+                  activeCategory === "legal_ops"
+                    ? "bg-brand text-white shadow-soft-sm"
+                    : "text-ink-muted hover:text-ink hover:bg-page"
+                }`}
+              >
+                Legal &amp; Ops ({counts.legal_ops})
+              </button>
+            )}
+            {counts.productivity > 0 && (
+              <button
+                onClick={() => setActiveCategory("productivity")}
+                className={`px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition-colors ${
+                  activeCategory === "productivity"
+                    ? "bg-brand text-white shadow-soft-sm"
+                    : "text-ink-muted hover:text-ink hover:bg-page"
+                }`}
+              >
+                Productivity ({counts.productivity})
+              </button>
+            )}
+            {counts.enterprise > 0 && (
+              <button
+                onClick={() => setActiveCategory("enterprise")}
+                className={`px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition-colors ${
+                  activeCategory === "enterprise"
+                    ? "bg-brand text-white shadow-soft-sm"
+                    : "text-ink-muted hover:text-ink hover:bg-page"
+                }`}
+              >
+                Enterprise ({counts.enterprise})
+              </button>
+            )}
           </div>
 
           {/* Scrollable Tools Grid */}

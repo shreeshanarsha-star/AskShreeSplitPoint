@@ -1,10 +1,9 @@
-import AppShell from "@/components/AppShell";
+import AdminPlatformShell from "@/components/admin/AdminPlatformShell";
 import { createClient } from "@/lib/supabase/server";
 import JobPostingApprovalRow from "@/components/admin/JobPostingApprovalRow";
 import ApplicationApprovalRow from "@/components/admin/ApplicationApprovalRow";
 import OfferApprovalRow from "@/components/admin/OfferApprovalRow";
 import SignOutButton from "@/components/admin/SignOutButton";
-import AdminNav from "@/components/admin/AdminNav";
 import { DEPARTMENTS } from "@/lib/departments";
 
 export const dynamic = "force-dynamic";
@@ -47,9 +46,10 @@ export default async function AdminPage() {
     .filter((t) => t.s === "soon")
     .slice(0, 6);
 
+  const totalPending = pending.length + pendingApplications.length + pendingOffers.length;
+
   return (
-    <AppShell title="Admin">
-      <AdminNav />
+    <AdminPlatformShell pendingCount={totalPending}>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="m-0 text-[19px] font-bold">Approval queues</h2>
@@ -190,7 +190,7 @@ export default async function AdminPage() {
           ))}
         </div>
       </section>
-    </AppShell>
+    </AdminPlatformShell>
   );
 }
 

@@ -80,6 +80,7 @@ export async function POST(req: Request) {
   }
 
   const saveAsDraft = !!body.saveAsDraft;
+  const publishDirect = !!body.publishDirect || !!body.skipApproval || body.status === "active";
   const requisitionType = REQ_TYPES.has(body.requisitionType) ? body.requisitionType : "new";
   if (!saveAsDraft && requisitionType === "replacement" && !(body.replacementName || "").trim()) {
     return NextResponse.json(
@@ -96,6 +97,8 @@ export async function POST(req: Request) {
   // otherwise both compute the same next sequence number.
   let requisition: any = null;
   let error: { message: string; code?: string } | null = null;
+  const initialStatus = saveAsDraft ? "draft" : publishDirect ? "active" : "pending_approval";
+
   for (let attempt = 0; attempt < 5 && !requisition; attempt++) {
     const reqNo = await generateReqNo(admin, orgId);
     const result = await supabase
@@ -107,7 +110,7 @@ export async function POST(req: Request) {
         location: body.location || null,
         employment_type: body.employmentType || "full-time",
         headcount: Number(body.headcount) || 1,
-        status: saveAsDraft ? "draft" : "pending_approval",
+        status: initialStatus,
         priority: body.priority || "medium",
         hiring_manager: body.hiringManager || null,
         description: body.description || null, // relabeled "Justification" in the UI
@@ -167,7 +170,36 @@ export async function POST(req: Request) {
     return NextResponse.json({ requisition });
   }
 
-  const chain = await buildApprovalChain(admin, user.id);
+  // If recruiter opted to skip approval & publish directly:
+  if (publishDirect) {
+    await admin.from("talent_requisition_status_history").insert({
+      requisition_id: requisition.id,
+      from_status: null,
+      to_status: "active",
+      changed_by: user.id,
+      note: "Directly published by recruiter (Approval skipped)",
+    });
+    await logAudit({
+      entityType: "talent_requisitions",
+      entityId: requisition.id,
+      actorId: user.id,
+      action: "published_direct",
+      detail: { title, requisitionType, status: "active" },
+    });
+    return NextResponse.json({ requisition, published: true });
+  }
+
+  // Otherwise, route for approval starting with Hiring Manager
+  const baseChain = await buildApprovalChain(admin, user.id);
+  const chain = [
+    {
+      step_order: 1,
+      approver_role: "hiring_manager" as const,
+      approver_user_id: body.hiringManagerId || null,
+    },
+    ...baseChain.map((s, idx) => ({ ...s, step_order: idx + 2 })),
+  ];
+
   await admin.from("talent_approval_steps").insert(
     chain.map((step) => ({
       requisition_id: requisition.id,
@@ -181,7 +213,7 @@ export async function POST(req: Request) {
     from_status: null,
     to_status: "pending_approval",
     changed_by: user.id,
-    note: "Submitted for approval",
+    note: "Submitted for Hiring Manager approval",
   });
 
   const firstStep = chain[0];
