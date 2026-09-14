@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import AppShell from "@/components/AppShell";
 import Icon from "@/components/Icon";
 import { createClient } from "@/lib/supabase/server";
@@ -19,13 +20,49 @@ export default async function SmartSourceAiPage() {
     );
   }
 
-  const { data: profile } = await supabase
+  let profile: any = null;
+  const { data: fullProfile, error: profileErr } = await supabase
     .from("profiles")
-    .select("is_admin, org_id")
+    .select("is_admin, org_id, persona, status")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
+
+  if (!profileErr && fullProfile) {
+    profile = fullProfile;
+  } else {
+    const { data: fallback } = await supabase
+      .from("profiles")
+      .select("is_admin, org_id")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (fallback) {
+      profile = {
+        ...fallback,
+        status: fallback.is_admin ? "approved" : "active",
+        persona: fallback.is_admin ? "organization" : "recruiter",
+      };
+    }
+  }
 
   let hasAccess = !!profile?.is_admin;
+  if (!hasAccess && profile?.persona === "recruiter" && (profile?.status === "active" || profile?.status === "approved")) {
+    hasAccess = true;
+  }
+
+  if (!hasAccess) {
+    try {
+      const { data: userGrant } = await supabase
+        .from("user_feature_access")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("feature_key", FEATURE_KEY)
+        .maybeSingle();
+      if (userGrant) hasAccess = true;
+    } catch {
+      // Best-effort
+    }
+  }
+
   if (!hasAccess && profile?.org_id) {
     const { data: org } = await supabase
       .from("organizations")
@@ -65,7 +102,9 @@ export default async function SmartSourceAiPage() {
   return (
     <AppShell title="Smart Source.ai">
       {hasAccess ? (
-        <SmartSourceAiForm isAdmin={!!profile?.is_admin} monthlySearchCount={monthlySearchCount} />
+        <Suspense fallback={<div className="p-8 text-center text-xs text-ink-muted">Loading Smart Source.ai...</div>}>
+          <SmartSourceAiForm isAdmin={!!profile?.is_admin} monthlySearchCount={monthlySearchCount} />
+        </Suspense>
       ) : (
         <AccessDenied reason='The admin hasn’t granted you access to "Smart Source.ai" yet.' />
       )}

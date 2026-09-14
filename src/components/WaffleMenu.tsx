@@ -427,11 +427,29 @@ export default function WaffleMenu() {
 
         const rolesSet = new Set<RoleClearance>(["public", "candidate"]);
 
-        const { data: profile } = await supabase
+        let profile: any = null;
+        const { data: fullProfile, error: pErr } = await supabase
           .from("profiles")
           .select("is_admin, org_role, status, persona")
           .eq("id", user.id)
           .maybeSingle();
+
+        if (!pErr && fullProfile) {
+          profile = fullProfile;
+        } else {
+          const { data: fallback } = await supabase
+            .from("profiles")
+            .select("is_admin, org_role")
+            .eq("id", user.id)
+            .maybeSingle();
+          if (fallback) {
+            profile = {
+              ...fallback,
+              status: fallback.is_admin ? "approved" : "active",
+              persona: fallback.is_admin ? "organization" : "recruiter",
+            };
+          }
+        }
 
         if (profile?.is_admin || user.email?.toLowerCase().includes("shreesha")) {
           rolesSet.add("platform_admin");

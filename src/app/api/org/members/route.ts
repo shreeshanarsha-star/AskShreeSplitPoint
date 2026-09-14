@@ -14,12 +14,24 @@ export async function GET() {
   if (!orgId) return NextResponse.json({ members: [] });
 
   const admin = createAdminClient();
-  const { data: members, error } = await admin
+  let members = null;
+  const { data: fullMembers, error } = await admin
     .from("profiles")
-    .select("id, email, full_name, org_role, created_at")
+    .select("id, email, full_name, org_role, status, persona, created_at")
     .eq("org_id", orgId)
     .order("created_at", { ascending: true });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (!error && fullMembers) {
+    members = fullMembers;
+  } else {
+    const { data: fallback, error: fallbackError } = await admin
+      .from("profiles")
+      .select("id, email, full_name, org_role, created_at")
+      .eq("org_id", orgId)
+      .order("created_at", { ascending: true });
+    if (fallbackError) return NextResponse.json({ error: fallbackError.message }, { status: 500 });
+    members = (fallback || []).map((m) => ({ ...m, status: "active", persona: "organization" }));
+  }
   return NextResponse.json({ members });
 }
 
@@ -53,10 +65,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "That person already belongs to an organization." }, { status: 409 });
   }
 
-  const { error } = await admin
+  const updatePayload: Record<string, any> = {
+    org_id: orgId,
+    org_role: "member",
+    status: "active",
+    persona: "organization",
+  };
+  let { error } = await admin
     .from("profiles")
-    .update({ org_id: orgId, org_role: "member" })
+    .update(updatePayload)
     .eq("id", target.id);
+
+  if (error && (error.message?.includes("column") || error.code === "42703")) {
+    delete updatePayload.status;
+    delete updatePayload.persona;
+    const retry = await admin.from("profiles").update(updatePayload).eq("id", target.id);
+    error = retry.error;
+  }
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ ok: true });

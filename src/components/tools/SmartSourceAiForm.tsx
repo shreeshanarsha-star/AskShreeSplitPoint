@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Icon from "@/components/Icon";
 import { useRegisterToolHome } from "@/components/ToolHomeContext";
 
@@ -152,6 +153,25 @@ export default function SmartSourceAiForm({
   // Topbar's clickable "Smart Source.ai" title (ToolHomeContext) closes the
   // My Projects panel, returning to the search view underneath it.
   useRegisterToolHome(useCallback(() => setShowProjectsPanel(false), []));
+
+  const searchParams = useSearchParams();
+  const [importedNotice, setImportedNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!searchParams) return;
+    const title = searchParams.get("title");
+    const dept = searchParams.get("dept");
+    const skills = searchParams.get("skills");
+    if (title) {
+      setMode("manual");
+      setManualRole(title);
+      if (skills) setManualSkills(skills);
+      if (dept) {
+        setDescribeText(`Find qualified talent for ${title} in ${dept}${skills ? ` with expertise in ${skills}` : ""}.`);
+      }
+      setImportedNotice(`Imported from JD Studio.ai: "${title}". Sourcing parameters pre-filled!`);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const saved = typeof window !== "undefined" ? window.localStorage.getItem(VIEW_STORAGE_KEY) : null;
@@ -533,6 +553,20 @@ export default function SmartSourceAiForm({
       )}
       {notice && (
         <div className="bg-good-wash text-good-text text-[12.5px] rounded-sm px-3 py-2 mb-4">{notice}</div>
+      )}
+      {importedNotice && (
+        <div className="bg-brand-wash text-brand border border-brand/30 text-[12.5px] rounded-md px-3.5 py-2.5 mb-4 flex items-center justify-between shadow-soft-sm">
+          <div className="flex items-center gap-2">
+            <span>🚀</span>
+            <span className="font-semibold">{importedNotice}</span>
+          </div>
+          <button
+            onClick={() => setImportedNotice(null)}
+            className="text-[11px] font-bold text-ink-muted hover:text-ink cursor-pointer ml-3 px-2 py-0.5 rounded border border-border bg-surface"
+          >
+            ✕
+          </button>
+        </div>
       )}
       {showProjectsPanel && projectsError && (
         <div className="bg-critical-wash text-critical text-[12.5px] rounded-sm px-3 py-2 mb-4">{projectsError}</div>

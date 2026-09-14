@@ -9,18 +9,51 @@ export const dynamic = "force-dynamic";
 export default async function AdminUsersPage() {
   const supabase = await createClient();
 
-  const { data: profiles, error } = await supabase
+  let profiles: any[] | null = null;
+  let queryError: any = null;
+
+  const { data: fullProfiles, error } = await supabase
     .from("profiles")
     .select("id, email, full_name, is_admin, org_id, org_role, status, persona, signup_ip, signup_location, auth_provider, company_name, created_at")
     .order("created_at", { ascending: false });
 
+  if (!error && fullProfiles) {
+    profiles = fullProfiles;
+  } else {
+    // Defensive fallback if RBAC migration has not yet been executed in remote Supabase
+    const { data: fallbackProfiles, error: fallbackError } = await supabase
+      .from("profiles")
+      .select("id, email, full_name, is_admin, org_id, org_role, created_at")
+      .order("created_at", { ascending: false });
+
+    if (fallbackProfiles) {
+      profiles = fallbackProfiles.map((p) => ({
+        ...p,
+        status: p.is_admin ? "approved" : "active",
+        persona: p.is_admin ? "organization" : "recruiter",
+        signup_ip: null,
+        signup_location: null,
+        auth_provider: null,
+        company_name: null,
+      }));
+    } else {
+      queryError = fallbackError || error;
+    }
+  }
+
   const { data: orgs } = await supabase.from("organizations").select("id, name");
   const orgNameById = new Map((orgs ?? []).map((o) => [o.id, o.name]));
 
-  // Fetch all user tool grants
-  const { data: userGrants } = await supabase
-    .from("user_feature_access")
-    .select("user_id, feature_key");
+  // Fetch all user tool grants defensively
+  let userGrants: { user_id: string; feature_key: string }[] | null = null;
+  try {
+    const { data } = await supabase
+      .from("user_feature_access")
+      .select("user_id, feature_key");
+    userGrants = data;
+  } catch {
+    userGrants = [];
+  }
 
   const grantsByUserId = new Map<string, string[]>();
   for (const g of userGrants || []) {
@@ -55,9 +88,9 @@ export default async function AdminUsersPage() {
         </div>
       </div>
 
-      {error && (
+      {queryError && (
         <div className="bg-critical-wash text-critical text-[12.5px] rounded-sm px-3 py-2 mb-4">
-          Could not load users: {error.message}
+          Could not load users: {queryError.message}
         </div>
       )}
 

@@ -586,6 +586,15 @@ export default function JdStudioApp({ guestStatus = null }: { guestStatus?: Gues
                       Publish
                     </button>
                   )}
+                  {r.job_title && (
+                    <a
+                      href={`/tools/smart-source-ai?title=${encodeURIComponent(r.job_title)}&dept=${encodeURIComponent(r.department || "")}`}
+                      className="text-brand font-bold ml-2.5 hover:underline inline-flex items-center gap-1"
+                      title={`Source candidates for ${r.job_title}`}
+                    >
+                      🚀 Sourcing
+                    </a>
+                  )}
                 </td>
               </tr>
             ))}
@@ -688,6 +697,14 @@ export default function JdStudioApp({ guestStatus = null }: { guestStatus?: Gues
                 <button className="text-[12.5px] font-bold px-3 py-1.5 rounded-full border border-border" onClick={() => act(detail.id, "publish")}>
                   Publish to Job Postings.ai
                 </button>
+              )}
+              {detail.job_title && (
+                <a
+                  className="text-[12.5px] font-bold px-3 py-1.5 rounded-full bg-brand text-white hover:bg-brand-dark flex items-center gap-1.5 shadow-soft-sm"
+                  href={`/tools/smart-source-ai?title=${encodeURIComponent(detail.job_title)}&dept=${encodeURIComponent(detail.department || "")}&skills=${encodeURIComponent(detail.ai_draft_json?.must_have_skills?.join(",") || "")}`}
+                >
+                  <span>🚀 Source Candidates with Smart Source.ai</span>
+                </a>
               )}
               <button
                 className="text-[12.5px] font-bold px-3 py-1.5 rounded-full border border-critical/40 text-critical ml-auto"

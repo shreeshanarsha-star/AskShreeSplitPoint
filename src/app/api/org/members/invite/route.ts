@@ -71,25 +71,81 @@ export async function POST(req: Request) {
 
   // The on_auth_user_created trigger already inserted a bare profiles row
   // (org_id null). Fill in the org assignment + display name now.
-  const { error: profileError } = await admin
+  const isRecruiterRole = talentRole === "recruiter" || talentRole === "ta_head" || talentRole === "lead_recruiter";
+  const profilePayload: Record<string, any> = {
+    org_id: orgId,
+    org_role: orgRole,
+    full_name: fullName,
+    status: "active",
+    persona: isRecruiterRole ? "recruiter" : "organization",
+    employee_id: employeeId,
+    department,
+    designation,
+    location,
+    joining_date: joiningDate,
+    manager_id: managerId,
+  };
+
+  let { error: profileError } = await admin
     .from("profiles")
-    .update({
-      org_id: orgId,
-      org_role: orgRole,
-      full_name: fullName,
-      employee_id: employeeId,
-      department,
-      designation,
-      location,
-      joining_date: joiningDate,
-      manager_id: managerId,
-    })
+    .update(profilePayload)
     .eq("id", newUserId);
+
+  if (profileError && (profileError.message?.includes("column") || profileError.code === "42703")) {
+    // Fallback if RBAC columns have not yet migrated
+    delete profilePayload.status;
+    delete profilePayload.persona;
+    const retry = await admin
+      .from("profiles")
+      .update(profilePayload)
+      .eq("id", newUserId);
+    profileError = retry.error;
+  }
+
   if (profileError) {
     if (profileError.code === "23505") {
       return NextResponse.json({ error: "That employee ID is already in use." }, { status: 409 });
     }
     return NextResponse.json({ error: profileError.message }, { status: 500 });
+  }
+
+  // Auto-grant tools for the invited team member so they have immediate platform access
+  const RECRUITER_INVITE_TOOLS = [
+    "Recruiter Console",
+    "Talent.ai",
+    "Smart Source.ai",
+    "Smart Screen.ai",
+    "Shortlist.ai",
+    "JD Studio.ai",
+    "Assessment.ai",
+    "Interview.ai",
+    "Offer.ai",
+    "Team Chat",
+    "Everyday Widgets",
+    "Jotz",
+  ];
+  const ORG_INVITE_TOOLS = [
+    "Talent.ai",
+    "Job Postings.ai",
+    "Smart Screen.ai",
+    "Assessment.ai",
+    "Interview.ai",
+    "Offer.ai",
+    "Contracts & eSign",
+    "Team Chat",
+    "Everyday Widgets",
+    "Jotz",
+  ];
+  const toolsToGrant = isRecruiterRole ? RECRUITER_INVITE_TOOLS : ORG_INVITE_TOOLS;
+  const toolRows = toolsToGrant.map((featureKey) => ({
+    user_id: newUserId,
+    feature_key: featureKey,
+    granted_by: user.id,
+  }));
+  try {
+    await admin.from("user_feature_access").insert(toolRows);
+  } catch {
+    // Best-effort if table not yet migrated
   }
 
   if (talentRole) {

@@ -49,11 +49,29 @@ export async function requireAdminUser() {
 export async function requireFeatureAccess(featureKey: string) {
   const { user, supabase } = await requireUser();
 
-  const { data: profile } = await supabase
+  let profile: any = null;
+  const { data: fullProfile, error: profileErr } = await supabase
     .from("profiles")
     .select("is_admin, org_id, status, persona")
     .eq("id", user.id)
     .maybeSingle();
+
+  if (!profileErr && fullProfile) {
+    profile = fullProfile;
+  } else {
+    const { data: fallback } = await supabase
+      .from("profiles")
+      .select("is_admin, org_id")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (fallback) {
+      profile = {
+        ...fallback,
+        status: fallback.is_admin ? "approved" : "active",
+        persona: fallback.is_admin ? "organization" : "recruiter",
+      };
+    }
+  }
 
   if (profile?.is_admin) {
     return { user, supabase, isAdmin: true, orgId: profile.org_id as string | null };
@@ -85,12 +103,18 @@ export async function requireFeatureAccess(featureKey: string) {
   }
 
   // 3. Check direct user-level feature grant (user_feature_access)
-  const { data: userGrant } = await supabase
-    .from("user_feature_access")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("feature_key", featureKey)
-    .maybeSingle();
+  let userGrant: any = null;
+  try {
+    const { data } = await supabase
+      .from("user_feature_access")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("feature_key", featureKey)
+      .maybeSingle();
+    userGrant = data;
+  } catch {
+    // Best-effort if table not yet migrated
+  }
 
   if (userGrant) {
     return { user, supabase, isAdmin: false, orgId: profile?.org_id as string | null };

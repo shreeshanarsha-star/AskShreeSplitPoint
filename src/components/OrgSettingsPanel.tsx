@@ -4,7 +4,15 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Org = { id: string; name: string; status: string; plan: string; features: string[] };
-type Member = { id: string; email: string | null; full_name: string | null; org_role: string; created_at: string };
+type Member = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  org_role: string;
+  status?: string | null;
+  persona?: string | null;
+  created_at: string;
+};
 
 export default function OrgSettingsPanel({ org, meId }: { org: Org; meId: string }) {
   const router = useRouter();
@@ -261,11 +269,29 @@ export default function OrgSettingsPanel({ org, meId }: { org: Org; meId: string
             {members.map((m) => (
               <div key={m.id} className="flex items-center justify-between gap-2 border border-border rounded-sm px-3 py-2">
                 <div className="min-w-0">
-                  <div className="text-[12.5px] font-medium truncate">{m.full_name || m.email}</div>
-                  <div className="text-[10.5px] text-ink-muted capitalize">{m.org_role.replace("_", " ")}</div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[12.5px] font-medium truncate">{m.full_name || m.email}</span>
+                    <span
+                      className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-full capitalize ${
+                        m.status === "active" || m.status === "approved"
+                          ? "bg-good-wash text-good-text"
+                          : "bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300"
+                      }`}
+                    >
+                      {m.status || "active"}
+                    </span>
+                    {m.persona && (
+                      <span className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded bg-page border border-border text-ink-muted capitalize">
+                        {m.persona}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[10.5px] text-ink-muted capitalize mt-0.5">
+                    {m.org_role.replace("_", " ")} {m.email && m.full_name ? `• ${m.email}` : ""}
+                  </div>
                 </div>
                 {m.id !== meId && (
-                  <button onClick={() => removeMember(m.id)} className="text-critical text-[11.5px] font-bold flex-shrink-0">
+                  <button onClick={() => removeMember(m.id)} className="text-critical text-[11.5px] font-bold flex-shrink-0 cursor-pointer hover:underline">
                     Remove
                   </button>
                 )}

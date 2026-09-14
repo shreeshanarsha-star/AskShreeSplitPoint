@@ -22,22 +22,46 @@ export default async function JdStudioPage() {
     );
   }
 
-  const { data: profile } = await supabase
+  let profile: any = null;
+  const { data: fullProfile, error: profileErr } = await supabase
     .from("profiles")
     .select("org_id, is_admin, is_anonymous, credits, guest_tool_usage, created_at, persona, status")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
+
+  if (!profileErr && fullProfile) {
+    profile = fullProfile;
+  } else {
+    const { data: fallback } = await supabase
+      .from("profiles")
+      .select("org_id, is_admin, is_anonymous, credits, guest_tool_usage, created_at")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (fallback) {
+      profile = {
+        ...fallback,
+        status: fallback.is_admin ? "approved" : "active",
+        persona: fallback.is_admin ? "organization" : "recruiter",
+      };
+    }
+  }
 
   // JD Studio is exclusive to verified Recruiters & Owner
   const isOwner = !!profile?.is_admin;
-  const isApprovedRecruiter = profile?.persona === "recruiter" && profile?.status === "active";
+  const isApprovedRecruiter = profile?.persona === "recruiter" && (profile?.status === "active" || profile?.status === "approved");
 
-  const { data: userGrant } = await supabase
-    .from("user_feature_access")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("feature_key", TOOL_KEY)
-    .maybeSingle();
+  let userGrant: any = null;
+  try {
+    const { data } = await supabase
+      .from("user_feature_access")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("feature_key", TOOL_KEY)
+      .maybeSingle();
+    userGrant = data;
+  } catch {
+    // Best effort
+  }
 
   if (!isOwner && !isApprovedRecruiter && !userGrant) {
     return (

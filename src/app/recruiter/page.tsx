@@ -352,6 +352,14 @@ export default function RecruiterHomePage() {
           active: activeTab === "analytics",
           onClick: () => setActiveTab("analytics"),
         },
+        {
+          id: "extension",
+          label: "Sourcing Extension",
+          icon: "sparkle",
+          badge: "Sandbox",
+          badgeColor: "blue",
+          onClick: () => router.push("/recruiter/extension"),
+        },
       ]}
       activeNavId={activeTab}
       onSelectNav={(id) => setActiveTab(id as any)}
@@ -531,6 +539,30 @@ export default function RecruiterHomePage() {
                           ))}
                         </div>
                       )}
+
+                      <div className="flex items-center justify-between text-xs text-ink-muted flex-wrap gap-2 pt-2.5 border-t border-border mt-3">
+                        <span className="font-semibold text-ink">Autonomous Sourcing Actions:</span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Link
+                            href={`/tools/smart-source-ai?title=${encodeURIComponent(req.title)}&dept=${encodeURIComponent(req.department || "")}`}
+                            className="px-2.5 py-1 rounded-lg bg-brand text-white hover:bg-brand-dark text-xs font-semibold flex items-center gap-1 shadow-soft-sm transition-all"
+                          >
+                            <span>🚀 Source Candidates</span>
+                          </Link>
+                          <Link
+                            href="/tools/jd-studio-ai"
+                            className="px-2.5 py-1 rounded-lg border border-border bg-surface text-ink hover:border-brand text-xs font-semibold flex items-center gap-1 transition-all"
+                          >
+                            <span>📝 JD Studio</span>
+                          </Link>
+                          <Link
+                            href="/recruiter/extension"
+                            className="px-2.5 py-1 rounded-lg border border-border bg-surface text-ink hover:border-brand text-xs font-semibold flex items-center gap-1 transition-all"
+                          >
+                            <span>🔌 Chrome Extension</span>
+                          </Link>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
