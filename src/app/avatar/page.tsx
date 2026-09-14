@@ -5,14 +5,14 @@ import Link from "next/link";
 import Image from "next/image";
 import Logo from "@/components/Logo";
 import TopbarStatus from "@/components/TopbarStatus";
-import { GUEST_TOOLS, PremiumIcon, GuestToolId } from "@/components/WaffleMenu";
+import { GUEST_TOOLS, PremiumIcon, GuestTool, GuestToolId } from "@/components/WaffleMenu";
 
 export default function ShreeAvatarProfilePage() {
   const [activeTab, setActiveTab] = useState<"pillars" | "tools" | "ethics" | "consult">("pillars");
   const [chatPrompt, setChatPrompt] = useState("");
   const [simulatedAnswer, setSimulatedAnswer] = useState<string | null>(null);
   const [isAnswering, setIsAnswering] = useState(false);
-  const [loginModalTool, setLoginModalTool] = useState<{ name: string; href: string } | null>(null);
+  const [loginModalTool, setLoginModalTool] = useState<GuestTool | null>(null);
 
   const sampleQuestions = [
     "How does Shree guarantee zero ghosting for candidates?",
@@ -54,7 +54,7 @@ export default function ShreeAvatarProfilePage() {
     }, 600);
   }
 
-  function handleToolClick(tool: { name: string; href: string }) {
+  function handleToolClick(tool: GuestTool) {
     setLoginModalTool(tool);
   }
 
@@ -715,9 +715,9 @@ export default function ShreeAvatarProfilePage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-brand-wash border border-brand/20 flex items-center justify-center text-brand">
-                  <Logo height={22} showPunchline={false} />
+              <div className="flex items-center gap-3">
+                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center border shadow-soft-sm flex-shrink-0 ${loginModalTool.tileClass}`}>
+                  <PremiumIcon id={loginModalTool.iconId} className="w-5 h-5" />
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-ink">Sign in to Access Tool</h4>
