@@ -414,9 +414,10 @@ export default function WaffleMenu() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    const supabase = createClient();
+
     async function loadUserRoles() {
       try {
-        const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           setUserRoles(new Set(["public", "candidate"]));
@@ -471,7 +472,16 @@ export default function WaffleMenu() {
         console.error("Failed to load user permissions for waffle menu:", err);
       }
     }
+
     loadUserRoles();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      loadUserRoles();
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
