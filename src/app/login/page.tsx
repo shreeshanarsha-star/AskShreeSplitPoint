@@ -16,9 +16,15 @@ export default function LoginPage() {
   );
 }
 
+type PersonaType = "candidate" | "recruiter" | "organization";
+
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
+  const requestedPersona = params.get("persona");
+  const [persona, setPersona] = useState<PersonaType>(
+    requestedPersona === "recruiter" || requestedPersona === "organization" ? requestedPersona : "candidate"
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -133,7 +139,7 @@ function LoginForm() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?persona=${persona}`,
           skipBrowserRedirect: true,
         },
       });
@@ -181,9 +187,55 @@ function LoginForm() {
       </header>
       <div className="flex-1 flex items-center justify-center px-4 py-4 overflow-y-auto scrollbar-none">
         <div className="w-full max-w-sm bg-surface border border-border rounded-2xl p-6 sm:p-7 shadow-soft flex flex-col">
-          <h1 className="text-[19px] font-bold m-0 mb-1 font-display text-ink">Sign in</h1>
-          <p className="text-[12px] text-ink-muted m-0 mb-4">
-            Sign in to your AskShree account.
+          {/* 3-Persona Choice Selector */}
+          <div className="grid grid-cols-3 gap-1.5 p-1 bg-page border border-border rounded-xl mb-3.5">
+            <button
+              type="button"
+              onClick={() => setPersona("candidate")}
+              className={`py-1.5 px-1 text-center rounded-lg transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
+                persona === "candidate"
+                  ? "bg-surface shadow-soft-sm text-brand font-bold border border-brand/20"
+                  : "text-ink-muted hover:text-ink font-medium"
+              }`}
+            >
+              <span className="text-[14px]">👤</span>
+              <span className="text-[11px] leading-tight">Candidate</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPersona("recruiter")}
+              className={`py-1.5 px-1 text-center rounded-lg transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
+                persona === "recruiter"
+                  ? "bg-surface shadow-soft-sm text-brand font-bold border border-brand/20"
+                  : "text-ink-muted hover:text-ink font-medium"
+              }`}
+            >
+              <span className="text-[14px]">💼</span>
+              <span className="text-[11px] leading-tight">Recruiter</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPersona("organization")}
+              className={`py-1.5 px-1 text-center rounded-lg transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
+                persona === "organization"
+                  ? "bg-surface shadow-soft-sm text-brand font-bold border border-brand/20"
+                  : "text-ink-muted hover:text-ink font-medium"
+              }`}
+            >
+              <span className="text-[14px]">🏢</span>
+              <span className="text-[11px] leading-tight">Organization</span>
+            </button>
+          </div>
+
+          <h1 className="text-[18px] font-bold m-0 mb-1 font-display text-ink">
+            Sign in as {persona.charAt(0).toUpperCase() + persona.slice(1)}
+          </h1>
+          <p className="text-[11.5px] text-ink-muted m-0 mb-3.5">
+            {persona === "candidate" && "Access candidate hub, ATS resume review, and interview prep."}
+            {persona === "recruiter" && "Access JD Studio.ai, Smart Source.ai, and candidate pipeline."}
+            {persona === "organization" && "Access enterprise requisitions, team reviews, and licenses."}
           </p>
 
           {error && (
