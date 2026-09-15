@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import Icon from "./Icon";
 import { createClient } from "@/lib/supabase/client";
 
@@ -55,7 +56,7 @@ export interface GuestTool {
 export const GUEST_TOOLS: GuestTool[] = [
   {
     name: "Prepare ATS CV",
-    desc: "ATS match score, keyword gaps & 1-click format fix",
+    desc: "ATS match score & 1-click format fix",
     href: "/candidate/ats-check",
     badge: "Popular",
     badgeColor: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
@@ -64,7 +65,7 @@ export const GUEST_TOOLS: GuestTool[] = [
   },
   {
     name: "Create My CV",
-    desc: "AI resume builder & LinkedIn profile import",
+    desc: "AI resume builder & LinkedIn sync",
     href: "/candidate/resume-builder",
     badge: "AI Builder",
     badgeColor: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
@@ -73,7 +74,7 @@ export const GUEST_TOOLS: GuestTool[] = [
   },
   {
     name: "Interview Prep",
-    desc: "Live AI mock interview with STAR rubric scoring",
+    desc: "Live mock interview & STAR scoring",
     href: "/interview-prep",
     badge: "Voice AI",
     badgeColor: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
@@ -82,7 +83,7 @@ export const GUEST_TOOLS: GuestTool[] = [
   },
   {
     name: "Schedule My Interview",
-    desc: "Autonomous calendar slot selection & room sync",
+    desc: "Autonomous calendar booking",
     href: "/schedule",
     badge: "Booking",
     badgeColor: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
@@ -91,7 +92,7 @@ export const GUEST_TOOLS: GuestTool[] = [
   },
   {
     name: "Refer & Earn",
-    desc: "Share open jobs with peers & earn credits",
+    desc: "Share open jobs & earn credits",
     href: "/refer",
     badge: "Earn Credits",
     badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
@@ -100,7 +101,7 @@ export const GUEST_TOOLS: GuestTool[] = [
   },
   {
     name: "Salary Benchmark",
-    desc: "Live compensation percentiles & market data",
+    desc: "Market compensation percentiles",
     href: "/salary-benchmark",
     badge: "Market Intel",
     badgeColor: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
@@ -109,7 +110,7 @@ export const GUEST_TOOLS: GuestTool[] = [
   },
   {
     name: "Job Fit Analyzer",
-    desc: "1-click compatibility score against active roles",
+    desc: "1-click role compatibility score",
     href: "/candidate/job-fit",
     badge: "Instant Match",
     badgeColor: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20",
@@ -118,7 +119,7 @@ export const GUEST_TOOLS: GuestTool[] = [
   },
   {
     name: "Offer Letter Analyzer",
-    desc: "ESOP equity value, bonus & clause risk review",
+    desc: "ESOP equity & contract review",
     href: "/candidate/offer-analyzer",
     badge: "Offer Intel",
     badgeColor: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20",
@@ -127,7 +128,7 @@ export const GUEST_TOOLS: GuestTool[] = [
   },
   {
     name: "Jotz",
-    desc: "Distraction-free markdown notes & prep pad",
+    desc: "Distraction-free markdown notes",
     href: "/jotz",
     badge: "Scratchpad",
     badgeColor: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20",
@@ -136,7 +137,7 @@ export const GUEST_TOOLS: GuestTool[] = [
   },
   {
     name: "Calendar",
-    desc: "Schedule viewer & interview timelines",
+    desc: "Interview schedule & timelines",
     href: "/calendar",
     badge: "Planner",
     badgeColor: "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20",
@@ -145,7 +146,7 @@ export const GUEST_TOOLS: GuestTool[] = [
   },
   {
     name: "User Manual & Platform Guide",
-    desc: "Shree AI explainability guide, ethics audits & candidate privacy",
+    desc: "AI explainability, ethics audits & privacy",
     href: "/manual",
     badge: "Transparency",
     badgeColor: "bg-stone-500/15 text-stone-600 dark:text-stone-300 border-stone-500/30",
@@ -874,22 +875,26 @@ export default function WaffleMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-[calc(100%+8px)] w-[360px] sm:w-[520px] bg-surface border border-border rounded-2xl shadow-2xl z-50 p-4 animate-in fade-in slide-in-from-top-2 duration-150 flex flex-col relative max-h-[88vh] overflow-hidden select-none">
+        <div className="absolute right-0 top-[calc(100%+8px)] w-[calc(100vw-24px)] sm:w-[600px] md:w-[640px] max-w-[95vw] bg-surface border border-border rounded-2xl shadow-2xl z-50 p-4 animate-in fade-in slide-in-from-top-2 duration-150 flex flex-col max-h-[88vh] overflow-hidden select-none">
           {/* ================= GUEST VIEW (11 Unauthenticated Tools) ================= */}
           {!isAuthenticated ? (
             <div className="flex flex-col gap-2.5">
-              {/* Clean Header: No counters, no directory clutter */}
+              {/* Clean Header: Universal Brand Emblem + No counters */}
               <div className="flex items-center justify-between pb-2.5 border-b border-border/70">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-md bg-brand-wash border border-brand/30 flex items-center justify-center text-xs text-brand font-bold">
-                    9
-                  </div>
+                <div className="flex items-center gap-2.5">
+                  <Image
+                    src="/askshree-emblem.png"
+                    alt="AskShree Emblem"
+                    width={26}
+                    height={26}
+                    className="rounded-[22%] shadow-emblem flex-shrink-0"
+                  />
                   <div>
                     <h2 className="text-[13px] font-bold text-ink font-display m-0 leading-tight">
-                      AskShree Systems Grid
+                      Shree — Your AI Hiring Partner
                     </h2>
-                    <p className="text-[11px] text-ink-muted mt-0.5 m-0">
-                      AI powered hiring partner
+                    <p className="text-[10.5px] text-brand font-medium mt-0.5 m-0">
+                      Instant Feedback • No Ghosting • Free Consultation
                     </p>
                   </div>
                 </div>
@@ -949,8 +954,8 @@ export default function WaffleMenu() {
                       <PremiumIcon id={tool.iconId} className="w-4.5 h-4.5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-[12px] font-bold text-ink group-hover:text-brand transition-colors truncate">
+                      <div className="flex items-center justify-between gap-1.5 mb-0.5">
+                        <span className="text-[12px] font-bold text-ink group-hover:text-brand transition-colors whitespace-nowrap">
                           {tool.name}
                         </span>
                         <span
@@ -959,7 +964,7 @@ export default function WaffleMenu() {
                           {tool.badge}
                         </span>
                       </div>
-                      <p className="text-[10.5px] text-ink-muted line-clamp-1 leading-snug mt-0.5 m-0">
+                      <p className="text-[10.5px] text-ink-muted leading-snug mt-0.5 m-0">
                         {tool.desc}
                       </p>
                     </div>
