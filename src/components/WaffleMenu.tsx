@@ -891,10 +891,10 @@ export default function WaffleMenu() {
                   />
                   <div>
                     <h2 className="text-[13px] font-bold text-ink font-display m-0 leading-tight">
-                      Shree — Your AI Hiring Partner
+                      Shree
                     </h2>
                     <p className="text-[10.5px] text-brand font-medium mt-0.5 m-0">
-                      Instant Feedback • No Ghosting • Free Consultation
+                      AI powered hiring partner
                     </p>
                   </div>
                 </div>

@@ -67,9 +67,9 @@ export default function AdminPlatformShell({
       leftSubtitle="Tenant Security & System Guardrails"
       navItems={navItems}
       avatarConfig={{
-        title: "Shree AI Platform Governance Partner",
-        subtitle: "Audit Logging • Tenant Security • Compliance Guardrails",
-        badgeText: "Owner Clearance Active",
+        title: "Shree",
+        subtitle: "AI powered hiring partner",
+        badgeText: "Live-Interactive 24/7",
       }}
       searchPlaceholder="Ask Shree or execute admin commands, audit tenant logs, or query user clearances..."
       suggestedQuestions={[

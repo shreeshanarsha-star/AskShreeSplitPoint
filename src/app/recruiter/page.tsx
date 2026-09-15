@@ -364,9 +364,9 @@ export default function RecruiterHomePage() {
       activeNavId={activeTab}
       onSelectNav={(id) => setActiveTab(id as any)}
       avatarConfig={{
-        title: "Shree AI Recruiter Co-pilot",
-        subtitle: "Autonomous Sourcing • Screening Calibration • Pipeline Orchestration",
-        badgeText: "Recruiter Engine Active",
+        title: "Shree",
+        subtitle: "AI powered hiring partner",
+        badgeText: "Live-Interactive 24/7",
       }}
       searchPlaceholder="Ask Shree or search requisitions, candidate skills, or pipeline status..."
       suggestedQuestions={[

@@ -304,9 +304,9 @@ export default function CandidatePortalPage() {
       activeNavId={activeTab}
       onSelectNav={(id) => setActiveTab(id as any)}
       avatarConfig={{
-        title: "Shree AI Career Partner",
-        subtitle: "Application Transparency • ATS CV Optimizer • 24/7 Interview Coach",
-        badgeText: "Career Coach Online",
+        title: "Shree",
+        subtitle: "AI powered hiring partner",
+        badgeText: "Live-Interactive 24/7",
       }}
       searchPlaceholder="Ask Shree about your application status, ATS tips, or interview questions..."
       suggestedQuestions={[

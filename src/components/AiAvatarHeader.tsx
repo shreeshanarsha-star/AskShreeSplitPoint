@@ -15,11 +15,11 @@ export interface AiAvatarHeaderProps {
 
 export default function AiAvatarHeader({
   title = "Shree",
-  subtitle = "Your AI Hiring Partner • Instant Feedback • No Ghosting • Free Consultation",
+  subtitle = "AI powered hiring partner",
   badgeText = "Live-Interactive 24/7",
   isSpeaking = false,
   avatarSrc = "/shree-avatar.jpg",
-  avatarAlt = "Shree — Your AI Hiring Partner",
+  avatarAlt = "Shree — AI powered hiring partner",
   rightAction,
 }: AiAvatarHeaderProps) {
   const [showPortrait, setShowPortrait] = useState(false);
@@ -147,34 +147,10 @@ export default function AiAvatarHeader({
             </div>
             <div className="text-center space-y-1">
               <h3 className="font-display font-bold text-base text-ink">{title}</h3>
-              <p className="text-xs font-semibold text-brand">Your AI Hiring Partner</p>
+              <p className="text-xs font-semibold text-brand">AI powered hiring partner</p>
             </div>
 
-            {/* 3 Core Pillars */}
-            <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-brand-wash text-brand border border-brand/20">
-                <svg viewBox="0 0 24 24" className="w-3 h-3" fill="currentColor">
-                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                </svg>
-                Instant Feedback
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  <polyline points="9 12 11 14 15 10" />
-                </svg>
-                No Ghosting
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <polyline points="20 12 20 22 4 22 4 12" />
-                  <rect x="2" y="7" width="20" height="5" />
-                </svg>
-                Free Consultation
-              </span>
-            </div>
-
-            <div className="pt-1">
+            <div className="pt-2">
               <a
                 href="/avatar"
                 onClick={() => setShowPortrait(false)}

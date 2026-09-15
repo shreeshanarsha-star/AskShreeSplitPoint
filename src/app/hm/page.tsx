@@ -351,9 +351,9 @@ export default function HiringManagerHomePage() {
       activeNavId={activeTab}
       onSelectNav={(id) => setActiveTab(id as any)}
       avatarConfig={{
-        title: "Shree AI Hiring Manager Partner",
-        subtitle: "Rubric Calibration • Fast-Track Approvals • Candidate Scorecard Audits",
-        badgeText: "HM Co-pilot Active",
+        title: "Shree",
+        subtitle: "AI powered hiring partner",
+        badgeText: "Live-Interactive 24/7",
       }}
       searchPlaceholder="Ask Shree about team rubrics, candidate qualifications, or approval status..."
       suggestedQuestions={[
