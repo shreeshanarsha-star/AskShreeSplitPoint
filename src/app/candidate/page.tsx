@@ -251,13 +251,13 @@ export default function CandidatePortalPage() {
 
   return (
     <UniversalPlatformShell
-      portalTitle="Candidate Talent Portal"
+      portalTitle="Candidate Hub"
       leftTitle="Candidate Hub"
       leftSubtitle="Personalized Career & Application Space"
       navItems={[
         {
           id: "track",
-          label: "Track my application",
+          label: "My Applications",
           icon: "checkCircle",
           badge: applications.length,
           badgeColor: "emerald",
@@ -266,7 +266,7 @@ export default function CandidatePortalPage() {
         },
         {
           id: "atscv",
-          label: "Prepare ATS cv",
+          label: "Build ATS Friendly Resume",
           icon: "fileText",
           badge: `${atsScore}%`,
           badgeColor: "amber",
@@ -275,7 +275,7 @@ export default function CandidatePortalPage() {
         },
         {
           id: "interview",
-          label: "Prepare for Intro",
+          label: "Mock Interview",
           icon: "mic",
           badge: "AI Ready",
           badgeColor: "emerald",
@@ -284,7 +284,7 @@ export default function CandidatePortalPage() {
         },
         {
           id: "referrals",
-          label: "My referrals",
+          label: "My Referrals",
           icon: "users",
           badge: referralsList.length,
           badgeColor: "purple",
@@ -293,7 +293,7 @@ export default function CandidatePortalPage() {
         },
         {
           id: "details",
-          label: "My details",
+          label: "Set Preferences",
           icon: "user",
           badge: "95%",
           badgeColor: "blue",
@@ -317,11 +317,11 @@ export default function CandidatePortalPage() {
       ]}
       onSearchSubmit={(q) => {
         const query = q.toLowerCase();
-        if (query.includes("track") || query.includes("status")) {
+        if (query.includes("app") || query.includes("track") || query.includes("status")) {
           setActiveTab("track");
-        } else if (query.includes("cv") || query.includes("ats")) {
+        } else if (query.includes("cv") || query.includes("ats") || query.includes("resume")) {
           setActiveTab("atscv");
-        } else if (query.includes("interview") || query.includes("intro")) {
+        } else if (query.includes("interview") || query.includes("intro") || query.includes("mock")) {
           setActiveTab("interview");
         } else if (query.includes("referral")) {
           setActiveTab("referrals");

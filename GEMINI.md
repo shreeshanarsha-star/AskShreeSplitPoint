@@ -12,14 +12,14 @@
   2. **Typography**: Wordmark with `Ask` in ink/dark color and `Shree` in luxury brand gold (`text-brand`).
   3. **Punchline**: Subtitle `"AI powered hiring partner"` rendered with `text-ink-muted tracking-tight font-medium`.
 - **Default Props**: `<Logo />` defaults `showPunchline={true}` to ensure the punchline is universally rendered across all pages.
-- **Sub-Portals & Child Pages**: When building standalone sub-portals (e.g., Recruiter Console, Candidate Talent Portal, Schedule Hub, Hiring Manager Review Portal, Interview Pre-Screening Room), the header MUST render `<Logo height={28} showPunchline={true} />` linked to `/`, followed by a subtle divider `/` and the portal descriptor.
+- **Sub-Portals & Child Pages**: When building standalone sub-portals (e.g., Recruiter Console, Candidate Hub, Schedule Hub, Hiring Manager Review Portal, Interview Pre-Screening Room), the header MUST render `<Logo height={28} showPunchline={true} />` linked to `/`, followed by a subtle divider `/` and the portal descriptor.
 
 ### 2. Universal Status & Notification Bar Presence (Non-Negotiable)
 - **Thumbrule**: The official status and notification bar (`<TopbarStatus />` from `@/components/TopbarStatus`) MUST live in **each and every page of the site, now and in future**.
 - **Unified Global Heartbeat**: No page, portal, standalone view, modal header, tool, or auth screen may omit it. It is the visitor's and user's persistent anchor for system time, inline day/month/date, real-time weather, appearance theme switcher, live notification alerts, 9-dot platform waffle launcher, and user authentication / profile menu.
 - **Layout Standard**:
   - In `AppShell` pages, it is automatically rendered on the right side of `<Topbar />`.
-  - In standalone sub-portals and child pages (e.g., Recruiter Console, Candidate Talent Portal, Schedule Hub, Careers Portal, Hiring Manager Review Portal, Pre-screening Room, Sign, Apply, and Auth views), the top header MUST render `<TopbarStatus />` on the right side.
+  - In standalone sub-portals and child pages (e.g., Recruiter Console, Candidate Hub, Schedule Hub, Careers Portal, Hiring Manager Review Portal, Pre-screening Room, Sign, Apply, and Auth views), the top header MUST render `<TopbarStatus />` on the right side.
   - The status bar format strictly maintains the inline layout: `[Greeting] • [Day, Month Date] | [Weather] [Time] | [Appearance] [Notifications] [Waffle] [Auth]`, preserving generous breathing space and clean typographic hierarchy.
 
 ### 3. Design System & Luxury Token Discipline

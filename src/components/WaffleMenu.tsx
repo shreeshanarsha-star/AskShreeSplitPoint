@@ -389,7 +389,7 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
     allowedRoles: ["recruiter", "org_admin", "platform_admin"],
   },
   {
-    name: "Candidate Talent Portal",
+    name: "Candidate Hub",
     desc: "Application tracker, referrals, ATS CV optimizer & interview prep",
     href: "/candidate",
     category: "talent",
