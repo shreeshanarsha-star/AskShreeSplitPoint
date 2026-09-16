@@ -78,16 +78,27 @@ export default function TopbarStatus() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
 
-  // Close active menu on Escape key
+  const topbarRef = useRef<HTMLDivElement>(null);
+
+  // Close active menu on Escape key or click outside
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
         setActiveMenu("none");
       }
     }
+    function handleClickOutside(e: MouseEvent) {
+      if (topbarRef.current && !topbarRef.current.contains(e.target as Node)) {
+        setActiveMenu("none");
+      }
+    }
     if (activeMenu !== "none") {
       document.addEventListener("keydown", handleKeyDown);
-      return () => document.removeEventListener("keydown", handleKeyDown);
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("keydown", handleKeyDown);
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
     }
   }, [activeMenu]);
 
@@ -275,7 +286,7 @@ export default function TopbarStatus() {
     // greeting + weather + time/date scale down gracefully at each
     // breakpoint, while the two action icons (appearance, notifications)
     // always stay put inside the same card.
-    <div className="flex items-center gap-2 sm:gap-2.5 pl-2 sm:pl-3.5 pr-1 py-1 rounded-full border border-border bg-page shadow-soft-sm">
+    <div ref={topbarRef} className="relative flex items-center gap-2 sm:gap-2.5 pl-2 sm:pl-3.5 pr-1 py-1 rounded-full border border-border bg-page shadow-soft-sm">
       {now && (
         <div className="hidden sm:flex items-center gap-2 whitespace-nowrap">
           <span className="text-[12px] font-semibold text-ink">
@@ -644,16 +655,6 @@ export default function TopbarStatus() {
             </>
           )}
         </div>
-      )}
-
-      {/* Universal Outside Click Backdrop */}
-      {activeMenu !== "none" && (
-        <button
-          type="button"
-          aria-label="Close menu"
-          onClick={closeMenu}
-          className="fixed inset-0 z-40 bg-transparent cursor-default border-0 p-0 m-0 outline-none select-none"
-        />
       )}
     </div>
   );
