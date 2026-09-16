@@ -340,8 +340,33 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
   },
 ];
 
-export default function WaffleMenu() {
-  const [open, setOpen] = useState(false);
+interface WaffleMenuProps {
+  isOpen?: boolean;
+  onToggle?: () => void;
+  onClose?: () => void;
+}
+
+export default function WaffleMenu({
+  isOpen,
+  onToggle,
+  onClose,
+}: WaffleMenuProps = {}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = typeof isOpen === "boolean";
+  const open = isControlled ? isOpen : internalOpen;
+
+  const setOpen = (val: boolean | ((prev: boolean) => boolean)) => {
+    if (isControlled) {
+      const nextVal = typeof val === "function" ? val(open) : val;
+      if (nextVal !== open) {
+        if (nextVal) onToggle?.();
+        else onClose?.();
+      }
+    } else {
+      setInternalOpen(val);
+    }
+  };
+
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<ToolCategory>("all");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -446,10 +471,15 @@ export default function WaffleMenu() {
     };
   }, []);
 
+  const setOpenRef = useRef(setOpen);
+  useEffect(() => {
+    setOpenRef.current = setOpen;
+  });
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setOpen(false);
+        setOpenRef.current(false);
         setLoginModalTool(null);
       }
     }
@@ -458,7 +488,7 @@ export default function WaffleMenu() {
         if (loginModalTool) {
           setLoginModalTool(null);
         } else {
-          setOpen(false);
+          setOpenRef.current(false);
         }
       }
     }
@@ -530,7 +560,11 @@ export default function WaffleMenu() {
         aria-label="AskShree Ecosystem Apps & Tools"
         title="AskShree Apps & Tools"
         onClick={() => {
-          setOpen((prev) => !prev);
+          if (isControlled) {
+            onToggle?.();
+          } else {
+            setOpen((prev) => !prev);
+          }
           setLoginModalTool(null);
         }}
         className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors flex-shrink-0 ${
