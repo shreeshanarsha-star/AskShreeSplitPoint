@@ -5,6 +5,7 @@ import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
 import TopbarStatus from "@/components/TopbarStatus";
 import JobShareButton from "@/components/JobShareButton";
+import QuickApplyButton from "@/components/tools/QuickApplyButton";
 import { buildJobPostingSchema } from "@/lib/jobPostings/schema";
 
 export const dynamic = "force-dynamic";
@@ -322,11 +323,21 @@ export default async function JobDetailPage({
               <Icon name="chat" size={13} />
               <span>Consult Shree</span>
             </Link>
+            <QuickApplyButton
+              job={{
+                id: job.id,
+                title: job.title,
+                company: job.company,
+                location: job.location,
+                must_have_skills: job.must_have_skills,
+              }}
+              label="Quick Apply (Drop CV)"
+            />
             <Link
               href={`/apply?job=${encodeURIComponent(job.id)}`}
-              className="bg-brand hover:bg-brand-dark text-white text-xs font-bold px-5 py-2 rounded-xl shadow-button transition-all"
+              className="border border-border text-ink hover:text-brand hover:border-brand/40 bg-page text-xs font-bold px-4 py-2 rounded-xl transition-all flex items-center gap-1"
             >
-              Apply Now →
+              Standard Apply
             </Link>
           </div>
         </div>

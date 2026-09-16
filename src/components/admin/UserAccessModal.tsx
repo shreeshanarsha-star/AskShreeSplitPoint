@@ -19,49 +19,25 @@ export interface UserProfile {
   created_at: string;
 }
 
-// Master list of all tools in AskShree
-export const ALL_ASSIGNABLE_TOOLS = [
+export const ALL_ASSIGNABLE_TOOLS: { key: string; group: string; desc: string; recruiterOnly?: boolean }[] = [
   { key: "Recruiter Console", group: "Talent Acquisition", desc: "Pipeline overview & candidate stages" },
-  { key: "Talent.ai", group: "Talent Acquisition", desc: "Requisitions & talent pools" },
-  { key: "Smart Source.ai", group: "Talent Acquisition", desc: "Autonomous AI sourcing & profile discovery" },
-  { key: "Smart Screen.ai", group: "Talent Acquisition", desc: "AI resume parsing & suitability match" },
-  { key: "Shortlist.ai", group: "Talent Acquisition", desc: "AI candidate shortlisting matrix" },
-  { key: "JD Studio.ai", group: "Talent Acquisition", desc: "AI Job Description Architect (Recruiter Exclusive)", recruiterOnly: true },
-  { key: "Job Postings.ai", group: "Talent Acquisition", desc: "Job publishing & multi-board syndication" },
-  { key: "Assessment.ai", group: "Talent Acquisition", desc: "Skill evaluations & automated grading" },
-  { key: "Interview.ai", group: "Talent Acquisition", desc: "Interview scheduling & question generator" },
-  { key: "Offer.ai", group: "Talent Acquisition", desc: "Compensation & offer letter generator" },
-  { key: "Contracts & eSign", group: "Legal & Compliance", desc: "Cryptographic contract review & signing" },
+  { key: "Candidate Hub", group: "Talent Acquisition", desc: "Candidate applications, CVs & milestone tracker" },
+  { key: "AI Pre-Screening Room", group: "Talent Acquisition", desc: "Voice & text STAR interview evaluations" },
   { key: "Team Chat", group: "Collaboration", desc: "Real-time internal team messaging" },
-  { key: "Everyday Widgets", group: "Productivity", desc: "Calculator, clock, stopwatch, converter" },
-  { key: "Jotz", group: "Productivity", desc: "Personal rich scratchpad notes" },
 ];
 
 const RECRUITER_PRESET = [
   "Recruiter Console",
-  "Talent.ai",
-  "Smart Source.ai",
-  "Smart Screen.ai",
-  "Shortlist.ai",
-  "JD Studio.ai",
-  "Assessment.ai",
-  "Interview.ai",
-  "Offer.ai",
+  "Candidate Hub",
+  "AI Pre-Screening Room",
   "Team Chat",
-  "Everyday Widgets",
-  "Jotz",
 ];
 
 const ORG_ADMIN_PRESET = [
-  "Talent.ai",
-  "Job Postings.ai",
-  "Smart Screen.ai",
-  "Assessment.ai",
-  "Interview.ai",
-  "Offer.ai",
-  "Contracts & eSign",
+  "Recruiter Console",
+  "Candidate Hub",
+  "AI Pre-Screening Room",
   "Team Chat",
-  "Everyday Widgets",
 ];
 
 export default function UserAccessModal({

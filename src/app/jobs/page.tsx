@@ -3,6 +3,7 @@ import Icon from "@/components/Icon";
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import TopbarStatus from "@/components/TopbarStatus";
+import QuickApplyButton from "@/components/tools/QuickApplyButton";
 
 export const dynamic = "force-dynamic";
 
@@ -63,26 +64,46 @@ export default async function JobsPage() {
         ) : (
           <div className="flex flex-col gap-2.5 mt-8">
             {openRoles.map((job) => (
-              <Link
+              <div
                 key={job.id}
-                href={`/jobs/${job.id}`}
-                className="border border-border rounded-md bg-surface shadow-soft-sm px-4 py-3.5 flex items-center gap-3 hover:border-brand transition-colors"
+                className="border border-border rounded-xl bg-surface shadow-soft-sm px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-brand/40 transition-all"
               >
-                <div className="flex-1">
-                  <div className="text-[14px] font-bold">{job.title}</div>
-                  {job.company && (
-                    <div className="text-[12px] text-ink-muted mt-0.5">{job.company}</div>
-                  )}
+                <Link href={`/jobs/${job.id}`} className="flex-1 group">
+                  <div className="text-[15px] font-bold group-hover:text-brand transition-colors">
+                    {job.title}
+                  </div>
+                  <div className="flex items-center gap-2 text-[12.5px] text-ink-muted mt-1">
+                    {job.company && <span className="font-semibold text-ink">{job.company}</span>}
+                    {job.company && <span>•</span>}
+                    <span>{job.location || "Remote"}</span>
+                    {job.employment_type && (
+                      <>
+                        <span>•</span>
+                        <span className="capitalize">{job.employment_type}</span>
+                      </>
+                    )}
+                  </div>
+                </Link>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <QuickApplyButton
+                    job={{
+                      id: job.id,
+                      title: job.title,
+                      company: job.company,
+                      location: job.location,
+                    }}
+                    variant="secondary"
+                    label="Quick Apply"
+                  />
+                  <Link
+                    href={`/jobs/${job.id}`}
+                    className="border border-border hover:border-brand/40 text-ink text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors"
+                  >
+                    View Details →
+                  </Link>
                 </div>
-                {job.location && (
-                  <span className="text-[11.5px] text-ink-muted">{job.location}</span>
-                )}
-                {job.employment_type && (
-                  <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-page text-ink-muted">
-                    {job.employment_type}
-                  </span>
-                )}
-              </Link>
+              </div>
             ))}
           </div>
         )}
