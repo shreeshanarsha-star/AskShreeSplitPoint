@@ -175,45 +175,49 @@ export default function RecruiterHomePage() {
     setCreateMsg(null);
 
     try {
+      let res: Response;
       if (targetFile) {
         const formData = new FormData();
         formData.append("files", targetFile);
-
-        const res = await fetch("/api/public/job-postings/analyze", {
+        res = await fetch("/api/public/job-postings/analyze", {
           method: "POST",
           body: formData,
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Analysis failed.");
-
-        const draft = data.drafts?.[0];
-        if (draft) {
-          setFormFields({
-            title: draft.title || formFields.title,
-            department: draft.industry || formFields.department,
-            location: draft.location || formFields.location,
-            employment_type: "full-time",
-            headcount: 1,
-            priority: "high",
-            hiring_manager: draft.company ? `${draft.company} Lead` : "Hiring Lead",
-            mustHaveSkills: Array.isArray(draft.must_have_skills) ? draft.must_have_skills.join(", ") : "",
-            goodToHaveSkills: Array.isArray(draft.good_to_have_skills) ? draft.good_to_have_skills.join(", ") : "",
-            qualification: draft.qualification || "",
-            minYearsExperience: draft.min_years_experience != null ? String(draft.min_years_experience) : "3",
-            ctcBudget: draft.ctc_budget || "",
-            description: draft.rawJdText || draft.description || "",
-          });
-          setCreateMsg({ type: "success", text: "AI successfully analyzed JD! You can review and refine fields below." });
-        }
       } else {
-        // Fallback quick parse for raw text
-        setFormFields((prev) => ({
-          ...prev,
-          description: rawJdText,
-          title: prev.title || rawJdText.split("\n")[0]?.slice(0, 50) || "New Requisition",
-        }));
-        setCreateMsg({ type: "success", text: "JD text loaded into description. Review fields below." });
+        res = await fetch("/api/public/job-postings/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rawText: rawJdText }),
+        });
       }
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Analysis failed.");
+
+      const draft = data.drafts?.[0];
+      if (!draft) throw new Error("Could not parse job description. Please review and type details manually.");
+      if (draft.error) throw new Error(draft.error);
+
+      setFormFields({
+        title: draft.title || formFields.title || "Requisition Role",
+        department: draft.industry || formFields.department || "Engineering & Technology",
+        location: draft.location || formFields.location || "Remote / Hybrid",
+        employment_type: "full-time",
+        headcount: 1,
+        priority: "high",
+        hiring_manager: draft.company ? `${draft.company} Lead` : (formFields.hiring_manager || "Hiring Lead"),
+        mustHaveSkills: Array.isArray(draft.must_have_skills) && draft.must_have_skills.length > 0
+          ? draft.must_have_skills.join(", ")
+          : (formFields.mustHaveSkills || "Problem Solving, Communication"),
+        goodToHaveSkills: Array.isArray(draft.good_to_have_skills)
+          ? draft.good_to_have_skills.join(", ")
+          : formFields.goodToHaveSkills,
+        qualification: draft.qualification || formFields.qualification || "Bachelor's degree or equivalent",
+        minYearsExperience: draft.min_years_experience != null ? String(draft.min_years_experience) : (formFields.minYearsExperience || "3"),
+        ctcBudget: draft.ctc_budget || formFields.ctcBudget || "",
+        description: draft.rawJdText || draft.description || rawJdText || formFields.description || "",
+      });
+      setCreateMsg({ type: "success", text: "AI successfully analyzed JD! Specifications autofilled below for your review." });
     } catch (err) {
       setCreateMsg({
         type: "error",
@@ -370,13 +374,6 @@ export default function RecruiterHomePage() {
           onClick: () => setActiveTab("requisitions"),
         },
         {
-          id: "create",
-          label: "Create Requisition",
-          icon: "sparkle",
-          active: activeTab === "create",
-          onClick: () => setActiveTab("create"),
-        },
-        {
           id: "agents",
           label: "AI Agents",
           icon: "users",
@@ -479,14 +476,8 @@ export default function RecruiterHomePage() {
               <Icon name="briefcase" className="w-8 h-8 text-ink-muted mx-auto mb-2" />
               <h4 className="text-sm font-bold text-ink m-0">No Requisitions Found</h4>
               <p className="text-xs text-ink-muted mt-1">
-                Drop your JD to create your first requisition and publish to the Guest Hub.
+                Click "+ Create Requisition" above to drop your JD and publish to the Guest Hub.
               </p>
-              <button
-                onClick={() => setActiveTab("create")}
-                className="mt-4 bg-brand text-white text-xs font-bold px-4 py-2 rounded-lg"
-              >
-                Create Requisition
-              </button>
             </div>
           ) : (
             <div className="space-y-3">
@@ -800,13 +791,23 @@ export default function RecruiterHomePage() {
       {/* ================= TAB 2: CREATE REQUISITION WITH JD DROP & AI PARSE ================= */}
       {activeTab === "create" && (
         <div className="max-w-3xl mx-auto w-full space-y-4 py-2">
-          <div>
-            <h2 className="text-sm sm:text-base font-bold text-ink font-display">
-              Create New Requisition (JD Ingestion)
-            </h2>
-            <p className="text-xs text-ink-muted mt-0.5">
-              Drop your JD document. Shree AI will analyze and autofill the specifications for your review.
-            </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <button
+                type="button"
+                onClick={() => setActiveTab("requisitions")}
+                className="text-xs font-semibold text-brand hover:underline flex items-center gap-1 mb-1 cursor-pointer"
+              >
+                <span>←</span>
+                <span>Back to My Requisitions</span>
+              </button>
+              <h2 className="text-sm sm:text-base font-bold text-ink font-display m-0">
+                Create New Requisition (JD Ingestion)
+              </h2>
+              <p className="text-xs text-ink-muted mt-0.5 m-0">
+                Drop your JD document or paste text. Shree AI will analyze and autofill specifications for your review.
+              </p>
+            </div>
           </div>
 
           {createMsg && (
