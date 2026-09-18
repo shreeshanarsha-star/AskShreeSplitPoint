@@ -476,7 +476,7 @@ export default function RecruiterHomePage() {
               <Icon name="briefcase" className="w-8 h-8 text-ink-muted mx-auto mb-2" />
               <h4 className="text-sm font-bold text-ink m-0">No Requisitions Found</h4>
               <p className="text-xs text-ink-muted mt-1">
-                Click "+ Create Requisition" above to drop your JD and publish to the Guest Hub.
+                Click &quot;+ Create Requisition&quot; above to drop your JD and publish to the Guest Hub.
               </p>
             </div>
           ) : (
