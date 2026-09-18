@@ -87,18 +87,27 @@ function extractHeuristicJD(jdText: string): StructuredJD {
   else if (/(?:legal|counsel|compliance)/i.test(title + " " + text)) industry = "Legal & Compliance";
 
   // 4. Skills extraction
-  const techSkills = [
-    "React", "TypeScript", "JavaScript", "Next.js", "Node.js", "Python", "Java", "Go", "C++",
-    "SQL", "PostgreSQL", "MongoDB", "Redis", "AWS", "GCP", "Azure", "Docker", "Kubernetes",
-    "GraphQL", "REST", "CI/CD", "Tailwind CSS", "Microservices", "System Design",
-    "Product Strategy", "User Research", "Agile", "Scrum", "Data Analysis", "Machine Learning"
-  ];
-  const matchedSkills: string[] = [];
-  for (const skill of techSkills) {
-    if (new RegExp(`\\b${skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(text)) {
-      matchedSkills.push(skill);
+  const explicitSkillsLine = lines.find((l) => /^(?:required\s+skills|must\s+have\s+skills|core\s+skills|skills|technologies)\s*[:\-]\s*(.+)/i.test(l));
+  let matchedSkills: string[] = [];
+  if (explicitSkillsLine) {
+    const raw = explicitSkillsLine.replace(/^(?:required\s+skills|must\s+have\s+skills|core\s+skills|skills|technologies)\s*[:\-]\s*/i, "");
+    matchedSkills = raw.split(/[,;|•·/]/).map((s) => s.trim()).filter((s) => s.length >= 2 && s.length <= 35);
+  }
+
+  if (matchedSkills.length === 0) {
+    const techSkills = [
+      "React", "TypeScript", "JavaScript", "Next.js", "Node.js", "Python", "Java", "Go", "C++",
+      "SQL", "PostgreSQL", "MongoDB", "Redis", "AWS", "GCP", "Azure", "Docker", "Kubernetes",
+      "GraphQL", "REST", "CI/CD", "Tailwind CSS", "Microservices", "System Design",
+      "Product Strategy", "User Research", "Agile", "Scrum", "Data Analysis", "Machine Learning"
+    ];
+    for (const skill of techSkills) {
+      if (new RegExp(`\\b${skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(text)) {
+        matchedSkills.push(skill);
+      }
     }
   }
+
   const must_have_skills = matchedSkills.slice(0, 3);
   const good_to_have_skills = matchedSkills.slice(3, 6);
   if (must_have_skills.length === 0) {
@@ -124,9 +133,15 @@ function extractHeuristicJD(jdText: string): StructuredJD {
 
   // 7. Qualification
   let qualification = "Bachelor's degree or equivalent experience";
-  const qualMatch = text.match(/(b\.?tech|b\.?e\.?|bachelor'?s|master'?s|m\.?tech|mba|bs|ms|phd)[^\n,;]*/i);
-  if (qualMatch?.[0]) {
-    qualification = qualMatch[0].trim();
+  const qualLine = lines.find((l) => /^(?:qualification|education|degree)\s*[:\-]\s*(.+)/i.test(l));
+  if (qualLine) {
+    const match = qualLine.match(/^(?:qualification|education|degree)\s*[:\-]\s*(.+)/i);
+    if (match?.[1]) qualification = match[1].trim();
+  } else {
+    const qualMatch = text.match(/\b(b\.?tech|b\.?e\b|bachelor'?s|master'?s|m\.?tech|mba|b\.?sc|m\.?sc|bs\b|ms\b|phd\b)[^\n,;]*/i);
+    if (qualMatch?.[0]) {
+      qualification = qualMatch[0].trim();
+    }
   }
 
   // 8. Company
