@@ -90,29 +90,6 @@ export async function POST(request: Request) {
       }
     } catch { /* table not yet created */ }
 
-    // Try direct talent_requisitions
-    if (!resolvedRequisitionId) {
-      const { data: req } = await admin
-        .from("talent_requisitions")
-        .select("id, title, org_id, eligibility_criteria, created_by")
-        .eq("id", jobPostingId)
-        .maybeSingle();
-
-      if (req) {
-        const rt = req as unknown as {
-          id: string; title: string; org_id: string | null;
-          eligibility_criteria: { must_have_skills?: string[]; good_to_have_skills?: string[] } | null;
-          created_by: string | null;
-        };
-        resolvedRequisitionId = rt.id;
-        requisitionTitle = rt.title;
-        orgId = rt.org_id;
-        createdBy = rt.created_by;
-        requisitionMustHaveSkills = rt.eligibility_criteria?.must_have_skills ?? [];
-        requisitionGoodToHaveSkills = rt.eligibility_criteria?.good_to_have_skills ?? [];
-      }
-    }
-
     // Fetch full requisition details if resolved via posting
     if (resolvedRequisitionId && !requisitionTitle) {
       const { data: req } = await admin
@@ -135,100 +112,13 @@ export async function POST(request: Request) {
       }
     }
 
-    // Legacy job_postings fallback (write to job_applications, not talent_candidates)
+    // Applications are only accepted through a PUBLISHED AskShree posting.
+    // The legacy job_postings / job_applications path is retired.
     if (!resolvedRequisitionId) {
-      const { data: legacyJob } = await admin
-        .from("job_postings")
-        .select("id, title, company, must_have_skills, good_to_have_skills, qualification, min_years_experience")
-        .eq("id", jobPostingId)
-        .maybeSingle();
-
-      if (!legacyJob) {
-        return NextResponse.json({ error: "Job not found." }, { status: 404 });
-      }
-
-      // Legacy path: write to job_applications (old table, not retired yet).
-      const lj = legacyJob as unknown as {
-        id: string; title: string; company: string | null;
-        must_have_skills: string[] | null; good_to_have_skills: string[] | null;
-        qualification: string | null; min_years_experience: number | null;
-      };
-      const fullCvText = resumeText?.trim() || `Candidate: ${fullName}\nEmail: ${email}`;
-
-      let matchResult = {
-        match_score: null as number | null, // No fake 82 fallback
-        matched_skills: [] as string[],
-        missing_skills: [] as string[],
-        evidence: "",
-        cover_note: "",
-      };
-
-      try {
-        matchResult = await screenCandidate(
-          {
-            title: lj.title,
-            company: lj.company ?? null,
-            must_have_skills: lj.must_have_skills ?? [],
-            good_to_have_skills: lj.good_to_have_skills ?? [],
-            qualification: lj.qualification ?? null,
-            min_years_experience: lj.min_years_experience ?? null,
-          },
-          fullCvText
-        );
-      } catch (err) {
-        console.warn("AI screening fallback — null score:", err);
-      }
-
-      let resumePath = `quick-apply/${Date.now()}-${(fullName || "resume").replace(/[^a-zA-Z0-9]/g, "_")}.txt`;
-      if (resumeBase64) {
-        try {
-          const buffer = Buffer.from(resumeBase64, "base64");
-          const ext = fileName?.split(".").pop() || "pdf";
-          resumePath = `resumes/${Date.now()}-${(fullName || "cand").replace(/[^a-zA-Z0-9]/g, "_")}.${ext}`;
-          await admin.storage.from("resumes").upload(resumePath, buffer, { upsert: true });
-        } catch { /* non-blocking */ }
-      }
-
-      const { data: application, error: appError } = await admin
-        .from("job_applications")
-        .insert({
-          job_posting_id: jobPostingId,
-          candidate_name: fullName.trim(),
-          candidate_email: normalizedEmail,
-          candidate_phone: phone?.trim() || null,
-          cover_note: switchingReason?.trim() || null,
-          resume_path: resumePath,
-          status: "pending_approval",
-          match_score: matchResult.match_score, // null = not scored yet
-          matched_skills: matchResult.matched_skills,
-          missing_skills: matchResult.missing_skills,
-          ai_evidence: JSON.stringify({ fullName, phone, email, location, presentSalary, noticePeriod, qualification, currentOrganization, switchingReason }),
-          ai_cover_note: matchResult.cover_note,
-          applied_via: "quick_apply",
-        })
-        .select()
-        .single();
-
-      if (appError) {
-        return NextResponse.json({ error: appError.message }, { status: 500 });
-      }
-
-      // Upsert apply_candidates (legacy candidate tracker)
-      try {
-        await admin.from("apply_candidates").upsert(
-          { name: fullName.trim(), email: normalizedEmail, phone: phone?.trim() || null, location: location?.trim() || null, resume_text: fullCvText.slice(0, 10000), source: "quick_apply", terms_accepted_at: new Date().toISOString() },
-          { onConflict: "email" }
-        );
-      } catch { /* non-blocking */ }
-
-      return NextResponse.json({
-        ok: true,
-        applicationId: (application as unknown as { id: string }).id,
-        matchScore: matchResult.match_score,
-        matchedSkills: matchResult.matched_skills,
-        missingSkills: matchResult.missing_skills,
-        message: "Application submitted successfully!",
-      });
+      return NextResponse.json(
+        { error: "This job posting is no longer accepting applications." },
+        { status: 410 }
+      );
     }
 
     // -----------------------------------------------------------------------

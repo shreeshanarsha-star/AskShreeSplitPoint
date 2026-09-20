@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import Icon from "@/components/Icon";
 import Link from "next/link";
 import Logo from "@/components/Logo";
@@ -14,17 +14,41 @@ export const dynamic = "force-dynamic";
 // both land in the same job_postings table and this page doesn't care
 // which one a given row came from).
 export default async function JobsPage() {
-  const supabase = await createClient();
+  const admin = createAdminClient();
   const nowIso = new Date().toISOString();
 
-  const { data: jobs } = await supabase
-    .from("job_postings")
+  // Published AskShree postings only (talent_job_postings). Confidential
+  // postings show "Confidential" and never expose the company name.
+  const { data: postings } = await admin
+    .from("talent_job_postings")
     .select(
-      "id, title, company, location, employment_type, industry, created_at, expires_at"
+      "id, hide_company_name, valid_through, created_at, talent_requisitions ( title, location, employment_type, org_id )"
     )
+    .eq("board", "askshree")
     .eq("status", "published")
-    .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
+    .or(`valid_through.is.null,valid_through.gt.${nowIso}`)
     .order("created_at", { ascending: false });
+
+  type Req = { title: string | null; location: string | null; employment_type: string | null; org_id: string | null };
+  const rows = (postings ?? []).map((p) => {
+    const r = (Array.isArray(p.talent_requisitions) ? p.talent_requisitions[0] : p.talent_requisitions) as Req | null;
+    return { p, r };
+  }).filter((x) => x.r);
+
+  const orgIds = Array.from(new Set(rows.map((x) => x.r!.org_id).filter(Boolean))) as string[];
+  const orgNames: Record<string, string> = {};
+  if (orgIds.length) {
+    const { data: orgs } = await admin.from("organizations").select("id, name").in("id", orgIds);
+    for (const o of orgs ?? []) orgNames[o.id as string] = (o.name as string) ?? "";
+  }
+
+  const jobs = rows.map(({ p, r }) => ({
+    id: p.id as string,
+    title: r!.title ?? "",
+    company: p.hide_company_name ? "Confidential" : (r!.org_id ? orgNames[r!.org_id] || null : null),
+    location: r!.location,
+    employment_type: r!.employment_type,
+  }));
 
   const openRoles = jobs ?? [];
 

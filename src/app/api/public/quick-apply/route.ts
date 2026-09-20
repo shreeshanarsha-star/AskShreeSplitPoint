@@ -49,42 +49,29 @@ export async function POST(req: Request) {
   // 1. Resolve requisition from posting id OR direct requisitionId.
   // -------------------------------------------------------------------------
   let resolvedRequisitionId: string | null = null;
-  let resolvedPostingId: string | null = null;
 
-  if (postingId) {
-    // Validate posting: must be published + askshree board.
-    // talent_job_postings table may not exist yet (DRAFT migration pending).
-    try {
-      const { data: p } = await admin
-        .from("talent_job_postings")
-        .select("id, requisition_id, status, board")
-        .eq("id", postingId)
-        .maybeSingle();
-
-      if (!p) {
-        // Posting not found — try treating postingId as a direct requisitionId
-        // (home page may still send legacy requisition UUIDs before Phase 1 DRAFT migration is applied).
-        resolvedRequisitionId = postingId;
-      } else if (p.status !== "published" || p.board !== "askshree") {
-        return NextResponse.json(
-          { error: "This job posting is no longer accepting applications." },
-          { status: 410 }
-        );
-      } else {
-        resolvedRequisitionId = (p as unknown as { requisition_id: string }).requisition_id;
-        resolvedPostingId = postingId;
-      }
-    } catch {
-      // Table doesn't exist yet — fall back to treating as requisitionId.
-      resolvedRequisitionId = postingId;
+  // Applications are only accepted for requisitions that currently have a
+  // PUBLISHED AskShree posting. Never accept applications straight against a
+  // draft, pending-approval, closed or confidential-internal requisition.
+  {
+    let q = admin
+      .from("talent_job_postings")
+      .select("id, requisition_id, status, board")
+      .eq("board", "askshree")
+      .eq("status", "published");
+    if (postingId) q = q.eq("id", postingId);
+    else if (requisitionId) q = q.eq("requisition_id", requisitionId);
+    else {
+      return NextResponse.json({ error: "Missing postingId or requisitionId." }, { status: 400 });
     }
-  } else if (requisitionId) {
-    resolvedRequisitionId = requisitionId;
-  } else {
-    return NextResponse.json(
-      { error: "Missing postingId or requisitionId." },
-      { status: 400 }
-    );
+    const { data: p, error: pErr } = await q.limit(1).maybeSingle();
+    if (pErr || !p) {
+      return NextResponse.json(
+        { error: "This job posting is no longer accepting applications." },
+        { status: 410 }
+      );
+    }
+    resolvedRequisitionId = (p as unknown as { requisition_id: string }).requisition_id;
   }
 
   // -------------------------------------------------------------------------
