@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import UniversalPlatformShell from "@/components/UniversalPlatformShell";
 import Icon from "@/components/Icon";
 import { createClient } from "@/lib/supabase/client";
+import JobPostingTemplate from "@/components/JobPostingTemplate";
 
 export interface AtsRequisition {
   id: string;
@@ -100,6 +101,7 @@ export default function RecruiterPage() {
   const [postStatus, setPostStatus] = useState<"draft" | "published">("draft");
   const [savingPost, setSavingPost] = useState(false);
   const [postMsg, setPostMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     async function check() {
@@ -473,10 +475,44 @@ export default function RecruiterPage() {
       {/* POST TO BOARDS */}
       {activeFeature === "post_to_boards" && (
         <div className="max-w-2xl mx-auto w-full space-y-4 py-2">
-          <div>
-            <h2 className="text-sm sm:text-base font-bold text-ink font-display">Post to Boards</h2>
-            <p className="text-xs text-ink-muted mt-0.5">Create a job posting for a requisition. Content blocks saved as JSON; full template renders in Phase 3.</p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm sm:text-base font-bold text-ink font-display">Post to Boards</h2>
+              <p className="text-xs text-ink-muted mt-0.5">Fill content blocks and preview before publishing.</p>
+            </div>
+            <button type="button" onClick={() => setShowPreview((v) => !v)}
+              className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors cursor-pointer ${showPreview ? "bg-brand text-white border-brand" : "border-border text-ink-muted hover:border-border-strong hover:text-ink"}`}>
+              {showPreview ? "Hide Preview" : "Live Preview"}
+            </button>
           </div>
+
+          {/* Live template preview — shown when showPreview is true */}
+          {showPreview && (
+            <div className="border border-brand/20 rounded-2xl overflow-hidden">
+              <div className="px-4 py-2 bg-brand-wash/20 border-b border-brand/10">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-brand">Template Preview</span>
+              </div>
+              <div className="p-4">
+                {(() => {
+                  const selectedReq = requisitions.find((r) => r.id === postTargetReqId);
+                  return (
+                    <JobPostingTemplate
+                      title={selectedReq?.title ?? "Job Title"}
+                      department={selectedReq?.department}
+                      location={selectedReq?.location}
+                      workMode={selectedReq?.work_mode}
+                      employmentType={selectedReq?.employment_type}
+                      hideCompanyName={postHideCompany}
+                      coreStrengthsList={[]}
+                      additionalStrengthsList={[]}
+                      content={postContent}
+                      isEditable={false}
+                    />
+                  );
+                })()}
+              </div>
+            </div>
+          )}
           {postMsg && (
             <div className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${postMsg.type === "success" ? "bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20" : "bg-rose-500/10 text-rose-800 dark:text-rose-300 border border-rose-500/20"}`}>
               <Icon name={postMsg.type === "success" ? "check" : "alert-triangle"} className="w-4 h-4" />
