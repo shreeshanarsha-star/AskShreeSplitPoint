@@ -77,8 +77,15 @@ export async function PATCH(
   }
 
   // Org scoping: non-platform-owners must belong to the same org.
+  // SECURITY: null !== null is false in JS, so two individual (no-org) users
+  // would pass a plain org_id equality check. When ctx.orgId is null we must
+  // also require the record's created_by to match the caller.
   if (!ctx.isPlatformOwner) {
     if (existing.org_id !== ctx.orgId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    // Individual licence (orgId === null): caller must own the record.
+    if (ctx.orgId === null && existing.created_by !== user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     // Hiring managers may only edit their own requisitions.

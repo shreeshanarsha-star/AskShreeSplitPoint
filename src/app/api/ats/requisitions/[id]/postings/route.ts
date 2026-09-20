@@ -49,9 +49,10 @@ export async function GET(
   }
 
   // Verify the requisition belongs to the caller's org.
+  // Also select created_by so we can check individual-licence ownership.
   const { data: req } = await admin
     .from("talent_requisitions")
-    .select("id, org_id")
+    .select("id, org_id, created_by")
     .eq("id", reqId)
     .maybeSingle();
 
@@ -59,8 +60,14 @@ export async function GET(
     return NextResponse.json({ error: "Requisition not found." }, { status: 404 });
   }
 
-  if (!ctx.isPlatformOwner && req.org_id !== ctx.orgId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!ctx.isPlatformOwner) {
+    if (req.org_id !== ctx.orgId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    // SECURITY: null === null passes; individual users must own the record.
+    if (ctx.orgId === null && req.created_by !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
   }
 
   const { data: postings, error } = await admin
@@ -118,7 +125,7 @@ export async function POST(
   // Verify the requisition and org.
   const { data: req } = await admin
     .from("talent_requisitions")
-    .select("id, org_id, status")
+    .select("id, org_id, status, created_by")
     .eq("id", reqId)
     .maybeSingle();
 
@@ -126,8 +133,14 @@ export async function POST(
     return NextResponse.json({ error: "Requisition not found." }, { status: 404 });
   }
 
-  if (!ctx.isPlatformOwner && req.org_id !== ctx.orgId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!ctx.isPlatformOwner) {
+    if (req.org_id !== ctx.orgId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    // SECURITY: null === null passes; individual users must own the record.
+    if (ctx.orgId === null && req.created_by !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
   }
 
   let body: PostingInput;

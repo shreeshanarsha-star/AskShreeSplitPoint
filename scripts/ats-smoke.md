@@ -315,3 +315,70 @@ then verify the public API returns `"company":"Confidential"` (or omits the fiel
 | GET /api/ats/requisitions/[id]/postings | N/A | N/A | N/A | 7 |
 | PATCH /api/ats/postings/[id] | 8a | N/A | N/A | 8b |
 | GET /api/public/jobs | N/A | N/A | N/A | 9a, 9b, 9c |
+---
+
+## 10. Security: Individual-licence isolation (null org_id)
+
+This test verifies that two individual-licence users (orgId = null) cannot
+read or edit each other's records. Run after creating requisitions from
+two separate individual accounts.
+
+**Setup:**
+- Session I1 — individual user, creates `$REQ_I1` (status "open").
+- Session I2 — different individual user (different user.id, also no org).
+
+### 10a. PATCH — Session I2 cannot edit I1's requisition
+
+```bash
+curl -s -X PATCH http://localhost:3000/api/ats/requisitions/$REQ_I1 \
+  -H "Content-Type: application/json" \
+  -H "Cookie: <session_i2_cookie>" \
+  -d '{"title":"Stolen!"}' | jq .
+```
+**Expected:** HTTP 403 `{"error":"Forbidden"}`.
+
+### 10b. GET postings — Session I2 cannot list I1's postings
+
+```bash
+curl -s http://localhost:3000/api/ats/requisitions/$REQ_I1/postings \
+  -H "Cookie: <session_i2_cookie>" | jq .
+```
+**Expected:** HTTP 403 `{"error":"Forbidden"}`.
+
+### 10c. POST postings — Session I2 cannot create postings for I1's requisition
+
+```bash
+curl -s -X POST http://localhost:3000/api/ats/requisitions/$REQ_I1/postings \
+  -H "Content-Type: application/json" \
+  -H "Cookie: <session_i2_cookie>" \
+  -d '{"board":"askshree"}' | jq .
+```
+**Expected:** HTTP 403 `{"error":"Forbidden"}`.
+
+### 10d. PATCH posting — Session I2 cannot update I1's posting
+
+First create a posting as I1 (use session_i1), note `$POSTING_I1_ID`.
+Then:
+```bash
+curl -s -X PATCH http://localhost:3000/api/ats/postings/$POSTING_I1_ID \
+  -H "Content-Type: application/json" \
+  -H "Cookie: <session_i2_cookie>" \
+  -d '{"status":"published"}' | jq .
+```
+**Expected:** HTTP 403 `{"error":"Forbidden"}`.
+
+### 10e. Happy path — Session I1 can still edit own records
+
+```bash
+curl -s -X PATCH http://localhost:3000/api/ats/requisitions/$REQ_I1 \
+  -H "Content-Type: application/json" \
+  -H "Cookie: <session_i1_cookie>" \
+  -d '{"title":"My Updated Role"}' | jq .
+```
+**Expected:** HTTP 200 with updated title.
+
+**Root cause fixed:** `null !== null` evaluates to `false` in JavaScript, so
+the plain `existing.org_id !== ctx.orgId` check would PASS for both I1 and I2
+(both null). The fix adds `if (ctx.orgId === null && record.created_by !== user.id) → 403`
+in all three affected routes: requisitions/[id], requisitions/[id]/postings (GET+POST),
+and postings/[id].

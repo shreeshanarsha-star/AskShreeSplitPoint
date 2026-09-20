@@ -1,1065 +1,353 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import UniversalPlatformShell from "@/components/UniversalPlatformShell";
 import Icon from "@/components/Icon";
 import { createClient } from "@/lib/supabase/client";
 
-export interface CandidateApplicationDetail {
-  id: string;
-  candidate_name: string;
-  candidate_email: string;
-  candidate_phone?: string | null;
-  status: string;
-  match_score?: number | null;
-  matched_skills?: string[] | null;
-  missing_skills?: string[] | null;
-  ai_evidence?: string | null;
-  ai_cover_note?: string | null;
-  created_at: string;
-  resume_path?: string | null;
-}
-
-export interface RequisitionItem {
+export interface AtsRequisition {
   id: string;
   req_no: string;
   title: string;
   department?: string | null;
   location?: string | null;
   employment_type?: string | null;
+  work_mode?: string | null;
   headcount?: number;
   status: string;
-  raw_status?: string;
   priority?: string | null;
   hiring_manager?: string | null;
-  must_have_skills?: string[];
-  good_to_have_skills?: string[];
-  qualification?: string | null;
-  min_years_experience?: number | null;
-  ctc_budget?: string | null;
   description?: string | null;
   created_at?: string;
-  totalApplications: number;
-  hmReviewCount: number;
-  applications?: CandidateApplicationDetail[];
+  updated_at?: string;
 }
 
-function parseCandidate9Fields(app: CandidateApplicationDetail) {
-  let location = "Not specified";
-  let presentSalary = "Not specified";
-  let noticePeriod = "30 Days";
-  let qualification = "Degree";
-  let currentOrganization = "Previous Employer";
-  let switchingReason = "Seeking career growth & opportunities";
-
-  if (app.ai_evidence) {
-    try {
-      const parsed = JSON.parse(app.ai_evidence);
-      if (parsed.location) location = parsed.location;
-      if (parsed.presentSalary) presentSalary = parsed.presentSalary;
-      if (parsed.noticePeriod) noticePeriod = parsed.noticePeriod;
-      if (parsed.qualification) qualification = parsed.qualification;
-      if (parsed.currentOrganization) currentOrganization = parsed.currentOrganization;
-      if (parsed.switchingReason) switchingReason = parsed.switchingReason;
-    } catch {
-      // not json, use default
-    }
-  }
-
-  return {
-    fullName: app.candidate_name,
-    email: app.candidate_email,
-    phone: app.candidate_phone || "Not specified",
-    location,
-    presentSalary,
-    noticePeriod,
-    qualification,
-    currentOrganization,
-    switchingReason,
-  };
+export interface AtsApplication {
+  id: string;
+  stage: string;
+  rating?: number | null;
+  match_score?: number | null;
+  match_score_note?: string | null;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  current_company?: string | null;
+  current_location?: string | null;
+  experience_years?: number | null;
+  notice_period?: string | null;
+  current_ctc?: number | null;
+  expected_ctc?: number | null;
+  qualification?: string | null;
+  resume_file_name?: string | null;
+  met_must_have_skills?: string[] | null;
+  missing_must_have_skills?: string[] | null;
+  created_at: string;
+  requisition_id: string;
+  requisition_title?: string | null;
+  requisition_req_no?: string | null;
 }
 
-export default function RecruiterHomePage() {
+// Content blocks for a posting.
+// TODO (Phase 3): Replace free-text blocks with the JobPostingTemplate component.
+interface PostingContent {
+  who_we_are?: string;
+  success_stories?: string;
+  why_join_us?: string;
+  what_you_will_do?: string;
+  core_strengths?: string;
+  additional_strengths?: string;
+  how_you_grow?: string;
+}
+
+type ActiveFeature = "new_requisition" | "all_requisitions" | "all_applications" | "post_to_boards";
+
+export default function RecruiterPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"requisitions" | "create" | "agents" | "analytics">("requisitions");
-  const [activeRolePerspective, setActiveRolePerspective] = useState<"recruiter" | "hiring_manager">("recruiter");
+  const [activeFeature, setActiveFeature] = useState<ActiveFeature>("all_requisitions");
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const [requisitions, setRequisitions] = useState<RequisitionItem[]>([]);
+
+  const [requisitions, setRequisitions] = useState<AtsRequisition[]>([]);
   const [loadingReqs, setLoadingReqs] = useState(true);
-  const [expandedReqId, setExpandedReqId] = useState<string | null>(null);
-  const [publishingId, setPublishingId] = useState<string | null>(null);
-  const [forwardingAppId, setForwardingAppId] = useState<string | null>(null);
+  const [reqError, setReqError] = useState<string | null>(null);
 
-  // Requisition Creation State with JD Drop
-  const [jdFile, setJdFile] = useState<File | null>(null);
-  const [rawJdText, setRawJdText] = useState("");
-  const [analyzingJd, setAnalyzingJd] = useState(false);
-  const [creatingReq, setCreatingReq] = useState(false);
-  const [createMsg, setCreateMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [applications, setApplications] = useState<AtsApplication[]>([]);
+  const [loadingApps, setLoadingApps] = useState(false);
+  const [appReqFilter, setAppReqFilter] = useState<string>("");
+  const [appStageFilter, setAppStageFilter] = useState<string>("");
 
-  // Extracted/Editable Fields
-  const [formFields, setFormFields] = useState({
-    title: "",
-    department: "Engineering",
-    location: "Remote / Hybrid",
+  const [newReqForm, setNewReqForm] = useState({
+    title: "", department: "", location: "",
+    work_mode: "on-site" as "on-site" | "remote" | "hybrid",
     employment_type: "full-time",
     headcount: 1,
-    priority: "high",
-    hiring_manager: "Hiring Lead",
-    mustHaveSkills: "",
-    goodToHaveSkills: "",
-    qualification: "",
-    minYearsExperience: "3",
-    ctcBudget: "",
-    description: "",
+    priority: "medium" as "low" | "medium" | "high" | "urgent",
+    hiring_manager: "", description: "", must_have_skills: "", good_to_have_skills: "",
   });
+  const [creatingReq, setCreatingReq] = useState(false);
+  const [newReqMsg, setNewReqMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  const [rawJdText, setRawJdText] = useState("");
+  const [jdFile, setJdFile] = useState<File | null>(null);
+  const [analyzingJd, setAnalyzingJd] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Auth verification
+  const [postTargetReqId, setPostTargetReqId] = useState<string>("");
+  const [postBoard, setPostBoard] = useState<"askshree" | "google">("askshree");
+  const [postHideCompany, setPostHideCompany] = useState(false);
+  const [postValidThrough, setPostValidThrough] = useState("");
+  const [postContent, setPostContent] = useState<PostingContent>({});
+  const [postStatus, setPostStatus] = useState<"draft" | "published">("draft");
+  const [savingPost, setSavingPost] = useState(false);
+  const [postMsg, setPostMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
   useEffect(() => {
-    async function checkAuth() {
+    async function check() {
       try {
         const supabase = createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) {
-          router.push("/login?next=/recruiter");
-          return;
-        }
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { router.push("/login?next=/recruiter"); return; }
         setCheckingAuth(false);
-      } catch {
-        setCheckingAuth(false);
-      }
+      } catch { setCheckingAuth(false); }
     }
-    checkAuth();
+    check();
   }, [router]);
 
-  // Load Requisitions
   async function loadRequisitions() {
-    setLoadingReqs(true);
+    setLoadingReqs(true); setReqError(null);
     try {
-      const res = await fetch("/api/requisitions");
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.requisitions)) {
-          setRequisitions(data.requisitions);
-          if (data.requisitions.length > 0 && !expandedReqId) {
-            setExpandedReqId(data.requisitions[0].id);
-          }
-        }
-      }
-    } catch (err) {
-      console.warn("Failed to load requisitions:", err);
-    } finally {
-      setLoadingReqs(false);
-    }
+      const res = await fetch("/api/ats/requisitions");
+      if (!res.ok) { const d = await res.json().catch(() => ({})); setReqError(d.error || "Failed to load requisitions."); return; }
+      const data = await res.json();
+      setRequisitions(Array.isArray(data.requisitions) ? data.requisitions : []);
+    } catch { setReqError("Network error loading requisitions."); }
+    finally { setLoadingReqs(false); }
+  }
+
+  useEffect(() => { if (!checkingAuth) loadRequisitions(); }, [checkingAuth]);
+
+  async function loadApplications() {
+    setLoadingApps(true);
+    try {
+      const params = new URLSearchParams();
+      if (appReqFilter) params.set("requisition_id", appReqFilter);
+      if (appStageFilter) params.set("stage", appStageFilter);
+      const res = await fetch(`/api/ats/applications?${params.toString()}`);
+      const data = await res.json().catch(() => ({}));
+      setApplications(Array.isArray(data.applications) ? data.applications : []);
+    } catch { setApplications([]); }
+    finally { setLoadingApps(false); }
   }
 
   useEffect(() => {
-    loadRequisitions();
-  }, []);
+    if (activeFeature === "all_applications" && !checkingAuth) loadApplications();
+  }, [activeFeature, appReqFilter, appStageFilter, checkingAuth]);
 
-  // Handle JD File / Text Analysis
   async function handleAnalyzeJd(file?: File) {
     const targetFile = file || jdFile;
-    if (!targetFile && !rawJdText.trim()) {
-      setCreateMsg({ type: "error", text: "Please upload a JD document or paste job description text." });
-      return;
-    }
-
+    if (!targetFile && !rawJdText.trim()) return;
     setAnalyzingJd(true);
-    setCreateMsg(null);
-
     try {
       let res: Response;
       if (targetFile) {
-        const formData = new FormData();
-        formData.append("files", targetFile);
-        res = await fetch("/api/public/job-postings/analyze", {
-          method: "POST",
-          body: formData,
-        });
+        const fd = new FormData(); fd.append("files", targetFile);
+        res = await fetch("/api/public/job-postings/analyze", { method: "POST", body: fd });
       } else {
-        res = await fetch("/api/public/job-postings/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rawText: rawJdText }),
-        });
+        res = await fetch("/api/public/job-postings/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rawText: rawJdText }) });
       }
-
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Analysis failed.");
-
       const draft = data.drafts?.[0];
-      if (!draft) throw new Error("Could not parse job description. Please review and type details manually.");
-      if (draft.error) throw new Error(draft.error);
-
-      setFormFields({
-        title: draft.title || formFields.title || "Requisition Role",
-        department: draft.industry || formFields.department || "Engineering & Technology",
-        location: draft.location || formFields.location || "Remote / Hybrid",
-        employment_type: "full-time",
-        headcount: 1,
-        priority: "high",
-        hiring_manager: draft.company ? `${draft.company} Lead` : (formFields.hiring_manager || "Hiring Lead"),
-        mustHaveSkills: Array.isArray(draft.must_have_skills) && draft.must_have_skills.length > 0
-          ? draft.must_have_skills.join(", ")
-          : (formFields.mustHaveSkills || "Problem Solving, Communication"),
-        goodToHaveSkills: Array.isArray(draft.good_to_have_skills)
-          ? draft.good_to_have_skills.join(", ")
-          : formFields.goodToHaveSkills,
-        qualification: draft.qualification || formFields.qualification || "Bachelor's degree or equivalent",
-        minYearsExperience: draft.min_years_experience != null ? String(draft.min_years_experience) : (formFields.minYearsExperience || "3"),
-        ctcBudget: draft.ctc_budget || formFields.ctcBudget || "",
-        description: draft.rawJdText || draft.description || rawJdText || formFields.description || "",
-      });
-      setCreateMsg({ type: "success", text: "AI successfully analyzed JD! Specifications autofilled below for your review." });
+      if (!draft || draft.error) throw new Error("Could not parse JD.");
+      setNewReqForm((f) => ({
+        ...f,
+        title: draft.title || f.title,
+        department: draft.industry || f.department,
+        location: draft.location || f.location,
+        must_have_skills: Array.isArray(draft.must_have_skills) ? draft.must_have_skills.join(", ") : f.must_have_skills,
+        good_to_have_skills: Array.isArray(draft.good_to_have_skills) ? draft.good_to_have_skills.join(", ") : f.good_to_have_skills,
+        description: draft.rawJdText || draft.description || rawJdText || f.description,
+      }));
+      setNewReqMsg({ type: "success", text: "JD analysed. Fields autofilled. Please review before submitting." });
     } catch (err) {
-      setCreateMsg({
-        type: "error",
-        text: err instanceof Error ? err.message : "Failed to analyze JD. You can fill fields manually.",
-      });
-    } finally {
-      setAnalyzingJd(false);
-    }
+      setNewReqMsg({ type: "error", text: err instanceof Error ? err.message : "JD analysis failed." });
+    } finally { setAnalyzingJd(false); }
   }
 
-  // Handle Requisition Submit
   async function handleSubmitRequisition(e: React.FormEvent) {
     e.preventDefault();
-    if (!formFields.title.trim()) {
-      setCreateMsg({ type: "error", text: "Job title is required." });
-      return;
-    }
-
-    setCreatingReq(true);
-    setCreateMsg(null);
-
+    if (!newReqForm.title.trim()) { setNewReqMsg({ type: "error", text: "Job title is required." }); return; }
+    setCreatingReq(true); setNewReqMsg(null);
     try {
-      const payload = {
-        title: formFields.title.trim(),
-        department: formFields.department,
-        location: formFields.location,
-        employment_type: formFields.employment_type,
-        headcount: Number(formFields.headcount) || 1,
-        priority: formFields.priority,
-        hiring_manager: formFields.hiring_manager,
-        must_have_skills: formFields.mustHaveSkills.split(",").map((s) => s.trim()).filter(Boolean),
-        good_to_have_skills: formFields.goodToHaveSkills.split(",").map((s) => s.trim()).filter(Boolean),
-        qualification: formFields.qualification,
-        min_years_experience: Number(formFields.minYearsExperience) || null,
-        ctc_budget: formFields.ctcBudget,
-        description: formFields.description || formFields.title,
-        raw_jd_text: rawJdText || formFields.description,
-      };
-
-      const res = await fetch("/api/requisitions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      const res = await fetch("/api/ats/requisitions", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newReqForm.title.trim(),
+          department: newReqForm.department || undefined,
+          location: newReqForm.location || undefined,
+          work_mode: newReqForm.work_mode,
+          employment_type: newReqForm.employment_type,
+          headcount: Number(newReqForm.headcount) || 1,
+          priority: newReqForm.priority,
+          hiring_manager: newReqForm.hiring_manager || undefined,
+          description: newReqForm.description || undefined,
+          eligibility_criteria: {
+            must_have_skills: newReqForm.must_have_skills.split(",").map((s) => s.trim()).filter(Boolean),
+            good_to_have_skills: newReqForm.good_to_have_skills.split(",").map((s) => s.trim()).filter(Boolean),
+          },
+        }),
       });
-
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create requisition.");
-
-      setCreateMsg({
-        type: "success",
-        text: data.message || "Requisition created successfully!",
-      });
-
-      // Reload requisitions & switch to list
+      setNewReqMsg({ type: "success", text: data.message || "Requisition created." });
+      setNewReqForm({ title: "", department: "", location: "", work_mode: "on-site", employment_type: "full-time", headcount: 1, priority: "medium", hiring_manager: "", description: "", must_have_skills: "", good_to_have_skills: "" });
+      setRawJdText(""); setJdFile(null);
       await loadRequisitions();
-      setTimeout(() => {
-        setActiveTab("requisitions");
-        setCreateMsg(null);
-      }, 1500);
+      setTimeout(() => { setActiveFeature("all_requisitions"); setNewReqMsg(null); }, 1800);
     } catch (err) {
-      setCreateMsg({
-        type: "error",
-        text: err instanceof Error ? err.message : "Failed to create requisition.",
-      });
-    } finally {
-      setCreatingReq(false);
-    }
+      setNewReqMsg({ type: "error", text: err instanceof Error ? err.message : "Failed to create requisition." });
+    } finally { setCreatingReq(false); }
   }
 
-  // Forward candidate to HM Review
-  async function handleForwardToHM(reqId: string, appId: string) {
-    setForwardingAppId(appId);
+  async function handleSavePosting(e: React.FormEvent) {
+    e.preventDefault();
+    if (!postTargetReqId) { setPostMsg({ type: "error", text: "Select a requisition first." }); return; }
+    setSavingPost(true); setPostMsg(null);
     try {
-      const res = await fetch(`/api/requisitions/${reqId}/applications/${appId}/forward`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "hm_review" }),
+      const res = await fetch(`/api/ats/requisitions/${postTargetReqId}/postings`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ board: postBoard, hide_company_name: postHideCompany, valid_through: postValidThrough || null, status: postStatus, content: postContent }),
       });
-
-      if (res.ok) {
-        setRequisitions((prev) =>
-          prev.map((r) => {
-            if (r.id !== reqId) return r;
-            const updatedApps = (r.applications || []).map((a) =>
-              a.id === appId ? { ...a, status: "hm_review" } : a
-            );
-            return {
-              ...r,
-              applications: updatedApps,
-              hmReviewCount: updatedApps.filter((a) => a.status === "hm_review").length,
-            };
-          })
-        );
-      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save posting.");
+      setPostMsg({ type: "success", text: data.message || "Posting saved." });
     } catch (err) {
-      console.warn("Forward to HM failed:", err);
-    } finally {
-      setForwardingAppId(null);
-    }
+      setPostMsg({ type: "error", text: err instanceof Error ? err.message : "Failed to save posting." });
+    } finally { setSavingPost(false); }
   }
 
-  // Quick 1-click publish handler for Org Admin
-  async function handleQuickApprove(reqId: string) {
-    setPublishingId(reqId);
-    try {
-      const res = await fetch(`/api/requisitions/${reqId}/approve`, {
-        method: "PATCH",
-      });
-      if (res.ok) {
-        setRequisitions((prev) =>
-          prev.map((r) =>
-            r.id === reqId ? { ...r, status: "active", raw_status: "published" } : r
-          )
-        );
-      }
-    } catch (err) {
-      console.warn("Approval failed:", err);
-    } finally {
-      setPublishingId(null);
-    }
-  }
+  const kpis = useMemo(() => ({
+    totalReqs: requisitions.length,
+    openReqs: requisitions.filter((r) => r.status === "open").length,
+    pendingApproval: requisitions.filter((r) => r.status === "pending_approval").length,
+  }), [requisitions]);
 
-  // KPIs
-  const kpis = useMemo(() => {
-    const totalOpenReqs = requisitions.length;
-    let totalApps = 0;
-    let totalHmReview = 0;
+  const navItems = [
+    { id: "new_requisition", label: "+ New Requisition", icon: "sparkle", active: activeFeature === "new_requisition", onClick: () => setActiveFeature("new_requisition") },
+    { id: "all_requisitions", label: "All Requisitions", icon: "briefcase", badge: kpis.totalReqs > 0 ? String(kpis.totalReqs) : undefined, badgeColor: "amber" as const, active: activeFeature === "all_requisitions", onClick: () => setActiveFeature("all_requisitions") },
+    { id: "all_applications", label: "All Applications", icon: "users", active: activeFeature === "all_applications", onClick: () => setActiveFeature("all_applications") },
+    { id: "post_to_boards", label: "Post to Boards", icon: "chart", active: activeFeature === "post_to_boards", onClick: () => setActiveFeature("post_to_boards") },
+  ];
 
-    requisitions.forEach((r) => {
-      totalApps += r.totalApplications || 0;
-      totalHmReview += r.hmReviewCount || 0;
-    });
-
-    return {
-      openReqs: totalOpenReqs,
-      totalApps,
-      totalHmReview,
+  const statusBadge = (status: string) => {
+    const map: Record<string, string> = {
+      open: "bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300",
+      pending_approval: "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300",
+      rejected: "bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-950/60 dark:text-rose-300",
+      closed: "bg-gray-100 text-gray-600 border-gray-300",
     };
-  }, [requisitions]);
+    return <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${map[status] ?? "bg-gray-100 text-gray-600 border-gray-300"}`}>{status.replace(/_/g, " ")}</span>;
+  };
 
+  if (checkingAuth) return <div className="min-h-screen flex items-center justify-center bg-page"><div className="w-5 h-5 rounded-full border-2 border-brand border-t-transparent animate-spin" /></div>;
   return (
     <UniversalPlatformShell
-      portalTitle="Talent Partner Hub"
-      leftTitle="Talent Operations"
-      leftSubtitle="Requisitions, AI Triage & Candidate Calibration"
-      navItems={[
-        {
-          id: "requisitions",
-          label: "My Requisitions",
-          icon: "briefcase",
-          badge: String(kpis.openReqs),
-          badgeColor: "amber",
-          active: activeTab === "requisitions",
-          onClick: () => setActiveTab("requisitions"),
-        },
-        {
-          id: "agents",
-          label: "AI Agents",
-          icon: "users",
-          active: activeTab === "agents",
-          onClick: () => setActiveTab("agents"),
-        },
-        {
-          id: "analytics",
-          label: "Funnel Analytics",
-          icon: "chart",
-          active: activeTab === "analytics",
-          onClick: () => setActiveTab("analytics"),
-        },
-      ]}
-      activeNavId={activeTab}
-      onSelectNav={(id) => setActiveTab(id as any)}
-      avatarConfig={{
-        title: "Shree",
-        subtitle: "AI powered hiring partner",
-        badgeText: "Active 24/7",
-      }}
+      portalTitle="Recruiter Hub"
+      leftTitle="Recruiter Hub"
+      leftSubtitle="Requisitions, Applications & Postings"
+      navItems={navItems}
+      activeNavId={activeFeature}
+      onSelectNav={(id) => setActiveFeature(id as ActiveFeature)}
+      avatarConfig={{ title: "Shree", subtitle: "AI powered hiring partner", badgeText: "Active 24/7" }}
       searchPlaceholder="Search requisitions, candidates, or skills..."
-      suggestedQuestions={[
-        "Show all candidates across active requisitions",
-        "Which requisitions are pending approval?",
-        "How many candidates were forwarded to HM review?",
-      ]}
+      suggestedQuestions={["Show all open requisitions", "Which candidates are in HM Review?", "What requisitions are pending approval?"]}
     >
-      {/* PERSPECTIVE CONTROL BAR */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-subtle/30 border border-border rounded-xl mb-4">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-ink-muted uppercase tracking-wider">
-            Active Perspective:
-          </span>
-          <div className="inline-flex rounded-lg border border-border bg-page p-0.5">
-            <button
-              type="button"
-              onClick={() => setActiveRolePerspective("recruiter")}
-              className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
-                activeRolePerspective === "recruiter"
-                  ? "bg-brand text-white shadow-soft-sm"
-                  : "text-ink-muted hover:text-ink"
-              }`}
-            >
-              Recruiter (TA) Hub
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveRolePerspective("hiring_manager")}
-              className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
-                activeRolePerspective === "hiring_manager"
-                  ? "bg-brand text-white shadow-soft-sm"
-                  : "text-ink-muted hover:text-ink"
-              }`}
-            >
-              Hiring Manager (HM) Hub
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 text-xs text-ink-muted">
-          <span>
-            Mode:{" "}
-            <strong className="text-ink">
-              {activeRolePerspective === "recruiter" ? "Full Candidate Access" : "Count Only (Locked until TA sends)"}
-            </strong>
-          </span>
-        </div>
-      </div>
-
-      {/* ================= TAB 1: REQUISITIONS LIST & CANDIDATE INGESTION ================= */}
-      {activeTab === "requisitions" && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm sm:text-base font-bold text-ink font-display">
-                {activeRolePerspective === "recruiter" ? "Recruiter Pipeline & Requisitions" : "Hiring Manager Requisitions"}
-              </h2>
-              <p className="text-xs text-ink-muted mt-0.5">
-                {activeRolePerspective === "recruiter"
-                  ? "Full visibility into all applications, candidate profiles, and HM review forwarding"
-                  : "Track candidate volume metrics — candidate profiles unlock once forwarded by TA"}
-              </p>
-            </div>
-            <button
-              onClick={() => setActiveTab("create")}
-              className="bg-brand text-white text-xs font-bold px-3.5 py-1.5 rounded-lg shadow-sm hover:opacity-95 transition-opacity flex items-center gap-1.5"
-            >
-              <Icon name="sparkle" size={13} />
-              <span>+ Create Requisition</span>
-            </button>
-          </div>
-
-          {loadingReqs ? (
-            <div className="py-12 text-center text-xs text-ink-muted">
-              Loading requisitions...
-            </div>
-          ) : requisitions.length === 0 ? (
-            <div className="p-8 border border-dashed border-border rounded-xl text-center bg-surface">
-              <Icon name="briefcase" className="w-8 h-8 text-ink-muted mx-auto mb-2" />
-              <h4 className="text-sm font-bold text-ink m-0">No Requisitions Found</h4>
-              <p className="text-xs text-ink-muted mt-1">
-                Click &quot;+ Create Requisition&quot; above to drop your JD and publish to the Guest Hub.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {requisitions.map((req) => {
-                const isExpanded = expandedReqId === req.id;
-                const isPending = req.raw_status === "pending_approval";
-                const apps = req.applications || [];
-                const hmReviewApps = apps.filter((a) => a.status === "hm_review");
-
-                return (
-                  <div
-                    key={req.id}
-                    className={`bg-surface border rounded-xl overflow-hidden transition-all shadow-soft-sm ${
-                      isExpanded ? "border-brand ring-1 ring-brand/20" : "border-border hover:border-border-strong"
-                    }`}
-                  >
-                    {/* Requisition Card Header */}
-                    <div
-                      onClick={() => setExpandedReqId(isExpanded ? null : req.id)}
-                      className="p-4 cursor-pointer flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-gradient-to-r from-surface via-surface to-page/40"
-                    >
-                      <div className="flex items-start gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-lg bg-brand-wash flex items-center justify-center text-brand flex-shrink-0 mt-0.5">
-                          <Icon name="briefcase" size={18} />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-[11px] font-mono text-ink-muted font-bold">
-                              {req.req_no}
-                            </span>
-                            <h3 className="text-sm sm:text-[14px] font-bold text-ink truncate m-0">
-                              {req.title}
-                            </h3>
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                isPending
-                                  ? "bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300"
-                                  : "bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300"
-                              }`}
-                            >
-                              {isPending ? "Pending Approval" : "Published (Guest Hub Live)"}
-                            </span>
-                          </div>
-                          <p className="text-[11.5px] text-ink-muted mt-0.5 truncate m-0">
-                            {req.department} • {req.location} • HM: <span className="text-ink font-semibold">{req.hiring_manager}</span>
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Right KPIs & Quick Actions */}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {/* Application Count Pill */}
-                        <div className="px-3 py-1.5 rounded-lg bg-page border border-border text-center">
-                          <div className="text-sm font-bold text-ink">{req.totalApplications}</div>
-                          <div className="text-[9.5px] text-ink-muted uppercase">Applications</div>
-                        </div>
-
-                        {/* Forwarded to HM Count */}
-                        <div className="px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-center">
-                          <div className="text-sm font-bold text-purple-700 dark:text-purple-300">
-                            {req.hmReviewCount}
-                          </div>
-                          <div className="text-[9.5px] text-purple-600 dark:text-purple-400 uppercase">
-                            In HM Review
-                          </div>
-                        </div>
-
-                        {/* Org Admin Quick Approve if pending */}
-                        {isPending && (
-                          <button
-                            type="button"
-                            disabled={publishingId === req.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleQuickApprove(req.id);
-                            }}
-                            className="bg-brand text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm hover:opacity-95 transition-opacity flex items-center gap-1 cursor-pointer"
-                          >
-                            <span>⚡</span>
-                            <span>{publishingId === req.id ? "Publishing..." : "Approve & Publish"}</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Expanded Requisition Panel */}
-                    {isExpanded && (
-                      <div className="p-4 bg-page/40 border-t border-border space-y-4">
-                        {/* RECRUITER PERSPECTIVE: ALL APPLICATIONS */}
-                        {activeRolePerspective === "recruiter" && (
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between pb-2 border-b border-border">
-                              <div>
-                                <h4 className="text-xs font-bold uppercase tracking-wider text-ink m-0">
-                                  All Applications ({apps.length})
-                                </h4>
-                                <p className="text-[11.5px] text-ink-muted mt-0.5 m-0">
-                                  Review candidates, evaluate 9 profile fields, and forward qualified talent to Hiring Manager.
-                                </p>
-                              </div>
-                              <Link
-                                href={`/jobs/${req.id}`}
-                                target="_blank"
-                                className="text-xs font-semibold text-brand hover:underline flex items-center gap-1"
-                              >
-                                <span>View on Guest Hub</span>
-                                <span>↗</span>
-                              </Link>
-                            </div>
-
-                            {apps.length === 0 ? (
-                              <div className="py-8 text-center border border-dashed border-border rounded-xl bg-surface/50">
-                                <Icon name="users" className="w-6 h-6 text-ink-muted mx-auto mb-1.5" />
-                                <p className="text-xs font-semibold text-ink m-0">No applications received yet</p>
-                                <p className="text-[11px] text-ink-muted mt-0.5">
-                                  Candidates can apply directly via Quick Apply on the Guest Hub.
-                                </p>
-                              </div>
-                            ) : (
-                              <div className="grid grid-cols-1 gap-3">
-                                {apps.map((app) => {
-                                  const details = parseCandidate9Fields(app);
-                                  const isInHmReview = app.status === "hm_review";
-
-                                  return (
-                                    <div
-                                      key={app.id}
-                                      className="p-4 rounded-xl bg-surface border border-border shadow-soft-sm space-y-3"
-                                    >
-                                      {/* Candidate Card Header */}
-                                      <div className="flex flex-wrap items-start justify-between gap-3">
-                                        <div>
-                                          <div className="flex items-center gap-2">
-                                            <h5 className="text-[14px] font-bold text-ink m-0">
-                                              {details.fullName}
-                                            </h5>
-                                            <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-brand-wash text-brand border border-brand/20">
-                                              {app.match_score ? `${app.match_score}% Match` : "80% Match"}
-                                            </span>
-                                            {isInHmReview && (
-                                              <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30">
-                                                ✓ Forwarded to HM Review
-                                              </span>
-                                            )}
-                                          </div>
-                                          <p className="text-xs text-ink-muted mt-0.5 m-0">
-                                            {details.email} • {details.phone}
-                                          </p>
-                                        </div>
-
-                                        {/* Forward to HM Action */}
-                                        <div>
-                                          {!isInHmReview ? (
-                                            <button
-                                              type="button"
-                                              disabled={forwardingAppId === app.id}
-                                              onClick={() => handleForwardToHM(req.id, app.id)}
-                                              className="bg-brand text-white text-xs font-bold px-3.5 py-1.5 rounded-lg shadow-sm hover:opacity-95 transition-opacity flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                                            >
-                                              <Icon name="sparkle" size={13} />
-                                              <span>{forwardingAppId === app.id ? "Sending..." : "Send to HM Review"}</span>
-                                            </button>
-                                          ) : (
-                                            <span className="text-xs font-bold text-purple-600 dark:text-purple-400 flex items-center gap-1">
-                                              <span>✓</span>
-                                              <span>In HM Review</span>
-                                            </span>
-                                          )}
-                                        </div>
-                                      </div>
-
-                                      {/* 9 Candidate Fields Grid */}
-                                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-2 border-t border-border/60 text-[11.5px]">
-                                        <div className="p-2 rounded-lg bg-page border border-border/50">
-                                          <span className="text-[10px] uppercase font-bold text-ink-muted block">Location</span>
-                                          <span className="font-semibold text-ink truncate block">{details.location}</span>
-                                        </div>
-                                        <div className="p-2 rounded-lg bg-page border border-border/50">
-                                          <span className="text-[10px] uppercase font-bold text-ink-muted block">Current Org</span>
-                                          <span className="font-semibold text-ink truncate block">{details.currentOrganization}</span>
-                                        </div>
-                                        <div className="p-2 rounded-lg bg-page border border-border/50">
-                                          <span className="text-[10px] uppercase font-bold text-ink-muted block">Qualification</span>
-                                          <span className="font-semibold text-ink truncate block">{details.qualification}</span>
-                                        </div>
-                                        <div className="p-2 rounded-lg bg-page border border-border/50">
-                                          <span className="text-[10px] uppercase font-bold text-ink-muted block">Present CTC</span>
-                                          <span className="font-semibold text-ink truncate block">{details.presentSalary}</span>
-                                        </div>
-                                        <div className="p-2 rounded-lg bg-page border border-border/50">
-                                          <span className="text-[10px] uppercase font-bold text-ink-muted block">Notice Period</span>
-                                          <span className="font-semibold text-ink truncate block">{details.noticePeriod}</span>
-                                        </div>
-                                        <div className="p-2 rounded-lg bg-page border border-border/50">
-                                          <span className="text-[10px] uppercase font-bold text-ink-muted block">Applied On</span>
-                                          <span className="font-semibold text-ink truncate block">
-                                            {new Date(app.created_at).toLocaleDateString()}
-                                          </span>
-                                        </div>
-                                      </div>
-
-                                      {/* Reason for Switching & Skills */}
-                                      <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                                        <div className="text-ink-muted">
-                                          <strong className="text-ink">Reason for Switching:</strong> {details.switchingReason}
-                                        </div>
-                                        {Array.isArray(app.matched_skills) && app.matched_skills.length > 0 && (
-                                          <div className="flex items-center gap-1.5 flex-wrap">
-                                            <span className="text-[11px] font-semibold text-ink-muted">Matched:</span>
-                                            {app.matched_skills.slice(0, 3).map((sk) => (
-                                              <span
-                                                key={sk}
-                                                className="px-1.5 py-0.5 rounded text-[10.5px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-medium"
-                                              >
-                                                {sk}
-                                              </span>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* HIRING MANAGER PERSPECTIVE: COUNT ONLY (LOCKED UNTIL SENT) */}
-                        {activeRolePerspective === "hiring_manager" && (
-                          <div className="space-y-4">
-                            {/* HM Volume Metric Card */}
-                            <div className="p-5 rounded-xl border border-brand/30 bg-gradient-to-r from-brand-wash/30 via-surface to-page text-center sm:text-left flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                              <div>
-                                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 mb-2">
-                                  <span>🔒 Raw Triage Gated</span>
-                                </div>
-                                <h4 className="text-base sm:text-lg font-bold text-ink m-0">
-                                  {req.totalApplications} Applications Received
-                                </h4>
-                                <p className="text-xs text-ink-muted mt-1 max-w-md m-0">
-                                  Talent Acquisition is screening and calibrating incoming applicants against STAR rubrics. Candidate profiles unlock here once forwarded to HM Review.
-                                </p>
-                              </div>
-
-                              <div className="p-3 rounded-xl bg-surface border border-border text-center shrink-0">
-                                <div className="text-2xl font-bold text-brand font-display">
-                                  {hmReviewApps.length}
-                                </div>
-                                <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
-                                  Ready for Your Review
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* HM Review Shortlist (Only candidates forwarded by Recruiter) */}
-                            <div>
-                              <h4 className="text-xs font-bold uppercase tracking-wider text-ink mb-2">
-                                Candidates Forwarded for HM Review ({hmReviewApps.length})
-                              </h4>
-
-                              {hmReviewApps.length === 0 ? (
-                                <div className="p-6 border border-dashed border-border rounded-xl text-center text-xs text-ink-muted bg-surface/50">
-                                  No candidates forwarded to HM review yet. Recruiter triage in progress.
-                                </div>
-                              ) : (
-                                <div className="grid grid-cols-1 gap-3">
-                                  {hmReviewApps.map((app) => {
-                                    const details = parseCandidate9Fields(app);
-
-                                    return (
-                                      <div
-                                        key={app.id}
-                                        className="p-4 rounded-xl bg-surface border border-brand/40 shadow-soft-sm space-y-2.5"
-                                      >
-                                        <div className="flex items-center justify-between">
-                                          <div>
-                                            <h5 className="text-[14px] font-bold text-ink m-0">
-                                              {details.fullName}
-                                            </h5>
-                                            <p className="text-xs text-ink-muted mt-0.5 m-0">
-                                              {details.currentOrganization} • {details.qualification} • {details.location}
-                                            </p>
-                                          </div>
-                                          <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-brand-wash text-brand border border-brand/20">
-                                            {app.match_score}% Calibrated
-                                          </span>
-                                        </div>
-
-                                        <div className="p-2.5 rounded-lg bg-page border border-border text-xs text-ink-muted">
-                                          <strong className="text-ink">Notice Period:</strong> {details.noticePeriod} | <strong className="text-ink">Expected CTC:</strong> {details.presentSalary}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ================= TAB 2: CREATE REQUISITION WITH JD DROP & AI PARSE ================= */}
-      {activeTab === "create" && (
+      {/* NEW REQUISITION */}
+      {activeFeature === "new_requisition" && (
         <div className="max-w-3xl mx-auto w-full space-y-4 py-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <button
-                type="button"
-                onClick={() => setActiveTab("requisitions")}
-                className="text-xs font-semibold text-brand hover:underline flex items-center gap-1 mb-1 cursor-pointer"
-              >
-                <span>←</span>
-                <span>Back to My Requisitions</span>
-              </button>
-              <h2 className="text-sm sm:text-base font-bold text-ink font-display m-0">
-                Create New Requisition (JD Ingestion)
-              </h2>
-              <p className="text-xs text-ink-muted mt-0.5 m-0">
-                Drop your JD document or paste text. Shree AI will analyze and autofill specifications for your review.
-              </p>
-            </div>
+          <div>
+            <h2 className="text-sm sm:text-base font-bold text-ink font-display">New Requisition</h2>
+            <p className="text-xs text-ink-muted mt-0.5">Drop a JD or fill the form. Org licence enters approval queue; individual licence opens immediately.</p>
           </div>
-
-          {createMsg && (
-            <div
-              className={`p-3 rounded-xl text-xs font-semibold animate-fade-in flex items-center gap-2 ${
-                createMsg.type === "success"
-                  ? "bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20"
-                  : "bg-critical-wash text-critical border border-critical/20"
-              }`}
-            >
-              <Icon name={createMsg.type === "success" ? "check" : "alert-triangle"} className="w-4 h-4" />
-              <span>{createMsg.text}</span>
+          {newReqMsg && (
+            <div className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${newReqMsg.type === "success" ? "bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20" : "bg-rose-500/10 text-rose-800 dark:text-rose-300 border border-rose-500/20"}`}>
+              <Icon name={newReqMsg.type === "success" ? "check" : "alert-triangle"} className="w-4 h-4" />
+              <span>{newReqMsg.text}</span>
             </div>
           )}
-
-          {/* STEP 1: JD DROP ZONE */}
-          <div className="bg-surface border border-border rounded-2xl p-5 shadow-soft space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">
-                Step 1: Upload or Drop Job Description
-              </span>
-              {jdFile && (
-                <span className="text-xs font-semibold text-brand">
-                  Attached: {jdFile.name}
-                </span>
-              )}
+          <div className="bg-surface border border-border rounded-2xl p-5 shadow-soft space-y-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">Step 1 — Upload or paste Job Description (optional)</span>
+            <div onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) { setJdFile(f); handleAnalyzeJd(f); } }} onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-border hover:border-brand/60 rounded-xl p-6 bg-subtle/20 hover:bg-brand-wash/10 cursor-pointer transition-all flex flex-col items-center text-center gap-2">
+              <div className="w-10 h-10 rounded-full bg-brand-wash text-brand flex items-center justify-center"><Icon name="sparkle" size={18} /></div>
+              <p className="text-[13px] font-bold text-ink m-0">{jdFile ? jdFile.name : "Drag & drop JD (PDF, DOCX, TXT)"}</p>
+              <p className="text-[11px] text-ink-muted m-0">or click to browse</p>
+              <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setJdFile(f); handleAnalyzeJd(f); } }} />
             </div>
-
-            <div
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                const file = e.dataTransfer.files?.[0];
-                if (file) {
-                  setJdFile(file);
-                  handleAnalyzeJd(file);
-                }
-              }}
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-border hover:border-brand/60 rounded-xl p-6 bg-subtle/20 hover:bg-brand-wash/10 cursor-pointer transition-all flex flex-col items-center text-center gap-2"
-            >
-              <div className="w-12 h-12 rounded-full bg-brand-wash text-brand flex items-center justify-center">
-                <Icon name="sparkle" size={20} />
-              </div>
-              <p className="text-[13.5px] font-bold text-ink m-0">
-                Drag &amp; drop JD file (PDF, DOCX, TXT)
-              </p>
-              <p className="text-[11.5px] text-ink-muted m-0">
-                or click to browse from your computer
-              </p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,.doc,.docx,.txt"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    setJdFile(file);
-                    handleAnalyzeJd(file);
-                  }
-                }}
-              />
-            </div>
-
-            {/* Optional Paste JD Text */}
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-1">
-                Or paste raw JD text here
-              </label>
-              <textarea
-                rows={3}
-                value={rawJdText}
-                onChange={(e) => setRawJdText(e.target.value)}
-                placeholder="Paste job description requirements, responsibilities, and qualifications..."
-                className="w-full text-xs p-3 rounded-xl border border-border bg-page text-ink focus:border-brand focus:outline-none resize-none"
-              />
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-1">Or paste JD text</label>
+              <textarea rows={2} value={rawJdText} onChange={(e) => setRawJdText(e.target.value)} placeholder="Paste job description text..." className="w-full text-xs p-3 rounded-xl border border-border bg-page text-ink focus:border-brand focus:outline-none resize-none" />
             </div>
-
-            <button
-              type="button"
-              disabled={analyzingJd || (!jdFile && !rawJdText.trim())}
-              onClick={() => handleAnalyzeJd()}
-              className="w-full bg-brand text-white text-xs font-bold py-2.5 rounded-xl shadow-button hover:opacity-95 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
-            >
-              {analyzingJd ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>AI is parsing JD fields...</span>
-                </>
-              ) : (
-                <>
-                  <Icon name="sparkle" size={14} />
-                  <span>Analyse JD with Shree AI</span>
-                </>
-              )}
+            <button type="button" disabled={analyzingJd || (!jdFile && !rawJdText.trim())} onClick={() => handleAnalyzeJd()}
+              className="w-full bg-brand text-white text-xs font-bold py-2.5 rounded-xl shadow-button hover:opacity-95 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer">
+              {analyzingJd ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /><span>Analysing...</span></> : <><Icon name="sparkle" size={14} /><span>Analyse JD with Shree AI</span></>}
             </button>
           </div>
-
-          {/* STEP 2: REVIEW & REFINE EXTRACTED REQUISITION FIELDS */}
           <form onSubmit={handleSubmitRequisition} className="bg-surface border border-border rounded-2xl p-5 shadow-soft space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-border">
-              <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">
-                Step 2: Review &amp; Refine Specifications
-              </span>
-              <span className="text-[11px] text-ink-muted">
-                Adjust any fields prior to submission
-              </span>
-            </div>
-
+            <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">Step 2 — Review & fill requisition details</span>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {([
+                { label: "Job Title *", field: "title", placeholder: "e.g. Senior ML Engineer", required: true },
+                { label: "Department", field: "department", placeholder: "e.g. Engineering" },
+                { label: "Location", field: "location", placeholder: "e.g. Bangalore / Remote" },
+                { label: "Hiring Manager", field: "hiring_manager", placeholder: "e.g. Ananya Sharma" },
+              ] as { label: string; field: keyof typeof newReqForm; placeholder: string; required?: boolean }[]).map(({ label, field, placeholder, required }) => (
+                <div key={field}>
+                  <label className="block text-xs font-bold text-ink mb-1">{label}</label>
+                  <input type="text" required={required} value={String(newReqForm[field])} onChange={(e) => setNewReqForm({ ...newReqForm, [field]: e.target.value })} placeholder={placeholder} className="w-full px-3 py-2 rounded-xl bg-page border border-border text-xs text-ink focus:border-brand focus:outline-none" />
+                </div>
+              ))}
               <div>
-                <label className="block text-xs font-bold text-ink mb-1">Job Title *</label>
-                <input
-                  type="text"
-                  required
-                  value={formFields.title}
-                  onChange={(e) => setFormFields({ ...formFields, title: e.target.value })}
-                  placeholder="e.g. Senior Machine Learning Engineer"
-                  className="w-full px-3 py-2 rounded-xl bg-page border border-border text-xs text-ink focus:border-brand focus:outline-none"
-                />
+                <label className="block text-xs font-bold text-ink mb-1">Work Mode</label>
+                <select value={newReqForm.work_mode} onChange={(e) => setNewReqForm({ ...newReqForm, work_mode: e.target.value as typeof newReqForm.work_mode })} className="w-full px-3 py-2 rounded-xl bg-page border border-border text-xs text-ink focus:border-brand focus:outline-none">
+                  <option value="on-site">On-site</option><option value="remote">Remote</option><option value="hybrid">Hybrid</option>
+                </select>
               </div>
-
               <div>
-                <label className="block text-xs font-bold text-ink mb-1">Department</label>
-                <input
-                  type="text"
-                  value={formFields.department}
-                  onChange={(e) => setFormFields({ ...formFields, department: e.target.value })}
-                  placeholder="e.g. Engineering / Product"
-                  className="w-full px-3 py-2 rounded-xl bg-page border border-border text-xs text-ink focus:border-brand focus:outline-none"
-                />
+                <label className="block text-xs font-bold text-ink mb-1">Employment Type</label>
+                <select value={newReqForm.employment_type} onChange={(e) => setNewReqForm({ ...newReqForm, employment_type: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-page border border-border text-xs text-ink focus:border-brand focus:outline-none">
+                  <option value="full-time">Full-Time</option><option value="part-time">Part-Time</option><option value="contract">Contract</option><option value="internship">Internship</option>
+                </select>
               </div>
-
               <div>
-                <label className="block text-xs font-bold text-ink mb-1">Location / Workplace Mode</label>
-                <input
-                  type="text"
-                  value={formFields.location}
-                  onChange={(e) => setFormFields({ ...formFields, location: e.target.value })}
-                  placeholder="e.g. San Francisco, CA / Remote"
-                  className="w-full px-3 py-2 rounded-xl bg-page border border-border text-xs text-ink focus:border-brand focus:outline-none"
-                />
+                <label className="block text-xs font-bold text-ink mb-1">Openings</label>
+                <input type="number" min={1} value={newReqForm.headcount} onChange={(e) => setNewReqForm({ ...newReqForm, headcount: Number(e.target.value) || 1 })} className="w-full px-3 py-2 rounded-xl bg-page border border-border text-xs text-ink focus:border-brand focus:outline-none" />
               </div>
-
               <div>
-                <label className="block text-xs font-bold text-ink mb-1">Hiring Manager (Lead)</label>
-                <input
-                  type="text"
-                  value={formFields.hiring_manager}
-                  onChange={(e) => setFormFields({ ...formFields, hiring_manager: e.target.value })}
-                  placeholder="e.g. David Miller (VP Engineering)"
-                  className="w-full px-3 py-2 rounded-xl bg-page border border-border text-xs text-ink focus:border-brand focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-ink mb-1">Min Years Experience</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={formFields.minYearsExperience}
-                  onChange={(e) => setFormFields({ ...formFields, minYearsExperience: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-page border border-border text-xs text-ink focus:border-brand focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-ink mb-1">Salary / Compensation Budget</label>
-                <input
-                  type="text"
-                  value={formFields.ctcBudget}
-                  onChange={(e) => setFormFields({ ...formFields, ctcBudget: e.target.value })}
-                  placeholder="e.g. $140,000 - $180,000 / 25-35 LPA"
-                  className="w-full px-3 py-2 rounded-xl bg-page border border-border text-xs text-ink focus:border-brand focus:outline-none"
-                />
+                <label className="block text-xs font-bold text-ink mb-1">Priority</label>
+                <select value={newReqForm.priority} onChange={(e) => setNewReqForm({ ...newReqForm, priority: e.target.value as typeof newReqForm.priority })} className="w-full px-3 py-2 rounded-xl bg-page border border-border text-xs text-ink focus:border-brand focus:outline-none">
+                  <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option>
+                </select>
               </div>
             </div>
-
             <div>
-              <label className="block text-xs font-bold text-ink mb-1">Must-Have Skills (comma separated)</label>
-              <input
-                type="text"
-                value={formFields.mustHaveSkills}
-                onChange={(e) => setFormFields({ ...formFields, mustHaveSkills: e.target.value })}
-                placeholder="e.g. React, TypeScript, Node.js"
-                className="w-full px-3 py-2 rounded-xl bg-page border border-border text-xs text-ink focus:border-brand focus:outline-none"
-              />
+              <label className="block text-xs font-bold text-ink mb-1">Must-Have Skills (comma-separated)</label>
+              <input type="text" value={newReqForm.must_have_skills} onChange={(e) => setNewReqForm({ ...newReqForm, must_have_skills: e.target.value })} placeholder="e.g. React, TypeScript, Node.js" className="w-full px-3 py-2 rounded-xl bg-page border border-border text-xs text-ink focus:border-brand focus:outline-none" />
             </div>
-
             <div>
-              <label className="block text-xs font-bold text-ink mb-1">Good-To-Have Skills (comma separated)</label>
-              <input
-                type="text"
-                value={formFields.goodToHaveSkills}
-                onChange={(e) => setFormFields({ ...formFields, goodToHaveSkills: e.target.value })}
-                placeholder="e.g. GraphQL, Docker, Next.js 15"
-                className="w-full px-3 py-2 rounded-xl bg-page border border-border text-xs text-ink focus:border-brand focus:outline-none"
-              />
+              <label className="block text-xs font-bold text-ink mb-1">Good-To-Have Skills (comma-separated)</label>
+              <input type="text" value={newReqForm.good_to_have_skills} onChange={(e) => setNewReqForm({ ...newReqForm, good_to_have_skills: e.target.value })} placeholder="e.g. GraphQL, Docker" className="w-full px-3 py-2 rounded-xl bg-page border border-border text-xs text-ink focus:border-brand focus:outline-none" />
             </div>
-
             <div>
-              <label className="block text-xs font-bold text-ink mb-1">Qualification / Education</label>
-              <input
-                type="text"
-                value={formFields.qualification}
-                onChange={(e) => setFormFields({ ...formFields, qualification: e.target.value })}
-                placeholder="e.g. B.Tech / M.S. in Computer Science or equivalent"
-                className="w-full px-3 py-2 rounded-xl bg-page border border-border text-xs text-ink focus:border-brand focus:outline-none"
-              />
+              <label className="block text-xs font-bold text-ink mb-1">What You Will Do (responsibilities)</label>
+              <textarea rows={3} value={newReqForm.description} onChange={(e) => setNewReqForm({ ...newReqForm, description: e.target.value })} placeholder="Describe day-to-day responsibilities..." className="w-full text-xs p-3 rounded-xl border border-border bg-page text-ink focus:border-brand focus:outline-none resize-none" />
             </div>
-
-            <div>
-              <label className="block text-xs font-bold text-ink mb-1">Job Description / Responsibilities</label>
-              <textarea
-                rows={4}
-                value={formFields.description}
-                onChange={(e) => setFormFields({ ...formFields, description: e.target.value })}
-                placeholder="Detailed expectations and specifications for this role..."
-                className="w-full text-xs p-3 rounded-xl border border-border bg-page text-ink focus:border-brand focus:outline-none resize-none"
-              />
-            </div>
-
             <div className="pt-3 flex items-center justify-between border-t border-border">
-              <span className="text-[11.5px] text-ink-muted">
-                License-Aware: Individual license auto-publishes to Guest Hub; Org license enters approval queue.
-              </span>
-
+              <span className="text-[11px] text-ink-muted">Org licence enters approval queue. Individual licence opens immediately.</span>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("requisitions")}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-ink-muted hover:text-ink"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={creatingReq || !formFields.title.trim()}
-                  className="bg-brand text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-button hover:opacity-95 transition-opacity disabled:opacity-50 flex items-center gap-2 cursor-pointer"
-                >
-                  {creatingReq ? (
-                    <>
-                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Submitting...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Icon name="sparkle" size={13} />
-                      <span>Submit Requisition</span>
-                    </>
-                  )}
+                <button type="button" onClick={() => setActiveFeature("all_requisitions")} className="px-4 py-2 rounded-xl text-xs font-semibold text-ink-muted hover:text-ink cursor-pointer">Cancel</button>
+                <button type="submit" disabled={creatingReq || !newReqForm.title.trim()} className="bg-brand text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-button hover:opacity-95 transition-opacity disabled:opacity-50 flex items-center gap-2 cursor-pointer">
+                  {creatingReq ? <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /><span>Submitting...</span></> : <><Icon name="sparkle" size={13} /><span>Submit Requisition</span></>}
                 </button>
               </div>
             </div>
@@ -1067,106 +355,221 @@ export default function RecruiterHomePage() {
         </div>
       )}
 
-      {/* ================= TAB 3: AGENTS ================= */}
-      {activeTab === "agents" && (
+      {/* ALL REQUISITIONS */}
+      {activeFeature === "all_requisitions" && (
         <div className="space-y-4">
-          <div>
-            <h2 className="text-sm sm:text-base font-bold text-ink font-display">
-              Autonomous Recruiter AI Agents (4 Active)
-            </h2>
-            <p className="text-xs text-ink-muted mt-0.5">
-              Specialized Shree AI agents operating around the clock on sourcing, scoring, and calibration
-            </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm sm:text-base font-bold text-ink font-display">All Requisitions</h2>
+              <p className="text-xs text-ink-muted mt-0.5">{kpis.openReqs} open · {kpis.pendingApproval} pending approval · {kpis.totalReqs} total</p>
+            </div>
+            <button onClick={() => setActiveFeature("new_requisition")} className="bg-brand text-white text-xs font-bold px-3.5 py-1.5 rounded-lg shadow-sm hover:opacity-95 transition-opacity flex items-center gap-1.5 cursor-pointer">
+              <Icon name="sparkle" size={13} /><span>+ New</span>
+            </button>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            {[
-              {
-                name: "Shree Sourcing Agent",
-                role: "Autonomous Talent Pool & Profile Ingestion",
-                status: "Live & Active",
-                metric: "142 profiles parsed today",
-                badge: "Active",
-                icon: "users",
-              },
-              {
-                name: "Resume ATS Pre-Screener",
-                role: "Multi-dimensional Match Scoring & Gap Detection",
-                status: "Live & Active",
-                metric: "91% accuracy correlation",
-                badge: "Active",
-                icon: "sparkle",
-              },
-              {
-                name: "Interview Coordinator Bot",
-                role: "Real-Time Slot Calibration",
-                status: "Live & Active",
-                metric: "18 slots scheduled",
-                badge: "Active",
-                icon: "briefcase",
-              },
-              {
-                name: "HM Bias & Rubric Calibrator",
-                role: "Objective Scorecard Normalization",
-                status: "Live & Active",
-                metric: "Zero compliance flags",
-                badge: "Active",
-                icon: "check",
-              },
-            ].map((agent, i) => (
-              <div
-                key={i}
-                className="p-4 rounded-xl bg-surface border border-border shadow-soft-sm space-y-2.5"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-brand-wash flex items-center justify-center text-brand">
-                      <Icon name={agent.icon} size={16} />
-                    </div>
-                    <div>
-                      <h4 className="text-xs sm:text-sm font-bold text-ink m-0">{agent.name}</h4>
-                      <p className="text-[10.5px] text-ink-muted m-0">{agent.role}</p>
+          {loadingReqs ? (
+            <div className="py-12 text-center text-xs text-ink-muted">Loading requisitions...</div>
+          ) : reqError ? (
+            <div className="p-4 rounded-xl border border-rose-300 bg-rose-50 dark:bg-rose-950/20 text-xs text-rose-700 dark:text-rose-300">{reqError}</div>
+          ) : requisitions.length === 0 ? (
+            <div className="p-8 border border-dashed border-border rounded-xl text-center bg-surface">
+              <Icon name="briefcase" className="w-8 h-8 text-ink-muted mx-auto mb-2" />
+              <h4 className="text-sm font-bold text-ink m-0">No requisitions yet</h4>
+              <p className="text-xs text-ink-muted mt-1">Use &quot;+ New Requisition&quot; to create your first one.</p>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {requisitions.map((req) => (
+                <div key={req.id} className="bg-surface border border-border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-border-strong transition-colors shadow-soft-sm">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-lg bg-brand-wash flex items-center justify-center text-brand flex-shrink-0 mt-0.5"><Icon name="briefcase" size={18} /></div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10.5px] font-mono text-ink-muted font-bold">{req.req_no}</span>
+                        <h3 className="text-sm font-bold text-ink truncate m-0">{req.title}</h3>
+                        {statusBadge(req.status)}
+                      </div>
+                      <p className="text-[11px] text-ink-muted mt-0.5 m-0">
+                        {[req.department, req.location, req.work_mode].filter(Boolean).join(" · ")}
+                        {req.hiring_manager && <> · HM: <strong className="text-ink">{req.hiring_manager}</strong></>}
+                      </p>
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                    {agent.badge}
-                  </span>
+                  <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+                    <button onClick={() => { setPostTargetReqId(req.id); setActiveFeature("post_to_boards"); }} className="text-xs font-semibold text-brand border border-brand/30 bg-brand-wash/40 hover:bg-brand-wash px-3 py-1.5 rounded-lg transition-colors cursor-pointer">Post</button>
+                    <button onClick={() => { setAppReqFilter(req.id); setActiveFeature("all_applications"); }} className="text-xs font-semibold text-ink-muted border border-border bg-page hover:border-border-strong px-3 py-1.5 rounded-lg transition-colors cursor-pointer">Applications</button>
+                  </div>
                 </div>
-                <div className="p-2.5 rounded-lg bg-page border border-border text-[11px] flex items-center justify-between text-ink-muted">
-                  <span>Current Output</span>
-                  <span className="font-semibold text-ink">{agent.metric}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* ================= TAB 4: ANALYTICS ================= */}
-      {activeTab === "analytics" && (
+      {/* ALL APPLICATIONS */}
+      {activeFeature === "all_applications" && (
         <div className="space-y-4">
-          <div>
-            <h2 className="text-sm sm:text-base font-bold text-ink font-display">
-              Recruitment Analytics &amp; Funnel Velocity
-            </h2>
-            <p className="text-xs text-ink-muted mt-0.5">
-              Live efficiency benchmarks across requisitions, interview stages, and offers
-            </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm sm:text-base font-bold text-ink font-display">All Applications</h2>
+              <p className="text-xs text-ink-muted mt-0.5">Candidates from your requisitions, filterable by requisition and stage.</p>
+            </div>
+            <button onClick={loadApplications} className="text-xs font-semibold text-ink-muted border border-border px-3 py-1.5 rounded-lg hover:border-border-strong transition-colors cursor-pointer">Refresh</button>
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <select value={appReqFilter} onChange={(e) => setAppReqFilter(e.target.value)} className="text-xs px-3 py-1.5 rounded-lg border border-border bg-page text-ink focus:border-brand focus:outline-none">
+              <option value="">All Requisitions</option>
+              {requisitions.map((r) => <option key={r.id} value={r.id}>{r.req_no} — {r.title}</option>)}
+            </select>
+            <select value={appStageFilter} onChange={(e) => setAppStageFilter(e.target.value)} className="text-xs px-3 py-1.5 rounded-lg border border-border bg-page text-ink focus:border-brand focus:outline-none">
+              <option value="">All Stages</option>
+              {["applied","screening","hm_review","interview_1","interview_2","hr_interview","selected","offer","bgv","ready_to_join","joined","rejected"].map((s) => <option key={s} value={s}>{s.replace(/_/g, " ")}</option>)}
+            </select>
+          </div>
+          {loadingApps ? (
+            <div className="py-12 text-center text-xs text-ink-muted">Loading applications...</div>
+          ) : applications.length === 0 ? (
+            <div className="p-8 border border-dashed border-border rounded-xl text-center bg-surface">
+              <Icon name="users" className="w-8 h-8 text-ink-muted mx-auto mb-2" />
+              <h4 className="text-sm font-bold text-ink m-0">No applications found</h4>
+              <p className="text-xs text-ink-muted mt-1">Applications appear here once candidates apply to published postings.</p>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {applications.map((app) => (
+                <div key={app.id} className="bg-surface border border-border rounded-xl p-4 shadow-soft-sm space-y-2">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="text-sm font-bold text-ink m-0">{app.name}</h4>
+                        {app.match_score != null
+                          ? <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-brand-wash text-brand border border-brand/20">{app.match_score}% Match</span>
+                          : <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-100 text-gray-500 border border-gray-200 dark:bg-gray-800 dark:text-gray-400">Not scored</span>
+                        }
+                        {statusBadge(app.stage)}
+                      </div>
+                      <p className="text-[11px] text-ink-muted mt-0.5 m-0">
+                        {app.email}{app.current_company && ` · ${app.current_company}`}
+                        {app.requisition_req_no && <> · <span className="font-mono">{app.requisition_req_no}</span> {app.requisition_title}</>}
+                      </p>
+                    </div>
+                    <span className="text-[11px] text-ink-muted">{new Date(app.created_at).toLocaleDateString()}</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px]">
+                    {([{ label: "Location", value: app.current_location }, { label: "Experience", value: app.experience_years ? `${app.experience_years} yrs` : null }, { label: "Notice", value: app.notice_period }, { label: "Qualification", value: app.qualification }] as {label:string;value:string|null|undefined}[]).filter((f) => f.value).map((f) => (
+                      <div key={f.label} className="p-2 rounded-lg bg-page border border-border/50">
+                        <span className="text-[10px] uppercase font-bold text-ink-muted block">{f.label}</span>
+                        <span className="font-semibold text-ink truncate block">{f.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { label: "Average Time-to-Fill", value: "14.2 Days", note: "-42% vs industry average" },
-              { label: "HM Approval Velocity", value: "4.8 Hours", note: "Fast-track bypass enabled" },
-              { label: "Interview Pass Rate", value: "68.5%", note: "+19% calibrated screening" },
-              { label: "Offer Acceptance", value: "94.2%", note: "12 of 13 accepted" },
-            ].map((kpi, i) => (
-              <div key={i} className="p-3.5 rounded-xl bg-surface border border-border shadow-soft-sm">
-                <div className="text-[11px] text-ink-muted">{kpi.label}</div>
-                <div className="text-base sm:text-lg font-bold text-ink mt-1 font-display">{kpi.value}</div>
-                <div className="text-[10px] text-brand font-medium mt-0.5">{kpi.note}</div>
+      {/* POST TO BOARDS */}
+      {activeFeature === "post_to_boards" && (
+        <div className="max-w-2xl mx-auto w-full space-y-4 py-2">
+          <div>
+            <h2 className="text-sm sm:text-base font-bold text-ink font-display">Post to Boards</h2>
+            <p className="text-xs text-ink-muted mt-0.5">Create a job posting for a requisition. Content blocks saved as JSON; full template renders in Phase 3.</p>
+          </div>
+          {postMsg && (
+            <div className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${postMsg.type === "success" ? "bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20" : "bg-rose-500/10 text-rose-800 dark:text-rose-300 border border-rose-500/20"}`}>
+              <Icon name={postMsg.type === "success" ? "check" : "alert-triangle"} className="w-4 h-4" />
+              <span>{postMsg.text}</span>
+            </div>
+          )}
+          <form onSubmit={handleSavePosting} className="bg-surface border border-border rounded-2xl p-5 shadow-soft space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-ink mb-1">Requisition *</label>
+              <select required value={postTargetReqId} onChange={(e) => setPostTargetReqId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-page border border-border text-xs text-ink focus:border-brand focus:outline-none">
+                <option value="">Select a requisition...</option>
+                {requisitions.map((r) => <option key={r.id} value={r.id}>{r.req_no} — {r.title}</option>)}
+              </select>
+            </div>
+            <div>
+              <span className="block text-xs font-bold text-ink mb-2">Job Board</span>
+              <div className="flex flex-wrap gap-2">
+                {(["askshree", "google"] as const).map((b) => (
+                  <button key={b} type="button" onClick={() => setPostBoard(b)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${postBoard === b ? "bg-brand text-white border-brand" : "bg-page text-ink border-border hover:border-border-strong"}`}>
+                    {b === "askshree" ? "AskShree" : "Google Jobs"}
+                  </button>
+                ))}
+                {(["indeed", "linkedin", "naukri"] as const).map((b) => (
+                  <button key={b} type="button" disabled className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-border bg-subtle/40 text-ink-muted cursor-not-allowed flex items-center gap-1.5">
+                    <span className="capitalize">{b}</span>
+                    <span className="text-[10px] opacity-70">Not connected</span>
+                  </button>
+                ))}
               </div>
-            ))}
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" checked={postHideCompany} onChange={(e) => setPostHideCompany(e.target.checked)} className="sr-only peer" />
+                <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:bg-brand peer-checked:after:translate-x-4 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all" />
+              </label>
+              <div>
+                <span className="text-xs font-semibold text-ink">Hide Company Name</span>
+                <p className="text-[11px] text-ink-muted m-0">Shows &quot;Confidential&quot; publicly. Not available for Google Jobs.</p>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-ink mb-1">Valid Through (optional)</label>
+              <input type="date" value={postValidThrough} onChange={(e) => setPostValidThrough(e.target.value)} className="px-3 py-2 rounded-xl bg-page border border-border text-xs text-ink focus:border-brand focus:outline-none" />
+            </div>
+            <div className="space-y-3 pt-2 border-t border-border">
+              <p className="text-[11px] text-ink-muted italic">
+                {/* TODO (Phase 3): Replace these textareas with the JobPostingTemplate component */}
+                Content blocks are stored as JSON. Full template renders in Phase 3.
+              </p>
+              {([
+                { key: "who_we_are", label: "Who We Are" },
+                { key: "success_stories", label: "Our Success Stories" },
+                { key: "why_join_us", label: "Why Join Us" },
+                { key: "what_you_will_do", label: "What You Will Do" },
+                { key: "core_strengths", label: "Core Strengths (must-have)" },
+                { key: "additional_strengths", label: "Additional Strengths (good-to-have)" },
+                { key: "how_you_grow", label: "How You Grow With Us" },
+              ] as { key: keyof PostingContent; label: string }[]).map(({ key, label }) => (
+                <div key={key}>
+                  <label className="block text-[11px] font-bold text-ink mb-1">{label}</label>
+                  <textarea rows={2} value={postContent[key] ?? ""} onChange={(e) => setPostContent((c) => ({ ...c, [key]: e.target.value }))} placeholder={`${label}...`} className="w-full text-xs p-2.5 rounded-xl border border-border bg-page text-ink focus:border-brand focus:outline-none resize-none" />
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between pt-3 border-t border-border gap-3 flex-wrap">
+              <div className="inline-flex rounded-lg border border-border bg-page p-0.5">
+                {(["draft", "published"] as const).map((s) => (
+                  <button key={s} type="button" onClick={() => setPostStatus(s)}
+                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${postStatus === s ? "bg-brand text-white shadow-soft-sm" : "text-ink-muted hover:text-ink"}`}>
+                    {s === "draft" ? "Save as Draft" : "Publish"}
+                  </button>
+                ))}
+              </div>
+              <button type="submit" disabled={savingPost || !postTargetReqId}
+                className="bg-brand text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-button hover:opacity-95 transition-opacity disabled:opacity-50 flex items-center gap-2 cursor-pointer">
+                {savingPost ? <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /><span>Saving...</span></> : <><Icon name="sparkle" size={13} /><span>{postStatus === "published" ? "Publish Posting" : "Save Draft"}</span></>}
+              </button>
+            </div>
+          </form>
+
+          {/* AI Agents — Coming in V2 (no fabricated metrics) */}
+          <div className="bg-surface border border-border rounded-2xl p-5 shadow-soft">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 rounded-lg bg-brand-wash flex items-center justify-center text-brand flex-shrink-0"><Icon name="sparkle" size={18} /></div>
+              <div>
+                <h3 className="text-xs font-bold text-ink m-0">AI Agents — Coming in V2</h3>
+                <p className="text-[11px] text-ink-muted m-0">Autonomous sourcing, screening, and outreach agents.</p>
+              </div>
+            </div>
+            <div className="p-3 rounded-xl bg-page border border-border text-[11.5px] text-ink-muted">
+              Agentic capabilities — auto-sourcing, resume scoring, interview coordination — are on the product roadmap for V2. No metrics are shown until these features are live and connected to real data.
+            </div>
           </div>
         </div>
       )}

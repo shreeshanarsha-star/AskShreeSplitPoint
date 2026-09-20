@@ -47,9 +47,10 @@ export async function PATCH(
   }
 
   // Fetch existing posting to verify org ownership.
+  // Also select created_by for individual-licence isolation.
   const { data: existing, error: fetchErr } = await admin
     .from("talent_job_postings")
-    .select("id, org_id, board, status, hide_company_name")
+    .select("id, org_id, board, status, hide_company_name, created_by")
     .eq("id", postingId)
     .maybeSingle();
 
@@ -57,8 +58,14 @@ export async function PATCH(
     return NextResponse.json({ error: "Posting not found." }, { status: 404 });
   }
 
-  if (!ctx.isPlatformOwner && existing.org_id !== ctx.orgId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!ctx.isPlatformOwner) {
+    if (existing.org_id !== ctx.orgId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    // SECURITY: null === null passes; individual users must own the record.
+    if (ctx.orgId === null && existing.created_by !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
   }
 
   let body: Record<string, unknown>;
