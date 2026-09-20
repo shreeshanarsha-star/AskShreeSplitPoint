@@ -12,36 +12,85 @@ export const AI_TIMEOUT_MS = 25_000;
 // need more headroom than a text-only completion.
 export const AI_VISION_TIMEOUT_MS = 45_000;
 
-export function hasAiKey() {
-  return !!process.env.OPENAI_API_KEY;
+// Provider selection. Setting OLLAMA_BASE_URL (e.g. http://localhost:11434)
+// switches every AI feature to a local/self-hosted Ollama server through its
+// OpenAI-compatible /v1/chat/completions endpoint -- free, no API key needed.
+// Otherwise falls back to OpenAI (OPENAI_API_KEY). Neither set = AI is off and
+// callers degrade gracefully (scores stay null / "Not scored yet").
+export type AiProvider = "ollama" | "openai" | "none";
+
+export function getAiProvider(): AiProvider {
+  if (process.env.OLLAMA_BASE_URL) return "ollama";
+  if (process.env.OPENAI_API_KEY) return "openai";
+  return "none";
 }
 
-export function getModel() {
+export function hasAiKey() {
+  return getAiProvider() !== "none";
+}
+
+export function getModel(vision = false) {
+  if (getAiProvider() === "ollama") {
+    return vision
+      ? process.env.OLLAMA_VISION_MODEL || "llama3.2-vision"
+      : process.env.OLLAMA_MODEL || "llama3.2";
+  }
   return process.env.OPENAI_MODEL || "gpt-4o-mini";
+}
+
+// Where to send the chat-completions request, with the right auth headers.
+// Local models are slower than hosted APIs, so timeouts are stretched.
+export function getAiEndpoint(vision = false): {
+  url: string;
+  headers: Record<string, string>;
+  model: string;
+  timeoutFactor: number;
+} {
+  const provider = getAiProvider();
+  if (provider === "ollama") {
+    const base = (process.env.OLLAMA_BASE_URL as string).replace(/\/+$/, "");
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    // Optional: only needed if Ollama sits behind an authenticated proxy/tunnel.
+    if (process.env.OLLAMA_API_KEY) headers.Authorization = `Bearer ${process.env.OLLAMA_API_KEY}`;
+    return {
+      url: `${base}/v1/chat/completions`,
+      headers,
+      model: getModel(vision),
+      timeoutFactor: 4,
+    };
+  }
+  if (provider === "openai") {
+    return {
+      url: "https://api.openai.com/v1/chat/completions",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      model: getModel(vision),
+      timeoutFactor: 1,
+    };
+  }
+  throw new Error("No AI provider configured. Set OLLAMA_BASE_URL (local Ollama) or OPENAI_API_KEY.");
 }
 
 async function chatCompletion(
   messages: unknown[],
   maxTokens: number,
-  timeoutMs: number
+  timeoutMs: number,
+  vision = false
 ): Promise<string> {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not set on the server.");
-  }
+  const ep = getAiEndpoint(vision);
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const timer = setTimeout(() => controller.abort(), timeoutMs * ep.timeoutFactor);
 
   let res: Response;
   try {
-    res = await fetch("https://api.openai.com/v1/chat/completions", {
+    res = await fetch(ep.url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
+      headers: ep.headers,
       body: JSON.stringify({
-        model: getModel(),
+        model: ep.model,
         max_tokens: maxTokens,
         messages,
       }),
@@ -61,7 +110,7 @@ async function chatCompletion(
   if (!res.ok) {
     const msg =
       (data && typeof data === "object" && "error" in data && (data as { error?: { message?: string } }).error?.message) ||
-      `OpenAI API error (${res.status})`;
+      `AI provider error (${res.status})`;
     throw new Error(msg);
   }
 
@@ -100,6 +149,7 @@ export async function callVisionModel(
       },
     ],
     maxTokens,
-    timeoutMs
+    timeoutMs,
+    true
   );
 }

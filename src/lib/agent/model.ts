@@ -1,11 +1,11 @@
-import { getModel } from "@/lib/aiClient";
+import { getAiEndpoint } from "@/lib/aiClient";
 
 // Tool-calling-capable model call for the Ask Shree agent loop. Deliberately
 // separate from lib/aiClient.ts's callTextModel (used by every other
 // feature): those callers just want "prompt in, text out" and never need
 // tool calls, so keeping this here avoids touching a function eleven other
 // tools depend on. Same provider (OpenAI Chat Completions, same
-// OPENAI_API_KEY/OPENAI_MODEL), same graceful-failure shape.
+// OPENAI_API_KEY/OPENAI_MODEL, or a local Ollama via OLLAMA_BASE_URL), same graceful-failure shape.
 
 export type AgentMessage =
   | { role: "system"; content: string }
@@ -30,23 +30,18 @@ export async function callAgentModel(
   messages: AgentMessage[],
   tools: ReturnType<typeof import("./actions").toOpenAiTools>
 ): Promise<AgentModelResponse> {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not set on the server.");
-  }
+  const ep = getAiEndpoint();
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), AGENT_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), AGENT_TIMEOUT_MS * ep.timeoutFactor);
 
   let res: Response;
   try {
-    res = await fetch("https://api.openai.com/v1/chat/completions", {
+    res = await fetch(ep.url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
+      headers: ep.headers,
       body: JSON.stringify({
-        model: getModel(),
+        model: ep.model,
         messages,
         tools,
         tool_choice: "auto",
@@ -67,7 +62,7 @@ export async function callAgentModel(
   if (!res.ok) {
     const msg =
       (data && typeof data === "object" && "error" in data && (data as { error?: { message?: string } }).error?.message) ||
-      `OpenAI API error (${res.status})`;
+      `AI provider error (${res.status})`;
     throw new Error(msg);
   }
 
