@@ -3,117 +3,219 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { parseResumeToCandidate, scoreCandidateFit } from "@/lib/talentAI";
 import { evaluateCandidateWithShree } from "@/lib/agent/shreeOrchestrator";
 
+// POST /api/public/quick-apply
+//
+// Phase 4 update: accepts a POSTING id (talent_job_postings.id) instead of
+// a requisition id directly. Resolves posting -> requisition, enforces that
+// the posting is published + askshree board. Also accepts a legacy
+// requisitionId for backward compatibility with old callers.
+//
+// Writes to talent_people + talent_candidates at stage "applied".
+// Duplicate protection: same email + same requisition = 409 with friendly msg.
+// No fake match_score fallback — null until AI scoring runs.
 export async function POST(req: Request) {
-  const body = await req.json();
-  const { requisitionId, name, email, phone, expectedSalary, resumeText } = body;
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  }
 
-  if (!requisitionId || !name || !email) {
-    return NextResponse.json({ error: "Missing required application fields." }, { status: 400 });
+  const {
+    postingId,        // Phase 4: posting UUID (from home page selectedJob.id)
+    requisitionId,    // Legacy / direct: requisition UUID
+    name,
+    email,
+    phone,
+    expectedSalary,
+    resumeText,
+  } = body as {
+    postingId?: string;
+    requisitionId?: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+    expectedSalary?: string;
+    resumeText?: string;
+  };
+
+  if (!name?.trim() || !email?.trim()) {
+    return NextResponse.json({ error: "Name and email are required." }, { status: 400 });
   }
 
   const admin = createAdminClient();
 
-  // 1. Fetch requisition
+  // -------------------------------------------------------------------------
+  // 1. Resolve requisition from posting id OR direct requisitionId.
+  // -------------------------------------------------------------------------
+  let resolvedRequisitionId: string | null = null;
+  let resolvedPostingId: string | null = null;
+
+  if (postingId) {
+    // Validate posting: must be published + askshree board.
+    // talent_job_postings table may not exist yet (DRAFT migration pending).
+    try {
+      const { data: p } = await admin
+        .from("talent_job_postings")
+        .select("id, requisition_id, status, board")
+        .eq("id", postingId)
+        .maybeSingle();
+
+      if (!p) {
+        // Posting not found — try treating postingId as a direct requisitionId
+        // (home page may still send legacy requisition UUIDs before Phase 1 DRAFT migration is applied).
+        resolvedRequisitionId = postingId;
+      } else if (p.status !== "published" || p.board !== "askshree") {
+        return NextResponse.json(
+          { error: "This job posting is no longer accepting applications." },
+          { status: 410 }
+        );
+      } else {
+        resolvedRequisitionId = (p as unknown as { requisition_id: string }).requisition_id;
+        resolvedPostingId = postingId;
+      }
+    } catch {
+      // Table doesn't exist yet — fall back to treating as requisitionId.
+      resolvedRequisitionId = postingId;
+    }
+  } else if (requisitionId) {
+    resolvedRequisitionId = requisitionId;
+  } else {
+    return NextResponse.json(
+      { error: "Missing postingId or requisitionId." },
+      { status: 400 }
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // 2. Fetch the requisition.
+  // -------------------------------------------------------------------------
   const { data: requisition } = await admin
     .from("talent_requisitions")
-    .select("id, org_id, title, description, eligibility_criteria, created_by, owner_id")
-    .eq("id", requisitionId)
+    .select("id, org_id, title, description, eligibility_criteria, created_by")
+    .eq("id", resolvedRequisitionId)
     .maybeSingle();
 
-  const orgId = requisition?.org_id;
-  let createdBy = (requisition as any)?.created_by;
-  if (!createdBy) {
-    const { data: profiles } = await admin
-      .from("profiles")
-      .select("id")
-      .limit(1);
-    createdBy = profiles?.[0]?.id;
-  }
-  if (!createdBy) {
-    try {
-      const { data: authList } = await admin.auth.admin.listUsers({ page: 1, perPage: 1 });
-      createdBy = authList?.users?.[0]?.id;
-    } catch (e) {
-      console.warn("Auth list users fallback error:", e);
-    }
+  if (!requisition) {
+    return NextResponse.json({ error: "Job not found." }, { status: 404 });
   }
 
-  // 2. Parse candidate resume if provided
+  const orgId: string | null = (requisition as unknown as { org_id: string | null }).org_id;
+  const createdBy: string | null = (requisition as unknown as { created_by: string | null }).created_by;
+
+  // -------------------------------------------------------------------------
+  // 3. Duplicate protection: same email + same requisition.
+  // -------------------------------------------------------------------------
+  const { data: existing } = await admin
+    .from("talent_candidates")
+    .select("id")
+    .eq("requisition_id", resolvedRequisitionId)
+    .ilike("email", email.trim())
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) {
+    return NextResponse.json(
+      {
+        ok: false,
+        duplicate: true,
+        message:
+          "You've already applied to this role. Our team will review your application and be in touch.",
+      },
+      { status: 409 }
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // 4. Parse resume + AI scoring (null on failure — no fake fallback).
+  // -------------------------------------------------------------------------
   let currentCompany: string | null = null;
   let currentDesignation: string | null = null;
   let keySkills: string[] = [];
-  let summary = "";
-  let matchScore: number | null = null;
+  let matchScore: number | null = null; // null = "Not scored yet"; no fallback 82
 
   if (resumeText) {
     try {
-      const parsed = await parseResumeToCandidate(resumeText, requisition?.description);
+      const parsed = await parseResumeToCandidate(
+        resumeText,
+        (requisition as unknown as { description: string | null }).description ?? undefined
+      );
       currentCompany = parsed.current_company;
       currentDesignation = parsed.current_designation;
       keySkills = parsed.key_skills || [];
-      summary = parsed.summary || "";
 
-      if (requisition?.description) {
-        const fit = await scoreCandidateFit(resumeText, requisition.description);
-        matchScore = fit.score;
+      if ((requisition as unknown as { description: string | null }).description) {
+        const fit = await scoreCandidateFit(
+          resumeText,
+          (requisition as unknown as { description: string }).description
+        );
+        matchScore = fit.score ?? null;
       }
     } catch (err) {
-      console.warn("Resume parsing skipped/failed:", err);
+      console.warn("Resume parsing / scoring skipped:", err);
+      // matchScore stays null — shown as "Not scored yet" in the UI.
     }
   }
 
   const interviewToken = `int-${Math.random().toString(36).substring(2, 10)}`;
 
-  // Find or create person identity in talent_people
+  // -------------------------------------------------------------------------
+  // 5. Find or create person identity in talent_people.
+  // -------------------------------------------------------------------------
   let personId: string | null = null;
-  if (email) {
-    const { data: existingPerson } = await admin
-      .from("talent_people")
-      .select("id")
-      .ilike("email", email)
-      .limit(1)
-      .maybeSingle();
-    if (existingPerson) personId = existingPerson.id;
-  }
-  if (!personId && createdBy) {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const { data: existingPerson } = await admin
+    .from("talent_people")
+    .select("id")
+    .ilike("email", normalizedEmail)
+    .limit(1)
+    .maybeSingle();
+
+  if (existingPerson) {
+    personId = (existingPerson as unknown as { id: string }).id;
+  } else {
     try {
       const { data: newPerson } = await admin
         .from("talent_people")
         .insert({
           org_id: orgId,
-          name,
-          email,
-          phone,
-          resume_text: resumeText,
+          name: name.trim(),
+          email: normalizedEmail,
+          phone: phone?.trim() || null,
+          resume_text: resumeText || null,
           source: "Quick Apply",
           current_company: currentCompany,
           created_by: createdBy,
         })
         .select("id")
         .single();
-      if (newPerson) personId = newPerson.id;
+      if (newPerson) personId = (newPerson as unknown as { id: string }).id;
     } catch (pErr) {
       console.warn("talent_people insert warning:", pErr);
     }
   }
 
-  // 3. Insert Candidate into talent_candidates
-  // Notice: expected_ctc is stored; current_ctc is omitted per Pay Transparency rules!
+  // -------------------------------------------------------------------------
+  // 6. Insert into talent_candidates.
+  // -------------------------------------------------------------------------
   const { data: candidate, error: candError } = await admin
     .from("talent_candidates")
     .insert({
-      requisition_id: requisitionId,
+      requisition_id: resolvedRequisitionId,
       person_id: personId || null,
-      name,
-      email,
-      phone: phone || null,
+      name: name.trim(),
+      email: normalizedEmail,
+      phone: phone?.trim() || null,
       stage: "applied",
       current_company: currentCompany,
       resume_text: resumeText || null,
       source: "Quick Apply",
       tags: keySkills.length ? keySkills : (currentDesignation ? [currentDesignation] : []),
-      match_score: matchScore,
-      expected_ctc: expectedSalary ? Number(expectedSalary.replace(/[^0-9]/g, "")) : null,
+      match_score: matchScore, // null = not scored yet; no fake 82 fallback
+      expected_ctc: expectedSalary
+        ? Number(expectedSalary.replace(/[^0-9]/g, "")) || null
+        : null,
       created_by: createdBy,
     })
     .select()
@@ -124,30 +226,34 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: candError.message }, { status: 500 });
   }
 
-  // 4. Log standalone statutory consent (best effort)
+  // -------------------------------------------------------------------------
+  // 7. Consent record (best effort, non-blocking).
+  // -------------------------------------------------------------------------
   try {
     await admin.from("consent_records").insert({
-      candidate_id: candidate.id,
-      email,
+      candidate_id: (candidate as unknown as { id: string }).id,
+      email: normalizedEmail,
       scope: "ai_screening",
       granted: true,
       legal_text_hash: "sha256-consent-bipa-gdpr-2026",
     });
   } catch (consentErr) {
-    console.warn("Consent record log warning:", consentErr);
+    console.warn("Consent record warning:", consentErr);
   }
 
-  // 5. Trigger Shree Blind Evaluation
-  if (requisition && resumeText) {
+  // -------------------------------------------------------------------------
+  // 8. Trigger Shree evaluation (async, non-blocking).
+  // -------------------------------------------------------------------------
+  if (resumeText) {
     try {
       await evaluateCandidateWithShree({
-        candidateId: candidate.id,
-        requisitionId: requisition.id,
+        candidateId: (candidate as unknown as { id: string }).id,
+        requisitionId: resolvedRequisitionId,
         orgId: orgId || "",
         resumeText,
-        requisitionTitle: requisition.title,
-        requisitionContext: requisition.description || "",
-        eligibilityCriteria: requisition.eligibility_criteria as Record<string, unknown>,
+        requisitionTitle: (requisition as unknown as { title: string }).title,
+        requisitionContext: (requisition as unknown as { description: string | null }).description || "",
+        eligibilityCriteria: (requisition as unknown as { eligibility_criteria: Record<string, unknown> }).eligibility_criteria as Record<string, unknown>,
       });
     } catch (evalErr) {
       console.error("Shree evaluation trigger error:", evalErr);
@@ -156,7 +262,8 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     ok: true,
-    candidateId: candidate.id,
+    candidateId: (candidate as unknown as { id: string }).id,
     interviewToken,
+    // match_score is null until async scoring completes; UI shows "Not scored yet".
   });
 }
