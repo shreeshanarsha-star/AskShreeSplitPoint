@@ -183,6 +183,14 @@ export async function POST(
 
   const resolvedStatus = wantsPublish && canPublish ? "published" : "draft";
 
+  // A requisition must be approved/open before anything can be published from it.
+  if (resolvedStatus === "published" && !["open", "approved"].includes(req.status as string)) {
+    return NextResponse.json(
+      { error: "This requisition is not approved yet, so it cannot be published. Save the posting as a draft instead." },
+      { status: 409 }
+    );
+  }
+
   const { data: posting, error: insertErr } = await admin
     .from("talent_job_postings")
     .insert({

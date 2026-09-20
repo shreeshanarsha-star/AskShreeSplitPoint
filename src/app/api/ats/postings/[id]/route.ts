@@ -50,7 +50,7 @@ export async function PATCH(
   // Also select created_by for individual-licence isolation.
   const { data: existing, error: fetchErr } = await admin
     .from("talent_job_postings")
-    .select("id, org_id, board, status, hide_company_name, created_by")
+    .select("id, org_id, board, status, hide_company_name, created_by, requisition_id")
     .eq("id", postingId)
     .maybeSingle();
 
@@ -97,6 +97,19 @@ export async function PATCH(
     }
 
     if (newStatus === "published") {
+      // The parent requisition must be approved/open.
+      const { data: parentReq } = await admin
+        .from("talent_requisitions")
+        .select("status")
+        .eq("id", (existing as unknown as { requisition_id: string }).requisition_id)
+        .maybeSingle();
+      if (!parentReq || !["open", "approved"].includes(parentReq.status as string)) {
+        return NextResponse.json(
+          { error: "The requisition is not approved yet, so this posting cannot be published." },
+          { status: 409 }
+        );
+      }
+
       // Only askshree and google can be published.
       if (!PUBLISHABLE_BOARDS.has(existing.board)) {
         return NextResponse.json(
