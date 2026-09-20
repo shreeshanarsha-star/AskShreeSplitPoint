@@ -31,7 +31,7 @@
 }
 
 /* ==========================================================================
-   Theme tokens -- four selectable themes (Gold / Blue / Dark / Teal), all
+   Theme tokens -- six selectable themes (Gold / Blue / Dark / Teal / Light / Onyx), all
    sharing one layout and one component set. Every chrome color in the app
    (Tailwind's surface/page/ink/brand/border tokens + the soft/button/emblem
    shadows) resolves through these custom properties, so switching themes is
@@ -198,6 +198,90 @@
   --shadow-panel-right: 4px 0 24px rgba(10, 110, 90, 0.12);
   --shadow-button: 0 3px 10px rgba(20, 154, 128, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.25);
   --shadow-emblem: 0 3px 8px rgba(10, 110, 90, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+}
+
+/* Light -- neutral monochrome: white surfaces, near-black ink. Not pure #000
+   text, to avoid harshness; contrast stays WCAG AA or better. */
+[data-theme="light"] {
+  --page-grad-1: #ffffff;
+  --page-grad-2: #f4f4f5;
+  --page: #f7f7f8;
+  --surface: #ffffff;
+
+  --ink: #0f0f10;
+  --ink-2: #52525b;
+  --ink-muted: #71717a;
+
+  --border-rgb: 228 228 231;
+  --border-strong: rgba(0, 0, 0, 0.14);
+
+  --brand-rgb: 24 24 27;
+  --brand-wash: #f4f4f5;
+  --brand-dark: #18181b;
+
+  --nav-active-1: #f0f0f2;
+  --nav-active-2: #e4e4e7;
+  --search-bg-1: #ffffff;
+  --search-bg-2: #f7f7f8;
+
+  --wave-1: rgba(228, 228, 231, 0.8);
+  --wave-2: rgba(212, 212, 216, 0.5);
+
+  --badge-bg: #ffffff;
+  --badge-icon: #27272a;
+  --badge-dot: #3f3f46;
+
+  --accent-btn-1: #3f3f46;
+  --accent-btn-2: #18181b;
+
+  --shadow-soft: 0 1px 1px rgba(0, 0, 0, 0.05), 0 14px 30px -8px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --shadow-soft-sm: 0 2px 6px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  --shadow-panel-right: 4px 0 24px rgba(0, 0, 0, 0.08);
+  --shadow-button: 0 3px 10px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  --shadow-emblem: 0 3px 8px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+}
+
+/* Onyx -- neutral monochrome dark: near-black layered surfaces, off-white ink
+   (not pure #FFF on #000, which glares). Distinct from the purple-tinted Dark. */
+[data-theme="onyx"] {
+  --page-grad-1: #08080a;
+  --page-grad-2: #111114;
+  --page: #0f0f11;
+  --surface: #17171a;
+
+  --ink: #f4f4f5;
+  --ink-2: #b4b4bb;
+  --ink-muted: #8a8a93;
+
+  --border-rgb: 44 44 50;
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  --brand-rgb: 228 228 231;
+  --brand-wash: #26262b;
+  --brand-dark: #71717a;
+
+  --nav-active-1: #2c2c32;
+  --nav-active-2: #222227;
+  --search-bg-1: #1c1c20;
+  --search-bg-2: #141417;
+
+  --wave-1: rgba(255, 255, 255, 0.06);
+  --wave-2: rgba(255, 255, 255, 0.1);
+
+  --badge-bg: #1f1f23;
+  --badge-icon: #d4d4d8;
+  --badge-dot: #a1a1aa;
+
+  --accent-btn-1: #71717a;
+  --accent-btn-2: #3f3f46;
+
+  --shadow-soft: 0 1px 1px rgba(0, 0, 0, 0.4), 0 20px 40px -10px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --shadow-soft-sm: 0 2px 8px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --shadow-panel-right: 4px 0 30px rgba(0, 0, 0, 0.6);
+  --shadow-button: 0 3px 12px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+  --shadow-emblem: 0 3px 10px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.12);
 }
 
 html,
