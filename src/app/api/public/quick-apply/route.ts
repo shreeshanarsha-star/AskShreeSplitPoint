@@ -29,6 +29,8 @@ export async function POST(req: Request) {
     phone,
     expectedSalary,
     resumeText,
+    resumeBase64,
+    resumeFileName,
   } = body as {
     postingId?: string;
     requisitionId?: string;
@@ -37,6 +39,8 @@ export async function POST(req: Request) {
     phone?: string;
     expectedSalary?: string;
     resumeText?: string;
+    resumeBase64?: string;
+    resumeFileName?: string;
   };
 
   if (!name?.trim() || !email?.trim()) {
@@ -147,6 +151,33 @@ export async function POST(req: Request) {
   const interviewToken = `int-${Math.random().toString(36).substring(2, 10)}`;
 
   // -------------------------------------------------------------------------
+  // 4b. Store the actual resume file (if the candidate uploaded one) so
+  // recruiters can view/download it later. Non-blocking — a failure here
+  // must never block the application itself.
+  // -------------------------------------------------------------------------
+  let resumeFilePath: string | null = null;
+  let resumeFileNameSafe: string | null = null;
+  if (resumeBase64) {
+    try {
+      const buffer = Buffer.from(resumeBase64, "base64");
+      const ext = resumeFileName?.split(".").pop()?.toLowerCase() || "pdf";
+      resumeFilePath = `resumes/${Date.now()}-${email.trim().replace(/[^a-zA-Z0-9]/g, "_")}.${ext}`;
+      const { error: uploadErr } = await admin.storage
+        .from("resumes")
+        .upload(resumeFilePath, buffer, { upsert: true });
+      if (uploadErr) {
+        console.warn("Resume upload warning:", uploadErr.message);
+        resumeFilePath = null;
+      } else {
+        resumeFileNameSafe = resumeFileName || null;
+      }
+    } catch (err) {
+      console.warn("Resume upload skipped:", err);
+      resumeFilePath = null;
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // 5. Find or create person identity in talent_people.
   // -------------------------------------------------------------------------
   let personId: string | null = null;
@@ -197,6 +228,8 @@ export async function POST(req: Request) {
       stage: "applied",
       current_company: currentCompany,
       resume_text: resumeText || null,
+      resume_file_path: resumeFilePath,
+      resume_file_name: resumeFileNameSafe,
       source: "Quick Apply",
       tags: keySkills.length ? keySkills : (currentDesignation ? [currentDesignation] : []),
       match_score: matchScore, // null = not scored yet; no fake 82 fallback

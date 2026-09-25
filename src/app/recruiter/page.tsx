@@ -6,6 +6,7 @@ import UniversalPlatformShell from "@/components/UniversalPlatformShell";
 import Icon from "@/components/Icon";
 import { createClient } from "@/lib/supabase/client";
 import JobPostingTemplate from "@/components/JobPostingTemplate";
+import { STAGES } from "@/lib/talentStages";
 
 export interface AtsRequisition {
   id: string;
@@ -41,6 +42,7 @@ export interface AtsApplication {
   expected_ctc?: number | null;
   qualification?: string | null;
   resume_file_name?: string | null;
+  has_resume_file?: boolean;
   met_must_have_skills?: string[] | null;
   missing_must_have_skills?: string[] | null;
   created_at: string;
@@ -94,7 +96,8 @@ export default function RecruiterPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [postTargetReqId, setPostTargetReqId] = useState<string>("");
-  const [postBoard, setPostBoard] = useState<"askshree" | "google">("askshree");
+  const [postBoards, setPostBoards] = useState<Set<string>>(new Set(["askshree"]));
+  const [boardDropdownOpen, setBoardDropdownOpen] = useState(false);
   const [postHideCompany, setPostHideCompany] = useState(false);
   const [postValidThrough, setPostValidThrough] = useState("");
   const [postContent, setPostContent] = useState<PostingContent>({});
@@ -128,12 +131,28 @@ export default function RecruiterPage() {
 
   useEffect(() => { if (!checkingAuth) loadRequisitions(); }, [checkingAuth]);
 
+  // Deep-link support: /recruiter?feature=post_to_boards&req=<id> (used by
+  // the requisition detail page's Post/Applications buttons).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const qs = new URLSearchParams(window.location.search);
+    const feature = qs.get("feature") as ActiveFeature | null;
+    const reqParam = qs.get("req");
+    if (feature) setActiveFeature(feature);
+    if (reqParam) {
+      setPostTargetReqId(reqParam);
+      setAppReqFilter(reqParam);
+    }
+  }, []);
+
+  // Fetches ALL of the requisition's candidates (no stage filter) so the
+  // stage tabs below can show live counts and switching tabs is instant --
+  // filtering by stage happens client-side against this one loaded set.
   async function loadApplications() {
     setLoadingApps(true);
     try {
       const params = new URLSearchParams();
       if (appReqFilter) params.set("requisition_id", appReqFilter);
-      if (appStageFilter) params.set("stage", appStageFilter);
       const res = await fetch(`/api/ats/applications?${params.toString()}`);
       const data = await res.json().catch(() => ({}));
       setApplications(Array.isArray(data.applications) ? data.applications : []);
@@ -143,7 +162,59 @@ export default function RecruiterPage() {
 
   useEffect(() => {
     if (activeFeature === "all_applications" && !checkingAuth) loadApplications();
-  }, [activeFeature, appReqFilter, appStageFilter, checkingAuth]);
+  }, [activeFeature, appReqFilter, checkingAuth]);
+
+  const stageTabCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const a of applications) counts[a.stage] = (counts[a.stage] || 0) + 1;
+    return counts;
+  }, [applications]);
+
+  const visibleApplications = useMemo(
+    () => (appStageFilter ? applications.filter((a) => a.stage === appStageFilter) : applications),
+    [applications, appStageFilter]
+  );
+
+  const [expandedAppId, setExpandedAppId] = useState<string | null>(null);
+  const [editingAppId, setEditingAppId] = useState<string | null>(null);
+  const [savingAppEdit, setSavingAppEdit] = useState(false);
+
+  async function patchApplication(id: string, patch: Record<string, unknown>) {
+    setSavingAppEdit(true);
+    try {
+      const res = await fetch(`/api/ats/applications/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save.");
+      setApplications((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to save change.");
+    } finally { setSavingAppEdit(false); }
+  }
+
+  async function viewResume(id: string) {
+    try {
+      const res = await fetch(`/api/ats/applications/${id}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load resume.");
+      const url = data.application?.resumeUrl;
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+      else alert("No CV on file for this candidate yet.");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to load resume.");
+    }
+  }
+
+  function whatsappCallbackLink(app: AtsApplication) {
+    if (!app.phone) return null;
+    const digits = app.phone.replace(/[^0-9]/g, "");
+    const msg = encodeURIComponent(
+      `Hi ${app.name}, this is the recruiting team${app.requisition_title ? ` for ${app.requisition_title}` : ""}. Could you please call us back when you get a chance? Thank you!`
+    );
+    return `https://wa.me/${digits}?text=${msg}`;
+  }
 
   async function handleAnalyzeJd(file?: File) {
     const targetFile = file || jdFile;
@@ -214,15 +285,27 @@ export default function RecruiterPage() {
   async function handleSavePosting(e: React.FormEvent) {
     e.preventDefault();
     if (!postTargetReqId) { setPostMsg({ type: "error", text: "Select a requisition first." }); return; }
+    if (postBoards.size === 0) { setPostMsg({ type: "error", text: "Select at least one job board." }); return; }
     setSavingPost(true); setPostMsg(null);
     try {
-      const res = await fetch(`/api/ats/requisitions/${postTargetReqId}/postings`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ board: postBoard, hide_company_name: postHideCompany, valid_through: postValidThrough || null, status: postStatus, content: postContent }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to save posting.");
-      setPostMsg({ type: "success", text: data.message || "Posting saved." });
+      const boards = Array.from(postBoards);
+      const results = await Promise.all(boards.map(async (board) => {
+        const res = await fetch(`/api/ats/requisitions/${postTargetReqId}/postings`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ board, hide_company_name: postHideCompany, valid_through: postValidThrough || null, status: postStatus, content: postContent }),
+        });
+        const data = await res.json();
+        return { board, ok: res.ok, error: data.error as string | undefined };
+      }));
+      const failed = results.filter((r) => !r.ok);
+      if (failed.length === results.length) {
+        throw new Error(failed[0]?.error || "Failed to save posting.");
+      }
+      if (failed.length > 0) {
+        setPostMsg({ type: "error", text: `Saved to ${results.length - failed.length} of ${results.length} boards. Failed: ${failed.map((f) => f.board).join(", ")}.` });
+      } else {
+        setPostMsg({ type: "success", text: `Posting saved to ${results.length} job board${results.length > 1 ? "s" : ""}.` });
+      }
     } catch (err) {
       setPostMsg({ type: "error", text: err instanceof Error ? err.message : "Failed to save posting." });
     } finally { setSavingPost(false); }
@@ -383,7 +466,7 @@ export default function RecruiterPage() {
           ) : (
             <div className="space-y-2.5">
               {requisitions.map((req) => (
-                <div key={req.id} className="bg-surface border border-border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-border-strong transition-colors shadow-soft-sm">
+                <div key={req.id} onClick={() => router.push(`/recruiter/requisitions/${req.id}`)} className="bg-surface border border-border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-border-strong transition-colors shadow-soft-sm cursor-pointer">
                   <div className="flex items-start gap-3 min-w-0">
                     <div className="w-9 h-9 rounded-lg bg-brand-wash flex items-center justify-center text-brand flex-shrink-0 mt-0.5"><Icon name="briefcase" size={18} /></div>
                     <div className="min-w-0">
@@ -399,8 +482,8 @@ export default function RecruiterPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
-                    <button onClick={() => { setPostTargetReqId(req.id); setActiveFeature("post_to_boards"); }} className="text-xs font-semibold text-brand border border-brand/30 bg-brand-wash/40 hover:bg-brand-wash px-3 py-1.5 rounded-lg transition-colors cursor-pointer">Post</button>
-                    <button onClick={() => { setAppReqFilter(req.id); setActiveFeature("all_applications"); }} className="text-xs font-semibold text-ink-muted border border-border bg-page hover:border-border-strong px-3 py-1.5 rounded-lg transition-colors cursor-pointer">Applications</button>
+                    <button onClick={(e) => { e.stopPropagation(); setPostTargetReqId(req.id); setActiveFeature("post_to_boards"); }} className="text-xs font-semibold text-brand border border-brand/30 bg-brand-wash/40 hover:bg-brand-wash px-3 py-1.5 rounded-lg transition-colors cursor-pointer">Post</button>
+                    <button onClick={(e) => { e.stopPropagation(); setAppReqFilter(req.id); setActiveFeature("all_applications"); }} className="text-xs font-semibold text-ink-muted border border-border bg-page hover:border-border-strong px-3 py-1.5 rounded-lg transition-colors cursor-pointer">Applications</button>
                   </div>
                 </div>
               ))}
@@ -415,59 +498,165 @@ export default function RecruiterPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-sm sm:text-base font-bold text-ink font-display">All Applications</h2>
-              <p className="text-xs text-ink-muted mt-0.5">Candidates from your requisitions, filterable by requisition and stage.</p>
+              <p className="text-xs text-ink-muted mt-0.5">Candidates from your requisitions, by pipeline stage.</p>
             </div>
-            <button onClick={loadApplications} className="text-xs font-semibold text-ink-muted border border-border px-3 py-1.5 rounded-lg hover:border-border-strong transition-colors cursor-pointer">Refresh</button>
+            <div className="flex items-center gap-2">
+              <select value={appReqFilter} onChange={(e) => setAppReqFilter(e.target.value)} className="text-xs px-3 py-1.5 rounded-lg border border-border bg-page text-ink focus:border-brand focus:outline-none">
+                <option value="">All Requisitions</option>
+                {requisitions.map((r) => <option key={r.id} value={r.id}>{r.req_no} — {r.title}</option>)}
+              </select>
+              <button onClick={loadApplications} className="text-xs font-semibold text-ink-muted border border-border px-3 py-1.5 rounded-lg hover:border-border-strong transition-colors cursor-pointer">Refresh</button>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <select value={appReqFilter} onChange={(e) => setAppReqFilter(e.target.value)} className="text-xs px-3 py-1.5 rounded-lg border border-border bg-page text-ink focus:border-brand focus:outline-none">
-              <option value="">All Requisitions</option>
-              {requisitions.map((r) => <option key={r.id} value={r.id}>{r.req_no} — {r.title}</option>)}
-            </select>
-            <select value={appStageFilter} onChange={(e) => setAppStageFilter(e.target.value)} className="text-xs px-3 py-1.5 rounded-lg border border-border bg-page text-ink focus:border-brand focus:outline-none">
-              <option value="">All Stages</option>
-              {["applied","screening","hm_review","interview_1","interview_2","hr_interview","selected","offer","bgv","ready_to_join","joined","rejected"].map((s) => <option key={s} value={s}>{s.replace(/_/g, " ")}</option>)}
-            </select>
+
+          {/* Stage tabs with live counts */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+            <button onClick={() => setAppStageFilter("")}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${appStageFilter === "" ? "bg-brand text-white" : "bg-page text-ink-muted border border-border hover:border-border-strong"}`}>
+              All <span className="opacity-70 font-semibold">({applications.length})</span>
+            </button>
+            {STAGES.map((s) => (
+              <button key={s.id} onClick={() => setAppStageFilter(s.id)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${appStageFilter === s.id ? "bg-brand text-white" : "bg-page text-ink-muted border border-border hover:border-border-strong"}`}>
+                {s.label} <span className="opacity-70 font-semibold">({stageTabCounts[s.id] || 0})</span>
+              </button>
+            ))}
           </div>
+
           {loadingApps ? (
             <div className="py-12 text-center text-xs text-ink-muted">Loading applications...</div>
-          ) : applications.length === 0 ? (
+          ) : visibleApplications.length === 0 ? (
             <div className="p-8 border border-dashed border-border rounded-xl text-center bg-surface">
               <Icon name="users" className="w-8 h-8 text-ink-muted mx-auto mb-2" />
               <h4 className="text-sm font-bold text-ink m-0">No applications found</h4>
               <p className="text-xs text-ink-muted mt-1">Applications appear here once candidates apply to published postings.</p>
             </div>
           ) : (
-            <div className="space-y-2.5">
-              {applications.map((app) => (
-                <div key={app.id} className="bg-surface border border-border rounded-xl p-4 shadow-soft-sm space-y-2">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="text-sm font-bold text-ink m-0">{app.name}</h4>
-                        {app.match_score != null
-                          ? <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-brand-wash text-brand border border-brand/20">{app.match_score}% Match</span>
-                          : <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-100 text-gray-500 border border-gray-200 dark:bg-gray-800 dark:text-gray-400">Not scored</span>
-                        }
-                        {statusBadge(app.stage)}
+            <div className="space-y-2">
+              {visibleApplications.map((app) => {
+                const expanded = expandedAppId === app.id;
+                const editing = editingAppId === app.id;
+                const waLink = whatsappCallbackLink(app);
+                return (
+                  <div key={app.id} className="bg-surface border border-border rounded-xl shadow-soft-sm overflow-hidden">
+                    <div className="p-4 space-y-2">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-sm font-bold text-ink m-0">{app.name}</h4>
+                            {app.match_score != null
+                              ? <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-brand-wash text-brand border border-brand/20">{app.match_score}% Match</span>
+                              : <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-100 text-gray-500 border border-gray-200 dark:bg-gray-800 dark:text-gray-400">Not scored</span>
+                            }
+                            {!editing && statusBadge(app.stage)}
+                          </div>
+                          <p className="text-[11px] text-ink-muted mt-0.5 m-0 truncate">
+                            {app.email}{app.current_company && ` · ${app.current_company}`}
+                            {app.requisition_req_no && <> · <span className="font-mono">{app.requisition_req_no}</span> {app.requisition_title}</>}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button title="View CV" onClick={() => viewResume(app.id)} disabled={!app.has_resume_file}
+                            className={`p-1.5 rounded-lg border transition-colors ${app.has_resume_file ? "border-border text-ink-muted hover:border-brand hover:text-brand cursor-pointer" : "border-border/50 text-ink-muted/40 cursor-not-allowed"}`}>
+                            <Icon name="file" size={14} />
+                          </button>
+                          {waLink ? (
+                            <a title="Request callback via WhatsApp" href={waLink} target="_blank" rel="noopener noreferrer"
+                              className="p-1.5 rounded-lg border border-border text-ink-muted hover:border-emerald-500 hover:text-emerald-600 transition-colors">
+                              <Icon name="whatsapp" size={14} />
+                            </a>
+                          ) : (
+                            <span title="No phone number on file" className="p-1.5 rounded-lg border border-border/50 text-ink-muted/40 cursor-not-allowed">
+                              <Icon name="whatsapp" size={14} />
+                            </span>
+                          )}
+                          <button title={editing ? "Cancel edit" : "Edit"} onClick={() => setEditingAppId(editing ? null : app.id)}
+                            className="p-1.5 rounded-lg border border-border text-ink-muted hover:border-brand hover:text-brand transition-colors cursor-pointer">
+                            <Icon name={editing ? "x" : "edit"} size={14} />
+                          </button>
+                          <button title={expanded ? "Show less" : "Show more"} onClick={() => setExpandedAppId(expanded ? null : app.id)}
+                            className="p-1.5 rounded-lg border border-border text-ink-muted hover:border-border-strong transition-colors cursor-pointer">
+                            <Icon name={expanded ? "chevronUp" : "chevronDown"} size={14} />
+                          </button>
+                        </div>
                       </div>
-                      <p className="text-[11px] text-ink-muted mt-0.5 m-0">
-                        {app.email}{app.current_company && ` · ${app.current_company}`}
-                        {app.requisition_req_no && <> · <span className="font-mono">{app.requisition_req_no}</span> {app.requisition_title}</>}
-                      </p>
+
+                      {editing ? (
+                        <form
+                          onSubmit={async (e) => {
+                            e.preventDefault();
+                            const fd = new FormData(e.currentTarget);
+                            await patchApplication(app.id, {
+                              stage: String(fd.get("stage") || app.stage),
+                              notice_period: String(fd.get("notice_period") || ""),
+                              expected_ctc: fd.get("expected_ctc") ? Number(fd.get("expected_ctc")) : null,
+                              qualification: String(fd.get("qualification") || ""),
+                            });
+                            setEditingAppId(null);
+                          }}
+                          className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1"
+                        >
+                          <div>
+                            <label className="text-[10px] uppercase font-bold text-ink-muted block mb-0.5">Stage</label>
+                            <select name="stage" defaultValue={app.stage} className="w-full text-xs px-2 py-1.5 rounded-lg border border-border bg-page text-ink focus:border-brand focus:outline-none">
+                              {STAGES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[10px] uppercase font-bold text-ink-muted block mb-0.5">Notice Period</label>
+                            <input name="notice_period" defaultValue={app.notice_period ?? ""} className="w-full text-xs px-2 py-1.5 rounded-lg border border-border bg-page text-ink focus:border-brand focus:outline-none" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] uppercase font-bold text-ink-muted block mb-0.5">Expected CTC</label>
+                            <input name="expected_ctc" type="number" defaultValue={app.expected_ctc ?? ""} className="w-full text-xs px-2 py-1.5 rounded-lg border border-border bg-page text-ink focus:border-brand focus:outline-none" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] uppercase font-bold text-ink-muted block mb-0.5">Qualification</label>
+                            <input name="qualification" defaultValue={app.qualification ?? ""} className="w-full text-xs px-2 py-1.5 rounded-lg border border-border bg-page text-ink focus:border-brand focus:outline-none" />
+                          </div>
+                          <div className="col-span-2 sm:col-span-4 flex justify-end">
+                            <button type="submit" disabled={savingAppEdit} className="bg-brand text-white text-xs font-bold px-4 py-1.5 rounded-lg shadow-button hover:opacity-95 transition-opacity disabled:opacity-50 cursor-pointer">
+                              {savingAppEdit ? "Saving..." : "Save"}
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px]">
+                          {([{ label: "Location", value: app.current_location }, { label: "Experience", value: app.experience_years ? `${app.experience_years} yrs` : null }, { label: "Notice", value: app.notice_period }, { label: "Expected CTC", value: app.expected_ctc ? String(app.expected_ctc) : null }] as {label:string;value:string|null|undefined}[]).filter((f) => f.value).map((f) => (
+                            <div key={f.label} className="p-2 rounded-lg bg-page border border-border/50">
+                              <span className="text-[10px] uppercase font-bold text-ink-muted block">{f.label}</span>
+                              <span className="font-semibold text-ink truncate block">{f.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <span className="text-[11px] text-ink-muted">{new Date(app.created_at).toLocaleDateString()}</span>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px]">
-                    {([{ label: "Location", value: app.current_location }, { label: "Experience", value: app.experience_years ? `${app.experience_years} yrs` : null }, { label: "Notice", value: app.notice_period }, { label: "Qualification", value: app.qualification }] as {label:string;value:string|null|undefined}[]).filter((f) => f.value).map((f) => (
-                      <div key={f.label} className="p-2 rounded-lg bg-page border border-border/50">
-                        <span className="text-[10px] uppercase font-bold text-ink-muted block">{f.label}</span>
-                        <span className="font-semibold text-ink truncate block">{f.value}</span>
+
+                    {expanded && (
+                      <div className="px-4 pb-4 pt-1 border-t border-border/70 space-y-2 text-[11px]">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                          {([{ label: "Qualification", value: app.qualification }, { label: "Current CTC", value: app.current_ctc ? String(app.current_ctc) : null }, { label: "Phone", value: app.phone }, { label: "Applied", value: new Date(app.created_at).toLocaleDateString() }] as {label:string;value:string|null|undefined}[]).filter((f) => f.value).map((f) => (
+                            <div key={f.label} className="p-2 rounded-lg bg-page border border-border/50">
+                              <span className="text-[10px] uppercase font-bold text-ink-muted block">{f.label}</span>
+                              <span className="font-semibold text-ink truncate block">{f.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                        {(app.met_must_have_skills?.length || app.missing_must_have_skills?.length) && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {(app.met_must_have_skills || []).map((sk) => (
+                              <span key={`met-${sk}`} className="px-2 py-0.5 rounded text-[10.5px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">✓ {sk}</span>
+                            ))}
+                            {(app.missing_must_have_skills || []).map((sk) => (
+                              <span key={`miss-${sk}`} className="px-2 py-0.5 rounded text-[10.5px] font-semibold bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20">✗ {sk}</span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    ))}
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -528,22 +717,45 @@ export default function RecruiterPage() {
                 {requisitions.map((r) => <option key={r.id} value={r.id}>{r.req_no} — {r.title}</option>)}
               </select>
             </div>
-            <div>
+            <div className="relative">
               <span className="block text-xs font-bold text-ink mb-2">Job Board</span>
-              <div className="flex flex-wrap gap-2">
-                {(["askshree", "google"] as const).map((b) => (
-                  <button key={b} type="button" onClick={() => setPostBoard(b)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${postBoard === b ? "bg-brand text-white border-brand" : "bg-page text-ink border-border hover:border-border-strong"}`}>
-                    {b === "askshree" ? "AskShree" : "Google Jobs"}
-                  </button>
-                ))}
-                {(["indeed", "linkedin", "naukri"] as const).map((b) => (
-                  <button key={b} type="button" disabled className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-border bg-subtle/40 text-ink-muted cursor-not-allowed flex items-center gap-1.5">
-                    <span className="capitalize">{b}</span>
-                    <span className="text-[10px] opacity-70">Not connected</span>
-                  </button>
-                ))}
-              </div>
+              <button
+                type="button"
+                onClick={() => setBoardDropdownOpen((v) => !v)}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-page border border-border text-xs text-ink hover:border-border-strong transition-colors cursor-pointer"
+              >
+                <span className="font-semibold">
+                  {postBoards.size === 0 ? "Select job boards..." : Array.from(postBoards).map((b) => (b === "askshree" ? "AskShree" : "Google Jobs")).join(", ")}
+                </span>
+                <Icon name={boardDropdownOpen ? "chevronUp" : "chevronDown"} size={14} />
+              </button>
+              {boardDropdownOpen && (
+                <div className="absolute z-10 mt-1 w-full bg-surface border border-border rounded-xl shadow-soft p-1.5 space-y-0.5">
+                  {(["askshree", "google"] as const).map((b) => (
+                    <label key={b} className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-page cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={postBoards.has(b)}
+                        onChange={() => setPostBoards((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(b)) next.delete(b); else next.add(b);
+                          return next;
+                        })}
+                        className="w-3.5 h-3.5 rounded border-border accent-brand"
+                      />
+                      <span className="text-xs font-semibold text-ink">{b === "askshree" ? "AskShree" : "Google Jobs"}</span>
+                    </label>
+                  ))}
+                  <div className="my-1 border-t border-border" />
+                  {(["indeed", "linkedin", "naukri"] as const).map((b) => (
+                    <div key={b} className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg opacity-60 cursor-not-allowed">
+                      <input type="checkbox" disabled className="w-3.5 h-3.5 rounded border-border" />
+                      <span className="text-xs font-semibold text-ink-muted capitalize">{b}</span>
+                      <span className="text-[10px] text-ink-muted ml-auto">Not connected</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-3">
               <label className="relative inline-flex items-center cursor-pointer">

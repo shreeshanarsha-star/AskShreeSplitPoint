@@ -34,6 +34,67 @@ const EDITABLE_FIELDS = new Set([
   "comments",
 ]);
 
+const READER_ROLES: TalentRole[] = [
+  "recruiter",
+  "lead_recruiter",
+  "hiring_manager",
+  "hr_approver",
+  "hr_ops",
+  "hr_head",
+  "ta_head",
+  "admin",
+];
+
+// GET /api/ats/requisitions/[id]
+// Full detail for the requisition detail page (opened by clicking a
+// requisition in the recruiter hub) -- the same fields captured when the
+// requisition was raised, plus status/timestamps.
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id: reqId } = await params;
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const admin = createAdminClient();
+  const ctx = await getOrgContext(admin, user.id);
+  const roles = await getUserRoles(admin, user.id);
+
+  if (!ctx.isPlatformOwner && !roles.some((r) => READER_ROLES.includes(r))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { data: req, error } = await admin
+    .from("talent_requisitions")
+    .select(
+      "id, req_no, title, department, location, employment_type, headcount, status, priority, hiring_manager, description, work_mode, comp_min, comp_max, job_level, eligibility_criteria, created_by, created_at, updated_at, org_id, target_hire_date"
+    )
+    .eq("id", reqId)
+    .maybeSingle();
+
+  if (error || !req) {
+    return NextResponse.json({ error: "Requisition not found." }, { status: 404 });
+  }
+
+  if (!ctx.isPlatformOwner) {
+    const isOrgAdmin = ctx.orgRole === "org_admin";
+    const isLeadOrAdmin =
+      isOrgAdmin ||
+      roles.some((r) => (["lead_recruiter", "ta_head", "hr_head", "hr_ops", "admin"] as TalentRole[]).includes(r));
+
+    if (ctx.orgId) {
+      if (req.org_id !== ctx.orgId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      if (!isLeadOrAdmin && roles.includes("hiring_manager") && !roles.includes("recruiter") && req.created_by !== user.id) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    } else if (req.created_by !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
+  return NextResponse.json({ requisition: req });
+}
+
 // PATCH /api/ats/requisitions/[id]
 export async function PATCH(
   request: Request,

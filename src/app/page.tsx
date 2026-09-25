@@ -536,6 +536,8 @@ export default function HomePage() {
           phone: applyPhone,
           expectedSalary: applyExpectedSalary,
           resumeText: applyResume,
+          resumeBase64: cvFileBase64,
+          resumeFileName: uploadedCvFileName,
         }),
       });
       const data = await res.json();
