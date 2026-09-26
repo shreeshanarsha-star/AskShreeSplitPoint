@@ -160,7 +160,7 @@ export default function SignupPage() {
             />
 
             <label className="block text-[11.5px] font-bold mb-1 text-ink">
-              Company name <span className="font-normal text-ink-muted">(optional -- leave blank if you're an independent recruiter)</span>
+              Company name <span className="font-normal text-ink-muted">(optional -- leave blank if you&apos;re an independent recruiter)</span>
             </label>
             <input
               type="text"

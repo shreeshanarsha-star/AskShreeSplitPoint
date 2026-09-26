@@ -175,7 +175,7 @@ export default function RequisitionDetailPage() {
         {confirmingDelete && (
           <div className="p-4 rounded-xl border border-rose-300 bg-rose-50 dark:bg-rose-950/20 space-y-3">
             <p className="text-xs text-rose-700 dark:text-rose-300 font-semibold">
-              Delete {req?.req_no} -- {req?.title}? This can't be undone.
+              Delete {req?.req_no} -- {req?.title}? This can&apos;t be undone.
             </p>
             {deleteError && <p className="text-xs text-rose-600 dark:text-rose-400">{deleteError}</p>}
             <div className="flex gap-2">
