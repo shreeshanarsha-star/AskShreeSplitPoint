@@ -7,23 +7,85 @@ export type TalentRole =
   | "hiring_manager"
   | "reporting_manager"
   | "hr_approver"
+  | "l2_approver"
   | "ta_head"
   | "lead_recruiter"
   | "recruiter"
   | "hr_ops"
   | "hr_head"
+  | "chro"
+  | "ceo"
+  | "cfo"
+  | "bu_head"
   | "admin";
 
 export const TALENT_ROLES: TalentRole[] = [
   "hiring_manager",
   "reporting_manager",
   "hr_approver",
+  "l2_approver",
   "ta_head",
   "lead_recruiter",
   "recruiter",
   "hr_ops",
   "hr_head",
+  "chro",
+  "ceo",
+  "cfo",
+  "bu_head",
   "admin",
+];
+
+// Human-readable labels for the owner-facing "create user" access-level
+// picker (admin/create-user) and anywhere else a role needs to be shown to
+// a person instead of used in a permission check. hr_approver is labeled
+// "L1 Approver" here -- it's the same role buildApprovalChain's fixed
+// two-step chain already checks for step 2, just given the name the owner
+// actually uses. l2_approver, chro, ceo, cfo, and bu_head are recognized
+// role tags and grantable from the owner's create-user tool, but are not
+// (yet) wired into buildApprovalChain's approval logic -- that's still a
+// fixed reporting_manager -> hr_approver chain. Extend buildApprovalChain
+// separately if a real multi-tier approval flow is wanted later.
+export const TALENT_ROLE_LABELS: Record<TalentRole, string> = {
+  admin: "Admin",
+  recruiter: "Recruiter",
+  lead_recruiter: "Lead Recruiter",
+  ta_head: "TA Head",
+  hiring_manager: "Hiring Manager (HM)",
+  reporting_manager: "Reporting Manager",
+  hr_ops: "HR Ops",
+  hr_approver: "L1 Approver (HR Approver)",
+  l2_approver: "L2 Approver",
+  hr_head: "HR Head",
+  chro: "CHRO",
+  ceo: "CEO",
+  cfo: "CFO",
+  bu_head: "BU Head",
+};
+
+// Which of the above belong to the "recruiter team" bucket vs the
+// "organization" bucket in the owner's create-user tool -- purely a UI
+// grouping (also used to derive profiles.persona for the created account),
+// not a permission list. hr_approver/l2_approver/hr_head/chro etc. sit on
+// the organization side because they approve/oversee hiring rather than
+// run the recruiting desk day to day.
+export const RECRUITER_TEAM_ROLES: TalentRole[] = [
+  "recruiter",
+  "lead_recruiter",
+  "ta_head",
+  "hiring_manager",
+  "reporting_manager",
+];
+export const ORGANIZATION_TEAM_ROLES: TalentRole[] = [
+  "admin",
+  "hr_ops",
+  "hr_approver",
+  "l2_approver",
+  "hr_head",
+  "chro",
+  "ceo",
+  "cfo",
+  "bu_head",
 ];
 
 // lead_recruiter and hr_head are real, distinct labels in the UI, but

@@ -12,6 +12,7 @@ export default function AdminNav() {
     { href: "/admin/knowledge-base", label: "Avatar Knowledge Base" },
     { href: "/admin/organizations", label: "Organizations" },
     { href: "/admin/users", label: "Users" },
+    { href: "/admin/create-user", label: "Create User" },
     { href: "/admin/activity", label: "Activity Log" },
   ];
 
