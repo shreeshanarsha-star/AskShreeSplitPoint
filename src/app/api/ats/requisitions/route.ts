@@ -7,24 +7,19 @@ import {
   generateReqNo,
   buildApprovalChain,
   logAudit,
+  RECRUITER_READER_ROLES,
   type TalentRole,
 } from "@/lib/talentRoles";
 
 export const dynamic = "force-dynamic";
 
 // ---------------------------------------------------------------------------
-// Roles that may list and create requisitions.
+// Roles that may list and create requisitions. READER_ROLES is the shared
+// RECRUITER_READER_ROLES definition (also used by /api/profile/access and
+// /api/v1/agent/outreach/generate) -- kept as a local alias here so the
+// rest of this file didn't need touching.
 // ---------------------------------------------------------------------------
-const READER_ROLES: TalentRole[] = [
-  "recruiter",
-  "lead_recruiter",
-  "hiring_manager",
-  "hr_approver",
-  "hr_ops",
-  "hr_head",
-  "ta_head",
-  "admin",
-];
+const READER_ROLES: TalentRole[] = RECRUITER_READER_ROLES;
 
 const CREATOR_ROLES: TalentRole[] = [
   "recruiter",

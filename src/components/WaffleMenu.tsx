@@ -390,31 +390,19 @@ export default function WaffleMenu({
         setIsAuthenticated(true);
         const rolesSet = new Set<RoleClearance>(["public", "candidate"]);
 
-        let profile: any = null;
-        const { data: fullProfile, error: pErr } = await supabase
-          .from("profiles")
-          .select("is_admin, org_role, status, persona")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        if (!pErr && fullProfile) {
-          profile = fullProfile;
-        } else {
-          const { data: fallback } = await supabase
-            .from("profiles")
-            .select("is_admin, org_role")
-            .eq("id", user.id)
-            .maybeSingle();
-          if (fallback) {
-            profile = {
-              ...fallback,
-              status: fallback.is_admin ? "approved" : "active",
-              persona: fallback.is_admin ? "organization" : "recruiter",
-            };
-          }
+        // Single source of truth for role/entitlements -- computed
+        // server-side in lib/accessContext.ts and consumed the same way by
+        // Sidebar and TopbarStatus, so a role fix only ever needs to
+        // happen in one place instead of drifting across independently
+        // reimplemented copies of this same profile+talent-role logic.
+        const res = await fetch("/api/profile/access");
+        if (!res.ok) {
+          setUserRoles(rolesSet);
+          return;
         }
+        const ctx = await res.json();
 
-        if (profile?.is_admin) {
+        if (ctx.isPlatformOwner) {
           rolesSet.add("platform_admin");
           rolesSet.add("org_admin");
           rolesSet.add("recruiter");
@@ -422,24 +410,19 @@ export default function WaffleMenu({
           rolesSet.add("internal");
         }
 
-        if (profile?.persona === "recruiter" && (profile?.status === "active" || profile?.status === "approved")) {
+        if (ctx.persona === "recruiter" && (ctx.status === "active" || ctx.status === "approved")) {
           rolesSet.add("recruiter");
           rolesSet.add("internal");
         }
 
-        if (profile?.org_role === "org_admin") {
+        if (ctx.orgRole === "org_admin") {
           rolesSet.add("org_admin");
           rolesSet.add("recruiter");
           rolesSet.add("hiring_manager");
           rolesSet.add("internal");
         }
 
-        const { data: talentRoles } = await supabase
-          .from("talent_user_roles")
-          .select("role")
-          .eq("user_id", user.id);
-
-        const roles = (talentRoles || []).map((r: { role: string }) => r.role);
+        const roles: string[] = ctx.talentRoles || [];
         if (roles.some((r) => ["recruiter", "ta_head", "lead_recruiter"].includes(r))) {
           rolesSet.add("recruiter");
           rolesSet.add("internal");

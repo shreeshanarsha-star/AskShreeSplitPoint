@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getOrgContext } from "@/lib/org";
+import { getUserRoles, RECRUITER_READER_ROLES } from "@/lib/talentRoles";
 import { callTextModel, hasAiKey } from "@/lib/aiClient";
 
 type GenerateOutreachPayload = {
@@ -20,7 +23,37 @@ export async function OPTIONS() {
 
 export async function POST(request: Request) {
   try {
+    // This route reads a real candidate's PII (name, current company/
+    // location, resume excerpt, a live engage-link token) and burns AI-key
+    // spend on every call. It previously had no auth check at all -- the
+    // only thing standing between the internet and any candidate's data
+    // was knowing (or guessing) their candidateId. Session cookie first,
+    // then the same recruiter-side role gate /api/ats/requisitions already
+    // enforces, so this route can't be reached by anyone that route itself
+    // would turn around and reject.
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { ok: false, error: "Unauthorized" },
+        { status: 401, headers: CORS_HEADERS }
+      );
+    }
+
     const admin = createAdminClient();
+    const ctx = await getOrgContext(admin, user.id);
+    const callerRoles = await getUserRoles(admin, user.id);
+
+    if (!ctx.isPlatformOwner && !callerRoles.some((r) => RECRUITER_READER_ROLES.includes(r))) {
+      return NextResponse.json(
+        { ok: false, error: "Forbidden" },
+        { status: 403, headers: CORS_HEADERS }
+      );
+    }
+
     const body = (await request.json().catch(() => null)) as GenerateOutreachPayload | null;
 
     if (!body || !body.candidateId) {
@@ -46,15 +79,29 @@ export async function POST(request: Request) {
 
     // 2. Fetch Requisition
     const targetReqId = body.requisitionId || candidate.requisition_id;
-    let requisition: { id: string; req_no: string; title: string; department: string; location: string; description: string | null } | null = null;
+    let requisition: { id: string; req_no: string; title: string; department: string; location: string; description: string | null; org_id: string | null } | null = null;
 
     if (targetReqId) {
       const { data: req } = await admin
         .from("talent_requisitions")
-        .select("id, req_no, title, department, location, description")
+        .select("id, req_no, title, department, location, description, org_id")
         .eq("id", targetReqId)
         .maybeSingle();
       if (req) requisition = req;
+    }
+
+    // Org scoping -- talent_candidates has no org_id column of its own;
+    // org membership is inherited from the requisition it's tied to. Never
+    // let a recruiter from one org pull outreach copy (and a live engage
+    // link) for a candidate that belongs to a different org's pipeline.
+    // The platform owner bypasses this, same as every other org-scoped
+    // route. A candidate with no resolvable requisition/org is denied to
+    // non-owners rather than allowed through unscoped.
+    if (!ctx.isPlatformOwner && requisition?.org_id !== ctx.orgId) {
+      return NextResponse.json(
+        { ok: false, error: "Forbidden" },
+        { status: 403, headers: CORS_HEADERS }
+      );
     }
 
     const reqTitle = requisition?.title || "Key Strategic Role";

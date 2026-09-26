@@ -129,52 +129,32 @@ export default function TopbarStatus() {
         return;
       }
       setUserEmail(user.email ?? null);
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("is_admin, org_role, org_id, full_name, avatar_url")
-        .eq("id", user.id)
-        .maybeSingle();
-      if (cancelled) return;
 
-      const admin = !!profile?.is_admin;
-      const orgAdmin = profile?.org_role === "org_admin";
-      setIsAdmin(admin);
-      if (admin) {
-        setSettingsHref("/admin");
-      } else if (orgAdmin) {
-        setSettingsHref("/org/settings");
-      }
-      setFullName(profile?.full_name ?? null);
-      setAvatarUrl(profile?.avatar_url ?? null);
-      const label = profile?.full_name || user.email?.split("@")[0] || null;
-      setFirstName(label ? label.split(" ")[0] : null);
-
-      // Recruiter-side access -- the same READER_ROLES set
-      // /api/ats/requisitions enforces server-side (recruiter,
-      // lead_recruiter, hiring_manager, hr_approver, hr_ops, hr_head,
-      // ta_head, admin), plus org_admin and the platform owner. Mirrors
-      // that route's own check so "Recruiter Cockpit" never appears for an
-      // account the API would then turn around and 403.
-      if (admin || orgAdmin) {
-        setHasRecruiterAccess(true);
-      } else {
-        const { data: talentRoles } = await supabase
-          .from("talent_user_roles")
-          .select("role")
-          .eq("user_id", user.id);
+      // Single source of truth for role/access -- computed server-side in
+      // lib/accessContext.ts and consumed the same way by Sidebar and
+      // WaffleMenu, so a role/entitlement fix only ever needs to happen in
+      // one place instead of drifting across independently-reimplemented
+      // copies. (That drift is exactly how this dropdown once shipped
+      // showing every destination to every signed-in account regardless
+      // of role -- this component's own copy of the check had gone stale.)
+      try {
+        const res = await fetch("/api/profile/access");
         if (cancelled) return;
-        const roles = (talentRoles || []).map((r: { role: string }) => r.role);
-        const READER_ROLES = [
-          "recruiter",
-          "lead_recruiter",
-          "hiring_manager",
-          "hr_approver",
-          "hr_ops",
-          "hr_head",
-          "ta_head",
-          "admin",
-        ];
-        setHasRecruiterAccess(roles.some((r) => READER_ROLES.includes(r)));
+        if (!res.ok) return;
+        const ctx = await res.json();
+        if (cancelled) return;
+
+        setIsAdmin(!!ctx.isPlatformOwner);
+        setSettingsHref(ctx.settingsHref ?? null);
+        setFullName(ctx.fullName ?? null);
+        setAvatarUrl(ctx.avatarUrl ?? null);
+        const label = ctx.fullName || user.email?.split("@")[0] || null;
+        setFirstName(label ? label.split(" ")[0] : null);
+        setHasRecruiterAccess(!!ctx.hasRecruiterAccess);
+      } catch {
+        // Best-effort -- an access-context failure shouldn't block the
+        // rest of the topbar from rendering; the dropdown just falls back
+        // to its safe defaults (no admin/recruiter destinations shown).
       }
     });
     return () => {

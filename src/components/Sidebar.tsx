@@ -62,64 +62,28 @@ export default function Sidebar({
         setVisibleDeptIds(new Set(DEPARTMENTS.map((d) => d.id)));
         return;
       }
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("is_admin, org_role, org_id, full_name, avatar_url")
-        .eq("id", user.id)
-        .maybeSingle();
-      if (profile?.is_admin) setSettingsHref("/admin");
-      else if (profile?.org_role === "org_admin") setSettingsHref("/org/settings");
-      setFullName(profile?.full_name ?? null);
-      setAvatarUrl(profile?.avatar_url ?? null);
 
-      if (profile?.is_admin) {
-        setVisibleDeptIds(new Set(DEPARTMENTS.map((d) => d.id)));
-        return;
-      }
-
-      // Check direct user-level grants (e.g. approved independent recruiters)
-      const { data: userGrants } = await supabase
-        .from("user_feature_access")
-        .select("feature_key")
-        .eq("user_id", user.id);
-      const userGrantedKeys = new Set((userGrants || []).map((g) => g.feature_key));
-
-      let orgGrantedKeys = new Set<string>();
-      let hasBulk = false;
-
-      if (profile?.org_id) {
-        const { data: org } = await supabase
-          .from("organizations")
-          .select("plan, status")
-          .eq("id", profile.org_id)
-          .maybeSingle();
-
-        if (org?.status === "approved") {
-          if (org.plan === "bulk") {
-            hasBulk = true;
-          } else {
-            const { data: grants } = await supabase
-              .from("feature_access")
-              .select("feature_key")
-              .eq("org_id", profile.org_id);
-            orgGrantedKeys = new Set((grants || []).map((g) => g.feature_key));
-          }
+      // Single source of truth for role/entitlements -- computed
+      // server-side in lib/accessContext.ts and consumed the same way by
+      // WaffleMenu and TopbarStatus, so a licensing fix only ever needs to
+      // happen in one place instead of drifting across independently
+      // reimplemented copies of this same grant-checking logic.
+      try {
+        const res = await fetch("/api/profile/access");
+        if (!res.ok) {
+          // Fail closed: don't show departments a failed license check
+          // can't vouch for.
+          setVisibleDeptIds(new Set());
+          return;
         }
+        const ctx = await res.json();
+        if (ctx.settingsHref) setSettingsHref(ctx.settingsHref);
+        setFullName(ctx.fullName ?? null);
+        setAvatarUrl(ctx.avatarUrl ?? null);
+        setVisibleDeptIds(new Set<string>(ctx.licensedDeptIds || []));
+      } catch {
+        setVisibleDeptIds(new Set());
       }
-
-      if (hasBulk) {
-        // Bulk gives all except owner-exclusive tools like Gauri
-        const deptIds = DEPARTMENTS.filter((d) => d.id !== "support").map((d) => d.id);
-        setVisibleDeptIds(new Set(deptIds));
-        return;
-      }
-
-      const allGranted = new Set([...Array.from(userGrantedKeys), ...Array.from(orgGrantedKeys)]);
-      const deptIds = DEPARTMENTS.filter((d) =>
-        d.tools.some((t) => (t.bundled && d.id !== "support") || allGranted.has(t.n))
-      ).map((d) => d.id);
-
-      setVisibleDeptIds(new Set(deptIds));
     });
   }, []);
 

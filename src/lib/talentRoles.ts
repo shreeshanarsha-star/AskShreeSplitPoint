@@ -41,6 +41,26 @@ export const ROLE_IMPLIES: Partial<Record<TalentRole, TalentRole>> = {
   hr_head: "hr_approver",
 };
 
+// Roles that may see recruiter-side data: list/read requisitions,
+// applications, and generate candidate outreach. This is the single
+// definition -- every route or shared lib that needs "can this account
+// act like a recruiter" imports it from here instead of keeping its own
+// copy, so a role added or removed here takes effect everywhere at once.
+// (This exact array used to be hand-duplicated in /api/ats/requisitions
+// and again in TopbarStatus.tsx -- precisely the kind of drift that once
+// let a stale client-side copy show a "Recruiter Cockpit" link to an
+// account that had no real access to it.)
+export const RECRUITER_READER_ROLES: TalentRole[] = [
+  "recruiter",
+  "lead_recruiter",
+  "hiring_manager",
+  "hr_approver",
+  "hr_ops",
+  "hr_head",
+  "ta_head",
+  "admin",
+];
+
 // Requisition number: R-DDMMYYNN -- 2-digit day, 2-digit month, 2-digit year,
 // then a 2-digit sequence that resets every calendar day, scoped per org so
 // two organizations creating requisitions the same day don't collide.
