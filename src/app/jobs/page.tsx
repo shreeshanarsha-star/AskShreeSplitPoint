@@ -76,8 +76,9 @@ export default async function JobsPage() {
       <main className="max-w-[1000px] mx-auto px-6 py-10">
         <h1 className="text-[26px] font-bold m-0">Open roles</h1>
         <p className="text-[13.5px] text-ink-muted mt-1.5 max-w-xl">
-          Browse current openings. Click a role for full details, or head to
-          Apply.ai to submit your resume.
+          Browse current openings and apply directly -- Quick Apply for a
+          fast, no-login application, or Standard Apply to sign in and track
+          it from your candidate account.
         </p>
 
         {openRoles.length === 0 ? (
