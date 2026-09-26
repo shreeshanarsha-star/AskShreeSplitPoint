@@ -255,7 +255,7 @@ export default async function JobDetailPage({
               label="Quick Apply (Drop CV)"
             />
             <Link
-              href={`/apply?job=${encodeURIComponent(posting.id)}`}
+              href={`/jobs/${encodeURIComponent(posting.id)}/apply`}
               className="border border-border text-ink hover:text-brand hover:border-brand/40 bg-page text-xs font-bold px-4 py-2 rounded-xl transition-all flex items-center gap-1"
             >
               Standard Apply
@@ -303,7 +303,7 @@ function LegacyJobDetail({ job }: { job: LegacyJob }) {
               className="px-4 py-2 rounded-xl text-xs font-semibold border border-border hover:border-brand/40 text-ink hover:text-brand bg-page transition-all flex items-center gap-1.5">
               <Icon name="chat" size={13} /><span>Consult Shree</span>
             </Link>
-            <Link href={`/apply?job=${encodeURIComponent(job.id)}`}
+            <Link href={`/jobs/${encodeURIComponent(job.id)}/apply`}
               className="border border-border text-ink hover:text-brand hover:border-brand/40 bg-page text-xs font-bold px-4 py-2 rounded-xl transition-all">
               Standard Apply
             </Link>

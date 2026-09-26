@@ -40,6 +40,14 @@ export async function POST(req: Request) {
       if (updateErr) {
         console.warn("Update existing user password warning:", updateErr.message);
       }
+      // Make sure this account is flagged as an active candidate account --
+      // an existing profile might predate the candidate persona (e.g. it
+      // was only ever a bare auth row), so set it explicitly rather than
+      // assume it's already correct.
+      await admin
+        .from("profiles")
+        .update({ persona: "candidate", status: "active", full_name: cleanName })
+        .eq("id", userId);
     } else {
       // Create confirmed user without email verification barrier
       const { data: created, error: createError } = await admin.auth.admin.createUser({
@@ -61,12 +69,17 @@ export async function POST(req: Request) {
 
       userId = created.user.id;
 
-      // Update the automatically created profile record
+      // Update the automatically created profile record. persona +
+      // status mirror exactly what /api/auth/register-persona sets for a
+      // candidate signup -- candidates are active immediately, no owner
+      // approval needed (that's only for recruiter/org accounts).
       await admin
         .from("profiles")
         .update({
           full_name: cleanName,
           org_role: "candidate",
+          persona: "candidate",
+          status: "active",
         })
         .eq("id", userId);
     }

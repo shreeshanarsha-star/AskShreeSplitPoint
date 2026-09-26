@@ -169,6 +169,14 @@ export default function HomePage() {
   const [submittedCandidateId, setSubmittedCandidateId] = useState<string | null>(null);
   const [submittedInterviewToken, setSubmittedInterviewToken] = useState<string | null>(null);
 
+  // Quick Apply CV upload (drop/browse box, modal-scoped)
+  const [applyCvFileName, setApplyCvFileName] = useState("");
+  const [applyCvBase64, setApplyCvBase64] = useState("");
+  const [applyCvParsing, setApplyCvParsing] = useState(false);
+  const [applyCvError, setApplyCvError] = useState("");
+  const [isDraggingApplyCv, setIsDraggingApplyCv] = useState(false);
+  const applyCvInputRef = useRef<HTMLInputElement | null>(null);
+
   // Candidate Account & Password Activation State (Optional on Apply Success)
   const [accountPassword, setAccountPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -520,9 +528,61 @@ export default function HomePage() {
     }
   }
 
+  function handleRemoveApplyCv() {
+    setApplyCvFileName("");
+    setApplyCvBase64("");
+    setApplyCvError("");
+  }
+
+  async function handleApplyCvSelected(file: File) {
+    setApplyCvError("");
+    setApplyCvParsing(true);
+    setApplyCvFileName(file.name);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(",")[1] || "");
+        };
+        reader.onerror = () => reject(new Error("Could not read file."));
+        reader.readAsDataURL(file);
+      });
+      setApplyCvBase64(base64);
+
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/candidate/quick-apply/parse-cv", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (data.rawText) setApplyResume(data.rawText);
+        setApplyName((prev) => prev || data.fullName || "");
+        setApplyEmail((prev) => prev || data.email || "");
+        setApplyPhone((prev) => prev || data.phone || "");
+      }
+    } catch (err) {
+      console.error("CV parse failed:", err);
+      setApplyCvError("We couldn't read that file, but it's still attached -- you can submit and our team will review it manually.");
+    } finally {
+      setApplyCvParsing(false);
+    }
+  }
+
+  function handleApplyCvDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingApplyCv(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleApplyCvSelected(file);
+  }
+
   async function handleQuickApply(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedJob || !applyName || !applyEmail || !applyConsented) return;
+    const hasCv = Boolean(applyCvBase64 || cvFileBase64);
+    if (!selectedJob || !applyName || !applyEmail || !applyConsented || !hasCv) return;
 
     setApplySubmitting(true);
     try {
@@ -536,8 +596,8 @@ export default function HomePage() {
           phone: applyPhone,
           expectedSalary: applyExpectedSalary,
           resumeText: applyResume,
-          resumeBase64: cvFileBase64,
-          resumeFileName: uploadedCvFileName,
+          resumeBase64: applyCvBase64 || cvFileBase64,
+          resumeFileName: applyCvFileName || uploadedCvFileName,
         }),
       });
       const data = await res.json();
@@ -1249,6 +1309,7 @@ export default function HomePage() {
                   setAccountPassword("");
                   setAccountCreated(false);
                   setAccountError(null);
+                  handleRemoveApplyCv();
                 }}
                 className="text-ink-muted hover:text-ink text-sm cursor-pointer"
                 title="Close"
@@ -1418,16 +1479,68 @@ export default function HomePage() {
 
                 <div>
                   <label className="block text-ink-2 font-semibold mb-1">
-                    Paste Resume / Key Experience Highlights *
+                    Upload Your CV *
                   </label>
-                  <textarea
-                    required
-                    rows={4}
-                    value={applyResume}
-                    onChange={(e) => setApplyResume(e.target.value)}
-                    placeholder="Paste your resume text, GitHub/LinkedIn links, or key technical highlights..."
-                    className="w-full bg-page border border-border rounded-xl p-2.5 text-ink focus:border-brand focus:outline-none"
+                  <input
+                    ref={applyCvInputRef}
+                    type="file"
+                    accept=".pdf,.doc,.docx,.txt"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleApplyCvSelected(file);
+                      e.target.value = "";
+                    }}
                   />
+                  {applyCvFileName || uploadedCvFileName ? (
+                    <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-page p-2.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-base">📄</span>
+                        <div className="min-w-0">
+                          <p className="text-ink font-semibold truncate">
+                            {applyCvFileName || uploadedCvFileName}
+                          </p>
+                          <p className="text-[10px] text-ink-muted">
+                            {applyCvParsing ? "Reading your CV..." : "Ready to submit"}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemoveApplyCv}
+                        className="text-[11px] text-ink-muted hover:text-ink font-semibold shrink-0 cursor-pointer"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsDraggingApplyCv(true);
+                      }}
+                      onDragLeave={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsDraggingApplyCv(false);
+                      }}
+                      onDrop={handleApplyCvDrop}
+                      onClick={() => applyCvInputRef.current?.click()}
+                      className={`rounded-xl border-2 border-dashed p-4 text-center cursor-pointer transition-colors ${
+                        isDraggingApplyCv
+                          ? "border-brand bg-brand-wash/40"
+                          : "border-border hover:border-brand/50 hover:bg-page"
+                      }`}
+                    >
+                      <div className="text-xl">📎</div>
+                      <p className="text-ink font-semibold mt-1">Drop your CV here, or browse</p>
+                      <p className="text-[10px] text-ink-muted mt-0.5">PDF, Word, or TXT</p>
+                    </div>
+                  )}
+                  {applyCvError && (
+                    <p className="text-[11px] text-red-600 mt-1">{applyCvError}</p>
+                  )}
                 </div>
 
                 <label className="flex items-start gap-2.5 pt-1 cursor-pointer select-none">
@@ -1453,7 +1566,9 @@ export default function HomePage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={applySubmitting || !applyConsented}
+                    disabled={
+                      applySubmitting || !applyConsented || !(applyCvBase64 || cvFileBase64)
+                    }
                     className="px-5 py-2 rounded-xl font-bold bg-brand hover:bg-brand-dark disabled:opacity-50 text-white shadow-button"
                   >
                     {applySubmitting ? "Submitting..." : "Submit Application"}

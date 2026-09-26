@@ -12,11 +12,30 @@ export interface QuickApplyJobInfo {
   must_have_skills?: string[] | null;
 }
 
+export interface QuickApplyAccount {
+  email: string;
+  name?: string;
+  phone?: string;
+}
+
 interface QuickApplyModalProps {
   isOpen: boolean;
   onClose: () => void;
   job: QuickApplyJobInfo | null;
   onAppliedSuccess?: (jobId: string) => void;
+  // "modal" (default): the usual fixed-overlay popup used by the Quick
+  // Apply button everywhere. "embedded": renders just the card, full
+  // width, meant to be dropped into a normal page (the standard,
+  // sign-in-gated apply page uses this).
+  variant?: "modal" | "embedded";
+  // When set, the candidate is already signed in: their identity is
+  // pre-filled and locked in as the account of record, and the optional
+  // "set a password to track this" upsell is replaced with a simple
+  // confirmation, since they already have an account.
+  account?: QuickApplyAccount | null;
+  // Label on the small badge in the header. Defaults to "Quick Apply";
+  // the standard-apply page passes "Standard Apply".
+  badgeLabel?: string;
 }
 
 type Step = "drop_cv" | "analyzing" | "edit_fields" | "submitting" | "success";
@@ -50,12 +69,20 @@ export default function QuickApplyModal({
   onClose,
   job,
   onAppliedSuccess,
+  variant = "modal",
+  account = null,
+  badgeLabel = "Quick Apply",
 }: QuickApplyModalProps) {
   const [step, setStep] = useState<Step>("drop_cv");
   const [fileName, setFileName] = useState<string>("");
   const [rawCvText, setRawCvText] = useState<string>("");
   const [resumeBase64, setResumeBase64] = useState<string>("");
-  const [fields, setFields] = useState<FormFields>(INITIAL_FIELDS);
+  const [fields, setFields] = useState<FormFields>(() => ({
+    ...INITIAL_FIELDS,
+    fullName: account?.name || "",
+    email: account?.email || "",
+    phone: account?.phone || "",
+  }));
   const [error, setError] = useState<string | null>(null);
 
   // Result state
@@ -213,7 +240,12 @@ export default function QuickApplyModal({
 
   function handleReset() {
     setStep("drop_cv");
-    setFields(INITIAL_FIELDS);
+    setFields({
+      ...INITIAL_FIELDS,
+      fullName: account?.name || "",
+      email: account?.email || "",
+      phone: account?.phone || "",
+    });
     setFileName("");
     setRawCvText("");
     setResumeBase64("");
@@ -225,15 +257,24 @@ export default function QuickApplyModal({
     onClose();
   }
 
+  const outerClass =
+    variant === "embedded"
+      ? "w-full"
+      : "fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50 backdrop-blur-sm animate-fade-in";
+  const cardClass =
+    variant === "embedded"
+      ? "bg-surface border border-border rounded-xl shadow-soft w-full max-w-2xl mx-auto overflow-hidden flex flex-col"
+      : "bg-surface border border-border rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]";
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50 backdrop-blur-sm animate-fade-in">
-      <div className="bg-surface border border-border rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className={outerClass}>
+      <div className={cardClass}>
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-subtle/30">
           <div>
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-brand-wash text-brand border border-brand/20">
-                Quick Apply
+                {badgeLabel}
               </span>
               <h3 className="text-[17px] font-bold text-ink m-0 truncate max-w-md">
                 {job.title}
@@ -377,11 +418,15 @@ export default function QuickApplyModal({
                   <input
                     type="email"
                     required
+                    readOnly={!!account}
                     value={fields.email}
                     onChange={(e) => setFields({ ...fields, email: e.target.value })}
                     placeholder="e.g. john@example.com"
-                    className="w-full text-[13px] px-3 py-2 rounded-lg border border-border bg-page text-ink focus:border-brand focus:outline-none"
+                    className={`w-full text-[13px] px-3 py-2 rounded-lg border border-border bg-page text-ink focus:border-brand focus:outline-none ${account ? "opacity-70 cursor-not-allowed" : ""}`}
                   />
+                  {account && (
+                    <p className="text-[10.5px] text-ink-muted mt-1">Locked to your signed-in account</p>
+                  )}
                 </div>
 
                 {/* 4. Location */}
@@ -546,7 +591,11 @@ export default function QuickApplyModal({
 
               {/* Optional: track this application later. Skipping is fine --
                   applying doesn't require an account. */}
-              {!accountCreated ? (
+              {account ? (
+                <div className="mt-5 p-3 rounded-xl border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-800 text-[12.5px] text-emerald-700 dark:text-emerald-300 w-full max-w-md">
+                  Signed in as <strong>{account.email}</strong> -- this application is saved to your candidate account. Track it anytime from your candidate hub.
+                </div>
+              ) : !accountCreated ? (
                 <form
                   onSubmit={handleCreateAccount}
                   className="mt-5 p-4 rounded-xl border border-border bg-subtle/20 w-full max-w-md text-left space-y-2"
