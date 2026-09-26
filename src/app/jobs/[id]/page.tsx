@@ -250,6 +250,12 @@ export default async function JobDetailPage({
                 location: requisition.location ?? "Remote",
               }}
               variant="button"
+              // Match this row's other buttons (Consult Shree, Standard
+              // Apply): same neutral icon/text color by default, brand
+              // color only on hover -- rather than JobShareButton's own
+              // always-brand-tinted default styling, which stood out
+              // inconsistently next to the rest of this action bar.
+              className="!bg-page !border-border !text-ink hover:!text-brand hover:!border-brand/40 !shadow-none"
             />
             <Link
               href={`/?role=${encodeURIComponent(posting.id)}`}

@@ -60,6 +60,9 @@ export default function CreateUserForm() {
   const [orgsLoading, setOrgsLoading] = useState(false);
 
   const [companyName, setCompanyName] = useState("");
+  // Blank = uncapped. Only meaningful for a brand-new org -- once it
+  // exists, its seat limit is set and this field no longer applies.
+  const [seatLimit, setSeatLimit] = useState("");
   const [existingOrgId, setExistingOrgId] = useState("");
   const [orgRole, setOrgRole] = useState<"member" | "org_admin">("member");
   const [fullName, setFullName] = useState("");
@@ -120,6 +123,7 @@ export default function CreateUserForm() {
         body: JSON.stringify({
           orgMode,
           companyName,
+          seatLimit: orgMode === "new" && seatLimit.trim() ? Number(seatLimit) : null,
           existingOrgId,
           orgRole,
           fullName,
@@ -142,6 +146,7 @@ export default function CreateUserForm() {
       setPassword(STANDARD_PASSWORD);
       setContactNumber("");
       setSelectedTools(new Set());
+      setSeatLimit("");
       if (orgMode === "new" && data.orgId) {
         setOrgMode("existing");
         setOrgs((prev) => (prev.some((o) => o.id === data.orgId) ? prev : [...prev, { id: data.orgId!, name: data.orgName!, status: "approved" }]));
@@ -197,19 +202,35 @@ export default function CreateUserForm() {
           </div>
 
           {orgMode === "new" ? (
-            <Field label="Company name">
-              <input
-                type="text"
-                required
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                placeholder="Acme Corp"
-                className={inputClass}
-              />
-              <p className="m-0 mt-1 text-[11px] text-ink-muted">
-                This person becomes the new organization&apos;s first Admin automatically.
-              </p>
-            </Field>
+            <div className="flex flex-col gap-3">
+              <Field label="Company name">
+                <input
+                  type="text"
+                  required
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder="Acme Corp"
+                  className={inputClass}
+                />
+                <p className="m-0 mt-1 text-[11px] text-ink-muted">
+                  This person becomes the new organization&apos;s first Admin automatically.
+                </p>
+              </Field>
+              <Field label="Number of users (seats)">
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={seatLimit}
+                  onChange={(e) => setSeatLimit(e.target.value)}
+                  placeholder="Leave blank for unlimited"
+                  className={inputClass}
+                />
+                <p className="m-0 mt-1 text-[11px] text-ink-muted">
+                  Caps how many logins this org&apos;s own Admin can create or add from Organization Settings. Leave blank for no limit.
+                </p>
+              </Field>
+            </div>
           ) : (
             <div className="flex flex-col gap-3">
               <Field label="Select organization">

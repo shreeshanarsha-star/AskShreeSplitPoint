@@ -182,8 +182,6 @@ export default function JobPostingTemplate({
 }: JobPostingTemplateProps) {
   // Resolved company display
   const displayName = hideCompanyName ? "Confidential" : (companyName || "AskShree");
-  const displayEmail = hideCompanyName ? null : (careersEmail || "careers@askshree.com");
-  const displayWebsite = hideCompanyName ? null : (companyWebsite || "https://www.askshree.com");
 
   function updateContent(key: keyof JobPostingTemplateContent, val: string) {
     onContentChange?.({ ...content, [key]: val });
@@ -366,45 +364,6 @@ export default function JobPostingTemplate({
           />
         </Section>
       </div>
-
-      {/* ── Section 8: Footer band ── */}
-      <footer className="px-6 sm:px-8 py-5 bg-gradient-to-br from-brand/5 to-page border-t border-border">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-0.5">
-            <p className="text-xs font-bold text-brand font-display tracking-tight m-0">
-              {hideCompanyName ? "Join a great team" : `Join ${displayName}`}
-            </p>
-            <p className="text-[11px] text-ink-muted m-0">
-              AI-powered hiring, human at heart.
-            </p>
-          </div>
-
-          {!hideCompanyName && (
-            <div className="flex items-center gap-3 text-[11.5px] text-ink-muted">
-              {displayEmail && (
-                <a
-                  href={`mailto:${displayEmail}`}
-                  className="flex items-center gap-1.5 hover:text-brand transition-colors"
-                >
-                  <Icon name="chat" size={13} />
-                  <span>{displayEmail}</span>
-                </a>
-              )}
-              {displayWebsite && (
-                <a
-                  href={displayWebsite}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 hover:text-brand transition-colors"
-                >
-                  <Icon name="sparkle" size={13} />
-                  <span>askshree.com</span>
-                </a>
-              )}
-            </div>
-          )}
-        </div>
-      </footer>
     </article>
   );
 }

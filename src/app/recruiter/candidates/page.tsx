@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
@@ -24,21 +25,33 @@ interface CandidateResult {
 // qualification. Scoped server-side to your own org (or your own
 // requisitions if you're a standalone recruiter) -- you only ever see
 // candidates you're allowed to see.
+// useSearchParams() (used below to support the ?q= deep link from the
+// global search bar) requires a Suspense boundary in the App Router, or
+// the route fails to build -- this wrapper is that boundary; the actual
+// page lives in CandidateSearchPageInner.
 export default function CandidateSearchPage() {
+  return (
+    <Suspense fallback={null}>
+      <CandidateSearchPageInner />
+    </Suspense>
+  );
+}
+
+function CandidateSearchPageInner() {
+  const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<CandidateResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
 
-  async function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    if (!query.trim()) return;
+  async function runSearch(q: string) {
+    if (!q.trim()) return;
     setLoading(true);
     setError(null);
     setSearched(true);
     try {
-      const res = await fetch(`/api/ats/candidates/search?q=${encodeURIComponent(query.trim())}`);
+      const res = await fetch(`/api/ats/candidates/search?q=${encodeURIComponent(q.trim())}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Search failed.");
       setResults(data.candidates ?? []);
@@ -48,6 +61,23 @@ export default function CandidateSearchPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  // Deep-link support: /recruiter/candidates?q=<query> (used by the
+  // global search bar's "View in Candidate Search" link) -- prefill and
+  // run automatically instead of landing on an empty search box.
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q && q.trim()) {
+      setQuery(q);
+      runSearch(q);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    await runSearch(query);
   }
 
   return (

@@ -48,7 +48,7 @@ export default async function OrgSettingsPage() {
 
   const { data: org, error } = await supabase
     .from("organizations")
-    .select("id, name, status, plan")
+    .select("id, name, status, plan, seat_limit")
     .eq("id", profile.org_id)
     .single();
 

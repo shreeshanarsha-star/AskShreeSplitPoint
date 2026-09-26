@@ -41,6 +41,7 @@ export interface AccessContext {
   hasRecruiterAccess: boolean; // mirrors /api/ats/requisitions' own gate
   settingsHref: "/admin" | "/org/settings" | null;
   licensedDeptIds: string[]; // mirrors requireFeatureAccess()'s grant logic, department-level
+  licensedToolNames: string[]; // the same grant logic, at individual-tool granularity (Tool.n)
 }
 
 export async function computeAccessContext(
@@ -75,7 +76,7 @@ export async function computeAccessContext(
     ? "/org/settings"
     : null;
 
-  const licensedDeptIds = await computeLicensedDeptIds(admin, userId, isPlatformOwner, orgId);
+  const { deptIds: licensedDeptIds, toolNames: licensedToolNames } = await computeLicensing(admin, userId, isPlatformOwner, orgId);
 
   return {
     userId,
@@ -92,22 +93,28 @@ export async function computeAccessContext(
     hasRecruiterAccess,
     settingsHref,
     licensedDeptIds,
+    licensedToolNames,
   };
 }
 
 // Mirrors requireFeatureAccess()'s own grant rule (admin bypass -> bulk
 // plan grants every live tool -> otherwise an explicit feature_access row
 // per tool), so a department the sidebar shows is never one a click would
-// then be denied for. Kept as its own function so the shape matches the
-// logic it mirrors, rather than being inlined into computeAccessContext.
-async function computeLicensedDeptIds(
+// then be denied for. Returns both granularities from the one grant-fetch
+// pass: department ids (Sidebar's unit) and individual tool names
+// (WaffleMenu's unit -- a tool the owner ticked for this user should show
+// up as its own tile, not just unlock its whole department).
+async function computeLicensing(
   admin: SupabaseClient,
   userId: string,
   isPlatformOwner: boolean,
   orgId: string | null
-): Promise<string[]> {
+): Promise<{ deptIds: string[]; toolNames: string[] }> {
   if (isPlatformOwner) {
-    return DEPARTMENTS.map((d) => d.id);
+    return {
+      deptIds: DEPARTMENTS.map((d) => d.id),
+      toolNames: DEPARTMENTS.flatMap((d) => d.tools).filter((t) => t.s === "live").map((t) => t.n),
+    };
   }
 
   const { data: userGrants } = await admin
@@ -141,11 +148,18 @@ async function computeLicensedDeptIds(
 
   if (hasBulk) {
     // Bulk gives every department except owner-exclusive ones (Gauri.ai).
-    return DEPARTMENTS.filter((d) => d.id !== "support").map((d) => d.id);
+    return {
+      deptIds: DEPARTMENTS.filter((d) => d.id !== "support").map((d) => d.id),
+      toolNames: DEPARTMENTS.filter((d) => d.id !== "support").flatMap((d) => d.tools).filter((t) => t.s === "live").map((t) => t.n),
+    };
   }
 
   const allGranted = new Set([...Array.from(userGrantedKeys), ...Array.from(orgGrantedKeys)]);
-  return DEPARTMENTS.filter((d) =>
-    d.tools.some((t) => (t.bundled && d.id !== "support") || allGranted.has(t.n))
-  ).map((d) => d.id);
+  const isToolLicensed = (t: { n: string; bundled?: boolean }, deptId: string) =>
+    (t.bundled && deptId !== "support") || allGranted.has(t.n);
+
+  return {
+    deptIds: DEPARTMENTS.filter((d) => d.tools.some((t) => isToolLicensed(t, d.id))).map((d) => d.id),
+    toolNames: DEPARTMENTS.flatMap((d) => d.tools.filter((t) => t.s === "live" && isToolLicensed(t, d.id))).map((t) => t.n),
+  };
 }

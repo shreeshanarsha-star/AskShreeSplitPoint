@@ -3,6 +3,7 @@ import { requireOrgAdmin } from "@/lib/supabase/requireAdmin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email";
 import { TALENT_ROLES, ROLE_IMPLIES, logAudit } from "@/lib/talentRoles";
+import { checkSeatAvailable } from "@/lib/org";
 
 const ORG_ROLES = new Set(["member", "org_admin"]);
 
@@ -49,6 +50,11 @@ export async function POST(req: Request) {
   }
 
   const admin = createAdminClient();
+
+  const seatCheck = await checkSeatAvailable(admin, orgId);
+  if (!seatCheck.ok) {
+    return NextResponse.json({ error: seatCheck.error }, { status: 403 });
+  }
 
   const { data: existing } = await admin.from("profiles").select("id").ilike("email", email).maybeSingle();
   if (existing) {

@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import Icon from "./Icon";
 import { createClient } from "@/lib/supabase/client";
+import { DEPARTMENTS } from "@/lib/departments";
 
 type ToolCategory = "all" | "departments" | "talent" | "legal_ops" | "productivity" | "enterprise";
 
@@ -340,6 +341,16 @@ const ALL_WAFFLE_TOOLS: ToolItem[] = [
   },
 ];
 
+// Colors for tiles built from DEPARTMENTS at runtime (see grantedDeptTools
+// below) -- ALL_WAFFLE_TOOLS above is a fixed, hand-curated catalog and has
+// no per-department color table of its own to reuse.
+const DEPT_TILE_COLOR: Record<string, string> = {
+  hr: "bg-brand-wash text-brand border-brand/30",
+  legal: "bg-indigo-100 text-indigo-900 border-indigo-300 dark:bg-indigo-950/50 dark:text-indigo-300",
+  it: "bg-sky-100 text-sky-900 border-sky-300 dark:bg-sky-950/50 dark:text-sky-300",
+  support: "bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300",
+};
+
 interface WaffleMenuProps {
   isOpen?: boolean;
   onToggle?: () => void;
@@ -371,6 +382,12 @@ export default function WaffleMenu({
   const [activeCategory, setActiveCategory] = useState<ToolCategory>("all");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userRoles, setUserRoles] = useState<Set<RoleClearance>>(new Set(["public"]));
+  // Individual tools the owner/org-admin actually ticked for this account
+  // (Tool.n values from user_feature_access / feature_access, via the same
+  // computeAccessContext() the Sidebar trusts) -- kept separate from the
+  // coarse role-based ALL_WAFFLE_TOOLS catalog below so a specific grant
+  // shows up as its own tile instead of requiring a matching role.
+  const [licensedToolNames, setLicensedToolNames] = useState<Set<string>>(new Set());
   const [loginModalTool, setLoginModalTool] = useState<GuestTool | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -401,6 +418,7 @@ export default function WaffleMenu({
           return;
         }
         const ctx = await res.json();
+        setLicensedToolNames(new Set<string>(ctx.licensedToolNames || []));
 
         if (ctx.isPlatformOwner) {
           rolesSet.add("platform_admin");
@@ -486,13 +504,42 @@ export default function WaffleMenu({
     };
   }, [open, loginModalTool]);
 
+  // Tools the owner/org-admin specifically granted this account (e.g. via
+  // Create User's access checklist or the org access modal), rendered as
+  // their own tiles alongside the fixed role-based catalog above. A tool
+  // whose href is already covered by a fixed ALL_WAFFLE_TOOLS entry is
+  // skipped so a bundled tool like Recruiter Console doesn't show twice.
+  const fixedHrefs = useMemo(() => new Set(ALL_WAFFLE_TOOLS.map((t) => t.href)), []);
+  const grantedDeptTools = useMemo<ToolItem[]>(() => {
+    if (licensedToolNames.size === 0) return [];
+    const items: ToolItem[] = [];
+    for (const dept of DEPARTMENTS) {
+      for (const tool of dept.tools) {
+        if (tool.s !== "live" || !tool.href) continue;
+        if (fixedHrefs.has(tool.href)) continue;
+        if (!licensedToolNames.has(tool.n)) continue;
+        items.push({
+          name: tool.n,
+          desc: dept.name,
+          href: tool.href,
+          category: "departments",
+          icon: dept.icon,
+          color: DEPT_TILE_COLOR[dept.id] || "bg-page text-ink-2 border-border",
+          allowedRoles: [],
+        });
+      }
+    }
+    return items;
+  }, [licensedToolNames, fixedHrefs]);
+
   // Authenticated Tools
   const availableTools = useMemo(() => {
-    return ALL_WAFFLE_TOOLS.filter((t) => {
+    const roleBased = ALL_WAFFLE_TOOLS.filter((t) => {
       if (!t.allowedRoles || t.allowedRoles.length === 0) return true;
       return t.allowedRoles.some((r) => userRoles.has(r));
     });
-  }, [userRoles]);
+    return [...roleBased, ...grantedDeptTools];
+  }, [userRoles, grantedDeptTools]);
 
   const counts = useMemo(() => {
     return {

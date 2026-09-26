@@ -110,6 +110,18 @@ export default function RecruiterPage() {
   const [savingPost, setSavingPost] = useState(false);
   const [postMsg, setPostMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [justPublished, setJustPublished] = useState(false);
+  const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
+
+  // A prior "Published" success state only applies to the exact
+  // requisition/mode it was earned on -- if the recruiter switches
+  // requisitions or flips back to Draft, the confirmation should clear
+  // rather than keep claiming something is published when the form no
+  // longer reflects that submission.
+  useEffect(() => {
+    setJustPublished(false);
+    setPublishedUrl(null);
+  }, [postTargetReqId, postStatus]);
 
   useEffect(() => {
     async function check() {
@@ -296,7 +308,7 @@ export default function RecruiterPage() {
     e.preventDefault();
     if (!postTargetReqId) { setPostMsg({ type: "error", text: "Select a requisition first." }); return; }
     if (postBoards.size === 0) { setPostMsg({ type: "error", text: "Select at least one job board." }); return; }
-    setSavingPost(true); setPostMsg(null);
+    setSavingPost(true); setPostMsg(null); setJustPublished(false); setPublishedUrl(null);
     try {
       const boards = Array.from(postBoards);
       const results = await Promise.all(boards.map(async (board) => {
@@ -305,7 +317,12 @@ export default function RecruiterPage() {
           body: JSON.stringify({ board, hide_company_name: postHideCompany, valid_through: postValidThrough || null, status: postStatus, content: postContent }),
         });
         const data = await res.json();
-        return { board, ok: res.ok, error: data.error as string | undefined };
+        return {
+          board,
+          ok: res.ok,
+          error: data.error as string | undefined,
+          posting: data.posting as { id: string; status: string } | undefined,
+        };
       }));
       const failed = results.filter((r) => !r.ok);
       if (failed.length === results.length) {
@@ -315,6 +332,25 @@ export default function RecruiterPage() {
         setPostMsg({ type: "error", text: `Saved to ${results.length - failed.length} of ${results.length} boards. Failed: ${failed.map((f) => f.board).join(", ")}.` });
       } else {
         setPostMsg({ type: "success", text: `Posting saved to ${results.length} job board${results.length > 1 ? "s" : ""}.` });
+      }
+
+      // The API can silently downgrade a requested publish back to draft
+      // (requisition not approved, caller lacks publish rights) -- so the
+      // "Published" confirmation reflects what actually got published
+      // (posting.status from the response), never just what was requested.
+      const anyPublished = results.some((r) => r.ok && r.posting?.status === "published");
+      if (anyPublished) {
+        setJustPublished(true);
+        const askshreePosting = results.find((r) => r.ok && r.board === "askshree" && r.posting?.status === "published");
+        if (askshreePosting?.posting) {
+          const url = `https://www.askshree.com/jobs/${askshreePosting.posting.id}`;
+          setPublishedUrl(url);
+          // Best-effort -- open the live posting in a new tab so the
+          // recruiter can see it went live; a popup blocker just leaves
+          // the "View live posting" link below as the fallback. Closing
+          // that tab naturally returns them to this one.
+          window.open(url, "_blank", "noopener,noreferrer");
+        }
       }
     } catch (err) {
       setPostMsg({ type: "error", text: err instanceof Error ? err.message : "Failed to save posting." });
@@ -566,7 +602,13 @@ export default function RecruiterPage() {
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="text-sm font-bold text-ink m-0">{app.name}</h4>
+                            <h4
+                              className={`text-sm font-bold m-0 ${app.has_resume_file ? "text-ink hover:text-brand cursor-pointer transition-colors" : "text-ink"}`}
+                              onClick={() => { if (app.has_resume_file) viewResume(app.id); }}
+                              title={app.has_resume_file ? "View CV" : "No CV on file for this candidate yet."}
+                            >
+                              {app.name}
+                            </h4>
                             {app.match_score != null
                               ? <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-brand-wash text-brand border border-brand/20">{app.match_score}% Match</span>
                               : <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-100 text-gray-500 border border-gray-200 dark:bg-gray-800 dark:text-gray-400">Not scored</span>
@@ -814,19 +856,40 @@ export default function RecruiterPage() {
                 </div>
               ))}
             </div>
-            <div className="flex items-center justify-between pt-3 border-t border-border gap-3 flex-wrap">
-              <div className="inline-flex rounded-lg border border-border bg-page p-0.5">
-                {(["draft", "published"] as const).map((s) => (
-                  <button key={s} type="button" onClick={() => setPostStatus(s)}
-                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${postStatus === s ? "bg-brand text-white shadow-soft-sm" : "text-ink-muted hover:text-ink"}`}>
-                    {s === "draft" ? "Save as Draft" : "Publish"}
-                  </button>
-                ))}
+            <div className="flex flex-col gap-2.5 pt-3 border-t border-border">
+              {justPublished && (
+                <div className="flex items-center gap-2.5 flex-wrap text-xs">
+                  <span className="inline-flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
+                    <Icon name="check" size={13} />
+                    Published
+                  </span>
+                  {publishedUrl && (
+                    <a href={publishedUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand hover:underline">
+                      View live posting ↗
+                    </a>
+                  )}
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="inline-flex rounded-lg border border-border bg-page p-0.5">
+                  {(["draft", "published"] as const).map((s) => (
+                    <button key={s} type="button" onClick={() => setPostStatus(s)}
+                      className={`px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${postStatus === s ? "bg-brand text-white shadow-soft-sm" : "text-ink-muted hover:text-ink"}`}>
+                      {s === "draft" ? "Save as Draft" : "Publish"}
+                    </button>
+                  ))}
+                </div>
+                <button type="submit" disabled={savingPost || !postTargetReqId}
+                  className={`text-xs font-bold px-6 py-2.5 rounded-xl shadow-button transition-opacity disabled:opacity-50 flex items-center gap-2 cursor-pointer ${justPublished ? "bg-emerald-600 text-white hover:opacity-95" : "bg-brand text-white hover:opacity-95"}`}>
+                  {savingPost ? (
+                    <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /><span>Saving...</span></>
+                  ) : justPublished ? (
+                    <><Icon name="check" size={13} /><span>Published</span></>
+                  ) : (
+                    <><Icon name="sparkle" size={13} /><span>{postStatus === "published" ? "Publish Posting" : "Save Draft"}</span></>
+                  )}
+                </button>
               </div>
-              <button type="submit" disabled={savingPost || !postTargetReqId}
-                className="bg-brand text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-button hover:opacity-95 transition-opacity disabled:opacity-50 flex items-center gap-2 cursor-pointer">
-                {savingPost ? <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /><span>Saving...</span></> : <><Icon name="sparkle" size={13} /><span>{postStatus === "published" ? "Publish Posting" : "Save Draft"}</span></>}
-              </button>
             </div>
           </form>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Icon from "./Icon";
 import ShareToEarnModal, { ShareJob } from "./ShareToEarnModal";
 
 interface JobShareButtonProps {
@@ -28,7 +29,8 @@ export default function JobShareButton({
           title="Share to earn credits for AI CV consultation, ATS builder, and more"
           className={`h-7 px-2.5 text-[11.5px] font-semibold rounded-xl border bg-surface hover:bg-brand-wash/40 border-border hover:border-brand/40 text-ink-2 hover:text-brand transition-all flex items-center gap-1 shadow-soft-sm cursor-pointer ${className}`}
         >
-          <span>🎁 Share & Earn</span>
+          <Icon name="gift" size={13} />
+          <span>Share & Earn</span>
         </button>
         <ShareToEarnModal
           isOpen={showModal}
@@ -50,7 +52,8 @@ export default function JobShareButton({
         title="Share role with peers to earn credits for AI CV Consultation, ATS Builder, and more"
         className={`px-4 py-2 rounded-xl text-xs font-bold border border-brand/30 bg-brand-wash hover:bg-brand/25 text-brand hover:text-brand-dark transition-all flex items-center gap-1.5 shadow-soft-sm ${className}`}
       >
-        <span>🎁 Share & Earn Credits</span>
+        <Icon name="gift" size={13} />
+        <span>Share & Earn Credits</span>
       </button>
       <ShareToEarnModal
         isOpen={showModal}

@@ -194,13 +194,13 @@ export default function UniversalPlatformShell({
                     className="flex items-center gap-1.5 text-[13px] sm:text-[14px] font-semibold text-ink-2 hover:text-ink transition-colors cursor-pointer"
                   >
                     <span className="truncate">{activeNavItem?.label ?? portalTitle}</span>
-                    <span
-                      className={`text-[9px] transition-transform duration-200 ${
-                        navMenuOpen ? "rotate-180 opacity-100" : "opacity-60"
+                    <Icon
+                      name="chevronDown"
+                      size={12}
+                      className={`flex-shrink-0 transition-transform duration-200 ${
+                        navMenuOpen ? "rotate-180 text-ink" : "text-ink-muted"
                       }`}
-                    >
-                      ▾
-                    </span>
+                    />
                   </button>
                   {navMenuOpen && (
                     <div

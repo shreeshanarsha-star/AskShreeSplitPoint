@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type Org = { id: string; name: string; status: string; plan: string; features: string[] };
+type Org = { id: string; name: string; status: string; plan: string; features: string[]; seat_limit?: number | null };
 type Member = {
   id: string;
   email: string | null;
@@ -40,6 +40,13 @@ export default function OrgSettingsPanel({ org, meId }: { org: Org; meId: string
       .finally(() => setLoadingMembers(false));
   }
   useEffect(loadMembers, []);
+
+  // Client-side mirror of checkSeatAvailable() (lib/org.ts) -- the real
+  // enforcement is server-side on both add-member routes; this is just so
+  // the owner-set cap shows up here instead of only surfacing as a submit
+  // error after the fact.
+  const seatLimit = org.seat_limit ?? null;
+  const seatsFull = seatLimit != null && members.length >= seatLimit;
 
   async function saveName() {
     if (!name.trim() || name.trim() === org.name) return;
@@ -224,7 +231,7 @@ export default function OrgSettingsPanel({ org, meId }: { org: Org; meId: string
           </select>
           <button
             type="submit"
-            disabled={inviting || !inviteEmail.trim() || !inviteName.trim()}
+            disabled={inviting || !inviteEmail.trim() || !inviteName.trim() || seatsFull}
             className="bg-brand text-white text-[12.5px] font-bold px-3.5 py-2 rounded-sm disabled:opacity-50"
           >
             {inviting ? "Creating…" : "+ Create login"}
@@ -245,6 +252,13 @@ export default function OrgSettingsPanel({ org, meId }: { org: Org; meId: string
       <div className="border border-border rounded-md p-4 bg-surface flex flex-col gap-3">
         <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">Members</div>
 
+        {seatLimit != null && (
+          <p className={`m-0 text-[11.5px] font-semibold ${seatsFull ? "text-critical" : "text-ink-muted"}`}>
+            {members.length} of {seatLimit} seat{seatLimit === 1 ? "" : "s"} used
+            {seatsFull && " — contact the platform owner to add more."}
+          </p>
+        )}
+
         <details className="text-[12px]">
           <summary className="cursor-pointer text-ink-muted select-none">Or add someone who already has an Askshree account</summary>
           <form onSubmit={addMember} className="flex items-center gap-2 flex-wrap mt-2">
@@ -255,7 +269,7 @@ export default function OrgSettingsPanel({ org, meId }: { org: Org; meId: string
               placeholder="colleague@company.com"
               className="input flex-1 min-w-[200px]"
             />
-            <button type="submit" disabled={adding || !addEmail.trim()} className="border border-border text-[12.5px] font-bold px-3.5 py-2 rounded-sm bg-page disabled:opacity-50">
+            <button type="submit" disabled={adding || !addEmail.trim() || seatsFull} className="border border-border text-[12.5px] font-bold px-3.5 py-2 rounded-sm bg-page disabled:opacity-50">
               {adding ? "Adding…" : "Add existing account"}
             </button>
           </form>

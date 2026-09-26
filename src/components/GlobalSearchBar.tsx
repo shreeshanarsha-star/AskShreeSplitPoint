@@ -6,7 +6,7 @@ import Icon from "./Icon";
 import { VScroller } from "./Scroller";
 import { ALL_ITEMS } from "@/lib/departments";
 
-type ResultType = "text" | "search" | "weather" | "currency" | "calc" | "clarify" | "navigate" | "candidates" | "todo";
+type ResultType = "text" | "search" | "weather" | "currency" | "calc" | "clarify" | "navigate" | "candidates" | "candidateSearch" | "todo";
 
 type FeedTurn = {
   id: string;
@@ -81,6 +81,21 @@ export default function GlobalSearchBar() {
   const [listening, setListening] = useState(false);
   const conversationIdRef = useRef<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  // Recruiter-only: lets the bar search the candidate database directly
+  // (see searchCandidates below) instead of only matching departments/
+  // tools or falling through to Ask Simple. Mirrors the same
+  // computeAccessContext() source of truth Sidebar/WaffleMenu already use.
+  const [hasRecruiterAccess, setHasRecruiterAccess] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/profile/access")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((ctx) => setHasRecruiterAccess(!!ctx?.hasRecruiterAccess))
+      .catch(() => {
+        // Signed out / offline -- fall back to no candidate-search fast
+        // path, same as a non-recruiter account.
+      });
+  }, []);
 
   // Reload prior turns on mount so a page refresh doesn't lose context.
   useEffect(() => {
@@ -185,7 +200,45 @@ export default function GlobalSearchBar() {
     }
   }
 
-  function runSearch() {
+  // Recruiter-only fast path: search the recruiter's own candidate
+  // database (the same /api/ats/candidates/search the Candidate Search
+  // page uses -- already server-gated to recruiter-reader roles) before
+  // falling back to Ask Simple. Returns true when it found and displayed
+  // matches, so runSearch() knows whether to fall through.
+  async function searchCandidates(text: string): Promise<boolean> {
+    setBusy(true);
+    const userTurn: FeedTurn = { id: `u-${Date.now()}`, role: "user", content: text };
+    setFeed((f) => [...f, userTurn]);
+    try {
+      const res = await fetch(`/api/ats/candidates/search?q=${encodeURIComponent(text)}`);
+      const data = await res.json();
+      if (!res.ok) return false;
+      const candidates = Array.isArray(data.candidates) ? data.candidates : [];
+      if (candidates.length === 0) {
+        // Nothing in the candidate database -- drop the placeholder turn
+        // and let the caller fall through to Ask Simple instead.
+        setFeed((f) => f.filter((t) => t.id !== userTurn.id));
+        return false;
+      }
+      setFeed((f) => [
+        ...f,
+        {
+          id: `a-${Date.now()}`,
+          role: "assistant",
+          content: `Found ${candidates.length} candidate${candidates.length > 1 ? "s" : ""} matching "${text}" in your database.`,
+          resultType: "candidateSearch",
+          resultData: { query: text, candidates },
+        },
+      ]);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runSearch() {
     const raw = q.trim();
     const query = raw.toLowerCase();
     if (!query || busy) return;
@@ -196,6 +249,10 @@ export default function GlobalSearchBar() {
     if (match) {
       goToFeature(router, match.href);
       return;
+    }
+    if (hasRecruiterAccess) {
+      const found = await searchCandidates(raw);
+      if (found) return;
     }
     askShree(raw);
   }
@@ -422,6 +479,52 @@ function FeedCard({ turn }: { turn: FeedTurn }) {
             ))}
           </div>
         )}
+      </div>
+    );
+  }
+
+  if (turn.resultType === "candidateSearch" && data && Array.isArray(data.candidates)) {
+    const candidates = data.candidates as Array<{
+      id: string;
+      name: string | null;
+      email: string | null;
+      phone: string | null;
+      current_company: string | null;
+      current_location: string | null;
+      qualification: string | null;
+      requisition: { req_no: string; title: string } | null;
+      matchedKeywords?: string[];
+      hasResume?: boolean;
+    }>;
+    const query = String(data.query ?? "");
+    return (
+      <div className="self-start w-full bg-surface border border-border rounded-md p-3.5 shadow-soft-sm flex flex-col gap-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <p className="m-0 text-[13px] text-ink">{turn.content}</p>
+          <a href={`/recruiter/candidates?q=${encodeURIComponent(query)}`} className="text-[11.5px] font-semibold text-brand hover:underline flex-shrink-0">
+            Open full search →
+          </a>
+        </div>
+        <div className="flex flex-col gap-2">
+          {candidates.slice(0, 5).map((c) => (
+            <div key={c.id} className="border border-border rounded-sm px-2.5 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-[12.5px] font-semibold text-ink truncate flex items-center gap-1.5">
+                  {c.name || "Unnamed candidate"}
+                  {c.hasResume && <Icon name="file" className="w-3 h-3 text-ink-muted flex-shrink-0" />}
+                </div>
+                {c.requisition && (
+                  <span className="shrink-0 text-[10.5px] font-semibold text-brand bg-brand-wash rounded-full px-2 py-0.5">
+                    {c.requisition.req_no}
+                  </span>
+                )}
+              </div>
+              <div className="text-[11.5px] text-ink-muted line-clamp-2">
+                {[c.current_company, c.current_location, c.qualification].filter(Boolean).join(" -- ")}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

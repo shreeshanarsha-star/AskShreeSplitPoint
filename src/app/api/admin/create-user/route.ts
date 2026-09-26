@@ -50,6 +50,19 @@ export async function POST(req: Request) {
     : null;
   const toolKeys: string[] = Array.isArray(body?.toolKeys) ? body.toolKeys.filter((k: unknown) => typeof k === "string") : [];
 
+  // Seat cap for a brand-new org -- how many total logins its own org
+  // admin may create/add afterward (checked in checkSeatAvailable(), used
+  // by /api/org/members/invite and /api/org/members). Left blank/omitted
+  // means uncapped, same as every org created before this existed.
+  let seatLimit: number | null = null;
+  if (orgMode === "new" && body?.seatLimit !== undefined && body?.seatLimit !== null && body?.seatLimit !== "") {
+    const n = Number(body.seatLimit);
+    if (!Number.isInteger(n) || n < 1) {
+      return NextResponse.json({ error: "Number of users must be a whole number of 1 or more." }, { status: 400 });
+    }
+    seatLimit = n;
+  }
+
   if (!fullName) return NextResponse.json({ error: "Full name is required." }, { status: 400 });
   if (!email || !email.includes("@")) return NextResponse.json({ error: "A valid email is required." }, { status: 400 });
   if (!password || password.length < 8) return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
@@ -78,6 +91,7 @@ export async function POST(req: Request) {
         plan: "individual",
         approved_at: new Date().toISOString(),
         approved_by: ownerUser.id,
+        seat_limit: seatLimit,
       })
       .select()
       .single();
@@ -169,7 +183,7 @@ export async function POST(req: Request) {
     entityId: newUserId,
     actorId: ownerUser.id,
     action: "owner_created_user",
-    detail: { email, accessLevel, orgMode, toolKeys },
+    detail: { email, accessLevel, orgMode, toolKeys, seatLimit },
     orgId,
   });
   await logAdminActivity(admin, {

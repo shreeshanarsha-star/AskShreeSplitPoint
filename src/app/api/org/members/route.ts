@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireOrgAdmin } from "@/lib/supabase/requireAdmin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { checkSeatAvailable } from "@/lib/org";
 
 // List the caller's own organization's members. Org admin (or platform
 // owner) only.
@@ -52,6 +53,12 @@ export async function POST(req: Request) {
   if (!email) return NextResponse.json({ error: "email is required." }, { status: 400 });
 
   const admin = createAdminClient();
+
+  const seatCheck = await checkSeatAvailable(admin, orgId);
+  if (!seatCheck.ok) {
+    return NextResponse.json({ error: seatCheck.error }, { status: 403 });
+  }
+
   const { data: target, error: findError } = await admin
     .from("profiles")
     .select("id, org_id")
