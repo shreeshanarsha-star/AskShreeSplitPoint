@@ -73,6 +73,11 @@ export default function RecruiterPage() {
   const [requisitions, setRequisitions] = useState<AtsRequisition[]>([]);
   const [loadingReqs, setLoadingReqs] = useState(true);
   const [reqError, setReqError] = useState<string | null>(null);
+  // Distinguishes "this account has no recruiter-side role" (403 from
+  // /api/ats/requisitions) from a generic load failure, so the page can
+  // show one clean message instead of the KPI row + a raw "Forbidden"
+  // error sitting underneath it.
+  const [noAccess, setNoAccess] = useState(false);
 
   const [applications, setApplications] = useState<AtsApplication[]>([]);
   const [loadingApps, setLoadingApps] = useState(false);
@@ -119,10 +124,15 @@ export default function RecruiterPage() {
   }, [router]);
 
   async function loadRequisitions() {
-    setLoadingReqs(true); setReqError(null);
+    setLoadingReqs(true); setReqError(null); setNoAccess(false);
     try {
       const res = await fetch("/api/ats/requisitions");
-      if (!res.ok) { const d = await res.json().catch(() => ({})); setReqError(d.error || "Failed to load requisitions."); return; }
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        if (res.status === 403) { setNoAccess(true); return; }
+        setReqError(d.error || "Failed to load requisitions.");
+        return;
+      }
       const data = await res.json();
       setRequisitions(Array.isArray(data.requisitions) ? data.requisitions : []);
     } catch { setReqError("Network error loading requisitions."); }
@@ -444,6 +454,16 @@ export default function RecruiterPage() {
 
       {/* ALL REQUISITIONS */}
       {activeFeature === "all_requisitions" && (
+        noAccess ? (
+          <div className="p-8 border border-dashed border-border rounded-xl text-center bg-surface max-w-md mx-auto">
+            <Icon name="briefcase" className="w-8 h-8 text-ink-muted mx-auto mb-2" />
+            <h4 className="text-sm font-bold text-ink m-0">No recruiter access on this account</h4>
+            <p className="text-xs text-ink-muted mt-1">
+              This account isn&apos;t set up with a recruiter, hiring manager, or org-admin role yet.
+              Ask the platform owner to grant access, or sign in with a recruiter account instead.
+            </p>
+          </div>
+        ) : (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -491,6 +511,7 @@ export default function RecruiterPage() {
             </div>
           )}
         </div>
+        )
       )}
 
       {/* ALL APPLICATIONS */}

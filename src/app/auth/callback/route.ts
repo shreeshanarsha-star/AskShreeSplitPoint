@@ -52,7 +52,7 @@ export async function GET(request: Request) {
           updated_at: new Date().toISOString(),
         }, { onConflict: "id" });
 
-      if (profile?.is_admin || data.user.email?.toLowerCase().includes("shreesha")) {
+      if (profile?.is_admin) {
         return NextResponse.redirect(`${origin}/admin`);
       }
 

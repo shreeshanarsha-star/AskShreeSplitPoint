@@ -77,6 +77,12 @@ export default function TopbarStatus() {
   const [signingOut, setSigningOut] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  // What this signed-in account can actually reach -- derived the same way
+  // the server-side gates do (profiles.org_role / talent_user_roles), so
+  // the dropdown never offers a destination the account will then be
+  // blocked from. Previously this menu was unconditional: every signed-in
+  // account saw every persona's destinations regardless of its real role.
+  const [hasRecruiterAccess, setHasRecruiterAccess] = useState(false);
 
   const topbarRef = useRef<HTMLDivElement>(null);
 
@@ -125,20 +131,51 @@ export default function TopbarStatus() {
       setUserEmail(user.email ?? null);
       const { data: profile } = await supabase
         .from("profiles")
-        .select("is_admin, org_role, full_name, avatar_url")
+        .select("is_admin, org_role, org_id, full_name, avatar_url")
         .eq("id", user.id)
         .maybeSingle();
       if (cancelled) return;
-      if (profile?.is_admin || user.email?.toLowerCase().includes("shreesha")) {
-        setIsAdmin(true);
+
+      const admin = !!profile?.is_admin;
+      const orgAdmin = profile?.org_role === "org_admin";
+      setIsAdmin(admin);
+      if (admin) {
         setSettingsHref("/admin");
-      } else if (profile?.org_role === "org_admin") {
+      } else if (orgAdmin) {
         setSettingsHref("/org/settings");
       }
       setFullName(profile?.full_name ?? null);
       setAvatarUrl(profile?.avatar_url ?? null);
       const label = profile?.full_name || user.email?.split("@")[0] || null;
       setFirstName(label ? label.split(" ")[0] : null);
+
+      // Recruiter-side access -- the same READER_ROLES set
+      // /api/ats/requisitions enforces server-side (recruiter,
+      // lead_recruiter, hiring_manager, hr_approver, hr_ops, hr_head,
+      // ta_head, admin), plus org_admin and the platform owner. Mirrors
+      // that route's own check so "Recruiter Cockpit" never appears for an
+      // account the API would then turn around and 403.
+      if (admin || orgAdmin) {
+        setHasRecruiterAccess(true);
+      } else {
+        const { data: talentRoles } = await supabase
+          .from("talent_user_roles")
+          .select("role")
+          .eq("user_id", user.id);
+        if (cancelled) return;
+        const roles = (talentRoles || []).map((r: { role: string }) => r.role);
+        const READER_ROLES = [
+          "recruiter",
+          "lead_recruiter",
+          "hiring_manager",
+          "hr_approver",
+          "hr_ops",
+          "hr_head",
+          "ta_head",
+          "admin",
+        ];
+        setHasRecruiterAccess(roles.some((r) => READER_ROLES.includes(r)));
+      }
     });
     return () => {
       cancelled = true;
@@ -589,39 +626,17 @@ export default function TopbarStatus() {
                       <Icon name="check" className="w-3.5 h-3.5 text-brand" />
                       <span>My Applications (Candidate)</span>
                     </Link>
-                    <Link
-                      href="/agent"
-                      onClick={closeMenu}
-                      className="px-2 py-1.5 rounded-lg hover:bg-page text-ink flex items-center gap-2 font-medium transition-colors"
-                    >
-                      <Icon name="sparkle" className="w-3.5 h-3.5 text-brand" />
-                      <span>Master Agent Mission Control</span>
-                    </Link>
-                    <Link
-                      href="/recruiter"
-                      onClick={closeMenu}
-                      className="px-2 py-1.5 rounded-lg hover:bg-page text-ink flex items-center gap-2 font-medium transition-colors"
-                    >
-                      <Icon name="briefcase" className="w-3.5 h-3.5 text-brand" />
-                      <span>Recruiter Cockpit</span>
-                    </Link>
-                    <Link
-                      href="/hm"
-                      onClick={closeMenu}
-                      className="px-2 py-1.5 rounded-lg hover:bg-page text-ink flex items-center gap-2 font-medium transition-colors"
-                    >
-                      <Icon name="users" className="w-3.5 h-3.5 text-brand" />
-                      <span>Hiring Manager Portal</span>
-                    </Link>
-                    <Link
-                      href="/recruiter/extension"
-                      onClick={closeMenu}
-                      className="px-2 py-1.5 rounded-lg hover:bg-page text-ink flex items-center gap-2 font-medium transition-colors"
-                    >
-                      <Icon name="sparkle" className="w-3.5 h-3.5 text-brand" />
-                      <span>Sourcing Extension</span>
-                    </Link>
-                    {settingsHref ? (
+                    {(isAdmin || hasRecruiterAccess) && (
+                      <Link
+                        href="/recruiter"
+                        onClick={closeMenu}
+                        className="px-2 py-1.5 rounded-lg hover:bg-page text-ink flex items-center gap-2 font-medium transition-colors"
+                      >
+                        <Icon name="briefcase" className="w-3.5 h-3.5 text-brand" />
+                        <span>Recruiter Cockpit</span>
+                      </Link>
+                    )}
+                    {settingsHref && (
                       <Link
                         href={settingsHref}
                         onClick={closeMenu}
@@ -629,15 +644,6 @@ export default function TopbarStatus() {
                       >
                         <Icon name="gear" className="w-3.5 h-3.5 text-ink-muted" />
                         <span>{settingsHref === "/admin" ? "Platform Owner Console" : "Org Settings"}</span>
-                      </Link>
-                    ) : (
-                      <Link
-                        href="/org/settings"
-                        onClick={closeMenu}
-                        className="px-2 py-1.5 rounded-lg hover:bg-page text-ink flex items-center gap-2 font-medium transition-colors"
-                      >
-                        <Icon name="gear" className="w-3.5 h-3.5 text-ink-muted" />
-                        <span>Org Settings</span>
                       </Link>
                     )}
                     <button

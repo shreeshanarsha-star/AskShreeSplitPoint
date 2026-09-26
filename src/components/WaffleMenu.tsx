@@ -414,7 +414,7 @@ export default function WaffleMenu({
           }
         }
 
-        if (profile?.is_admin || user.email?.toLowerCase().includes("shreesha")) {
+        if (profile?.is_admin) {
           rolesSet.add("platform_admin");
           rolesSet.add("org_admin");
           rolesSet.add("recruiter");

@@ -72,7 +72,7 @@ export default function Sidebar({
       setFullName(profile?.full_name ?? null);
       setAvatarUrl(profile?.avatar_url ?? null);
 
-      if (profile?.is_admin || user.email?.toLowerCase().includes("shreesha")) {
+      if (profile?.is_admin) {
         setVisibleDeptIds(new Set(DEPARTMENTS.map((d) => d.id)));
         return;
       }
