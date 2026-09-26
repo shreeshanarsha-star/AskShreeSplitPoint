@@ -1,12 +1,107 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import UniversalPlatformShell from "@/components/UniversalPlatformShell";
 import Icon from "@/components/Icon";
 import { createClient } from "@/lib/supabase/client";
+import QuickApplyModal, { QuickApplyJobInfo } from "@/components/tools/QuickApplyModal";
+
+// --- Real-data helpers (Track tab) -----------------------------------------
+// talent_candidates.stage real values -> the 5-step display funnel below.
+// hired/joined have no dedicated step in this UI yet, so they display at
+// the final "Offer" position with their own status badge text.
+const STAGE_INDEX: Record<string, number> = {
+  applied: 0,
+  screening: 1,
+  hm_review: 2,
+  interview: 3,
+  offer: 4,
+  hired: 4,
+  joined: 4,
+};
+function stageIndexFor(stage: string) {
+  return STAGE_INDEX[stage] ?? 0;
+}
+const STAGE_BADGE: Record<string, string> = {
+  applied: "Application Received",
+  screening: "AI Screening in Progress",
+  hm_review: "In Hiring Manager Review",
+  interview: "Interview Stage",
+  offer: "Offer Extended",
+  hired: "Hired",
+  joined: "Joined",
+  rejected: "Not Progressing",
+};
+function statusBadgeFor(stage: string) {
+  return STAGE_BADGE[stage] || "Application Received";
+}
+function relativeTime(iso: string) {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "recently";
+  const diffMs = Math.max(0, Date.now() - then);
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins} min${mins === 1 ? "" : "s"} ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} month${months === 1 ? "" : "s"} ago`;
+  const years = Math.floor(months / 12);
+  return `${years} year${years === 1 ? "" : "s"} ago`;
+}
+function nextMilestoneFor(stage: string) {
+  switch (stage) {
+    case "applied": return "AI screening against the role\u2019s must-have skills";
+    case "screening": return "Hiring manager calibration review";
+    case "hm_review": return "Interview scheduling";
+    case "interview": return "Interview outcome & offer calibration";
+    case "offer": return "Offer acceptance & onboarding";
+    case "hired":
+    case "joined": return "Onboarding";
+    case "rejected": return "";
+    default: return "Next update from the hiring team";
+  }
+}
+function notesFor(stage: string, matchScore: number | null, matchedSkills: string[]) {
+  if (stage === "rejected") {
+    return "This application will not be moving forward at this time. Thank you for applying \u2014 new roles are added regularly.";
+  }
+  const scoreText = typeof matchScore === "number" ? `AI match score: ${matchScore}%. ` : "";
+  const skillsText = matchedSkills.length > 0 ? `Matched skills: ${matchedSkills.slice(0, 4).join(", ")}.` : "";
+  return `${scoreText}${skillsText}`.trim() || "Your application is with the hiring team.";
+}
+
+interface ApiApplication {
+  id: string;
+  reqNo: string;
+  role: string;
+  department: string;
+  location: string;
+  company: string;
+  stage: string;
+  submittedAt: string;
+  cvFileName: string | null;
+  matchScore: number | null;
+  matchedSkills: string[];
+  missingSkills: string[];
+}
 
 export default function CandidatePortalPage() {
+  return (
+    <Suspense fallback={null}>
+      <CandidatePortalInner />
+    </Suspense>
+  );
+}
+
+function CandidatePortalInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const jobIdParam = searchParams.get("job");
   const [activeTab, setActiveTab] = useState<"track" | "referrals" | "details" | "atscv" | "interview">("track");
   const [candidateName, setCandidateName] = useState("Alex Morgan");
   const [candidateEmail, setCandidateEmail] = useState("alex.morgan@example.com");
@@ -15,34 +110,42 @@ export default function CandidatePortalPage() {
   const [selectedAppId, setSelectedAppId] = useState("app-1");
   const [inspectedStageIdx, setInspectedStageIdx] = useState<number>(2);
 
-  const applications = [
-    {
-      id: "app-1",
-      reqNo: "R-2208261",
-      role: "Senior Full-Stack Engineer",
-      department: "Engineering",
-      location: "San Francisco, CA / Remote",
-      submittedDate: "4 days ago",
-      stageIdx: 2,
-      statusBadge: "In HM Calibration",
-      hmNotes: "Candidate scored 94% on autonomous screening. Screening notes calibrated by AI Screener. Currently assigned to VP Engineering for technical panel calibration.",
-      nextMilestone: "Interview round 1 scheduling (System Architecture & Distributed Systems)",
-      cvFileName: "Alex_Morgan_Senior_FullStack_2026.pdf",
-    },
-    {
-      id: "app-2",
-      reqNo: "R-2208190",
-      role: "Lead Cloud Infrastructure Architect",
-      department: "Platform Engineering",
-      location: "San Francisco, CA / Hybrid",
-      submittedDate: "2 weeks ago",
-      stageIdx: 3,
-      statusBadge: "Interview Scheduled",
-      hmNotes: "Technical screening completed with 98% rubric alignment. Panel interview confirmed with Lead Architect.",
-      nextMilestone: "Deep-dive live session on Kubernetes multi-cluster resilience (Thursday 2:30 PM PST)",
-      cvFileName: "Alex_Morgan_Cloud_Architect_CV.pdf",
-    },
-  ];
+  // Real applications for the signed-in candidate -- fetched from
+  // /api/candidate/my-applications, not mock data. See stageIndexFor /
+  // statusBadgeFor / notesFor / nextMilestoneFor above for how the raw
+  // talent_candidates.stage value drives this same 5-step display.
+  const [apiApplications, setApiApplications] = useState<ApiApplication[]>([]);
+  const [applicationsLoading, setApplicationsLoading] = useState(true);
+  const [isSignedIn, setIsSignedIn] = useState(false);
+
+  const applications = apiApplications.map((a) => ({
+    id: a.id,
+    reqNo: a.reqNo,
+    role: a.role,
+    department: a.department,
+    location: a.location,
+    submittedDate: relativeTime(a.submittedAt),
+    stageIdx: stageIndexFor(a.stage),
+    statusBadge: statusBadgeFor(a.stage),
+    hmNotes: notesFor(a.stage, a.matchScore, a.matchedSkills),
+    nextMilestone: nextMilestoneFor(a.stage),
+    cvFileName: a.cvFileName || "Not on file",
+    isRejected: a.stage === "rejected",
+  }));
+
+  async function refetchApplications() {
+    try {
+      const res = await fetch("/api/candidate/my-applications");
+      if (res.ok) {
+        const data = await res.json();
+        setApiApplications(data.applications || []);
+      }
+    } catch {
+      // leave existing list as-is on a transient failure
+    } finally {
+      setApplicationsLoading(false);
+    }
+  }
 
   const stageSteps = [
     { name: "Applied", desc: "Profile & resume received into secure applicant vault", eta: "Instant" },
@@ -67,7 +170,7 @@ export default function CandidatePortalPage() {
     },
   ];
 
-  const currentApp = applications.find((a) => a.id === selectedAppId) || applications[0];
+  const currentApp = applications.find((a) => a.id === selectedAppId) || applications[0] || null;
 
   // Referral State
   const [referralEmail, setReferralEmail] = useState("");
@@ -114,23 +217,68 @@ export default function CandidatePortalPage() {
   const [noticePeriod, setNoticePeriod] = useState("2 weeks");
   const [profileSavedToast, setProfileSavedToast] = useState(false);
 
-  // Check Supabase user session
+  // Auth guard: this hub is for a signed-in candidate. Anyone arriving
+  // signed out is bounced through the ordinary sign-in page (the same
+  // one the top-right "Sign in as Candidate" quick-switcher uses), which
+  // returns them right back here -- with the job they clicked, if any --
+  // via ?next=.
   useEffect(() => {
     async function loadUser() {
       try {
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
-        if (user?.email) {
-          setCandidateEmail(user.email);
-          const derivedName = user.user_metadata?.full_name || user.email.split("@")[0];
-          setCandidateName(derivedName);
+        if (!user?.email) {
+          const target = jobIdParam ? `/candidate?job=${encodeURIComponent(jobIdParam)}` : "/candidate";
+          router.replace(`/login?persona=candidate&next=${encodeURIComponent(target)}`);
+          return;
         }
+        setCandidateEmail(user.email);
+        const derivedName = user.user_metadata?.full_name || user.email.split("@")[0];
+        setCandidateName(derivedName);
+        setIsSignedIn(true);
+        refetchApplications();
       } catch {
-        // Fallback to sample candidate
+        setApplicationsLoading(false);
       }
     }
     loadUser();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Standard Apply lands here as /candidate?job=<posting id> -- fetch
+  // that specific role so it can be applied to right inside the hub,
+  // reusing the same QuickApplyModal used everywhere else on the site.
+  const [applyJob, setApplyJob] = useState<QuickApplyJobInfo | null>(null);
+  const [applyJobError, setApplyJobError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!jobIdParam || !isSignedIn) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/public/job/${encodeURIComponent(jobIdParam)}`);
+        const data = await res.json();
+        if (cancelled) return;
+        if (res.ok && data.job) {
+          setApplyJob(data.job);
+          setActiveTab("track");
+        } else {
+          setApplyJobError(data.error || "This role could not be loaded.");
+        }
+      } catch {
+        if (!cancelled) setApplyJobError("Could not load this role right now.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [jobIdParam, isSignedIn]);
+
+  function handleApplyPanelClose() {
+    setApplyJob(null);
+    setApplyJobError(null);
+    router.replace("/candidate");
+  }
 
   function handleSendReferral(e: React.FormEvent) {
     e.preventDefault();
@@ -335,6 +483,41 @@ export default function CandidatePortalPage() {
       {/* VIEW 1: TRACK MY APPLICATION */}
       {activeTab === "track" && (
         <div className="space-y-4">
+          {/* Standard Apply landed here with a specific role -- apply to it
+              right inside the hub using the same Quick Apply flow used
+              everywhere else on the site, pre-filled with this account. */}
+          {jobIdParam && (applyJob || applyJobError) && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm sm:text-base font-bold text-ink font-display">
+                  Apply to this role
+                </h2>
+                <button
+                  type="button"
+                  onClick={handleApplyPanelClose}
+                  className="text-[11.5px] font-bold text-ink-muted hover:text-ink"
+                >
+                  Close
+                </button>
+              </div>
+              {applyJobError ? (
+                <div className="p-3 rounded-xl bg-critical-wash text-critical text-xs border border-critical/20">
+                  {applyJobError}
+                </div>
+              ) : (
+                <QuickApplyModal
+                  isOpen={true}
+                  onClose={handleApplyPanelClose}
+                  job={applyJob}
+                  variant="embedded"
+                  badgeLabel="Standard Apply"
+                  account={{ email: candidateEmail, name: candidateName }}
+                  onAppliedSuccess={() => refetchApplications()}
+                />
+              )}
+            </div>
+          )}
+
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <h2 className="text-sm sm:text-base font-bold text-ink font-display">
@@ -345,27 +528,42 @@ export default function CandidatePortalPage() {
               </p>
             </div>
             {/* Multi-Application Selector */}
-            <div className="flex items-center gap-1.5 bg-surface border border-border p-1 rounded-xl">
-              {applications.map((app) => (
-                <button
-                  key={app.id}
-                  onClick={() => {
-                    setSelectedAppId(app.id);
-                    setInspectedStageIdx(app.stageIdx);
-                  }}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                    selectedAppId === app.id
-                      ? "bg-brand text-white shadow-soft-sm"
-                      : "text-ink-muted hover:text-ink hover:bg-page"
-                  }`}
-                >
-                  {app.role.split(" ")[0]} ({app.reqNo})
-                </button>
-              ))}
-            </div>
+            {applications.length > 0 && (
+              <div className="flex items-center gap-1.5 bg-surface border border-border p-1 rounded-xl flex-wrap">
+                {applications.map((app) => (
+                  <button
+                    key={app.id}
+                    onClick={() => {
+                      setSelectedAppId(app.id);
+                      setInspectedStageIdx(app.stageIdx);
+                    }}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      selectedAppId === app.id
+                        ? "bg-brand text-white shadow-soft-sm"
+                        : "text-ink-muted hover:text-ink hover:bg-page"
+                    }`}
+                  >
+                    {app.role.split(" ")[0]} ({app.reqNo})
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Main Application Card */}
+          {applicationsLoading ? (
+            <div className="bg-surface border border-border rounded-2xl p-6 shadow-soft text-xs text-ink-muted">
+              Loading your applications…
+            </div>
+          ) : applications.length === 0 ? (
+            <div className="bg-surface border border-border rounded-2xl p-6 shadow-soft text-center space-y-2">
+              <p className="text-sm font-semibold text-ink m-0">You haven&apos;t applied to any roles yet.</p>
+              <p className="text-xs text-ink-muted m-0">Once you apply, you&apos;ll be able to track every stage here.</p>
+              <Link href="/jobs" className="inline-block text-xs font-bold text-brand hover:underline mt-1">
+                Browse open roles →
+              </Link>
+            </div>
+          ) : currentApp ? (
+          /* Main Application Card */
           <div className="bg-surface border border-border rounded-2xl p-4 sm:p-5 shadow-soft space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-3">
               <div>
@@ -376,7 +574,15 @@ export default function CandidatePortalPage() {
                 </p>
               </div>
               <div className="text-left sm:text-right">
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300 dark:bg-amber-950/50 dark:text-amber-300">
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                    currentApp.isRejected
+                      ? "bg-critical-wash text-critical border-critical/30"
+                      : currentApp.stageIdx >= 4
+                      ? "bg-emerald-50 text-emerald-900 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300"
+                      : "bg-amber-50 text-amber-900 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300"
+                  }`}
+                >
                   {currentApp.statusBadge}
                 </span>
                 <p className="text-[10.5px] text-ink-muted mt-1">Submitted {currentApp.submittedDate}</p>
@@ -387,12 +593,14 @@ export default function CandidatePortalPage() {
             <div>
               <div className="text-[11px] font-semibold text-ink-muted mb-2 flex items-center justify-between">
                 <span>Application Milestones (Click any stage to view details)</span>
-                <span className="text-brand font-bold">Stage {currentApp.stageIdx + 1} of 5</span>
+                {!currentApp.isRejected && (
+                  <span className="text-brand font-bold">Stage {currentApp.stageIdx + 1} of 5</span>
+                )}
               </div>
               <div className="grid grid-cols-5 gap-2 text-center">
                 {stageSteps.map((step, idx) => {
-                  const isCompleted = idx < currentApp.stageIdx;
-                  const isCurrent = idx === currentApp.stageIdx;
+                  const isCompleted = !currentApp.isRejected && idx < currentApp.stageIdx;
+                  const isCurrent = !currentApp.isRejected && idx === currentApp.stageIdx;
                   const isSelected = inspectedStageIdx === idx;
 
                   return (
@@ -436,15 +644,15 @@ export default function CandidatePortalPage() {
                 <p className="text-ink-muted leading-relaxed">
                   {stageSteps[inspectedStageIdx].desc}
                 </p>
-                {inspectedStageIdx === currentApp.stageIdx && (
-                  <div className="pt-2 border-t border-border/80 mt-2 space-y-1">
-                    <span className="font-semibold text-brand">Current Team Notes:</span>
-                    <p className="text-ink leading-relaxed">{currentApp.hmNotes}</p>
+                <div className="pt-2 border-t border-border/80 mt-2 space-y-1">
+                  <span className="font-semibold text-brand">Current Status:</span>
+                  <p className="text-ink leading-relaxed">{currentApp.hmNotes}</p>
+                  {currentApp.nextMilestone && (
                     <div className="text-[11px] font-medium text-emerald-800 dark:text-emerald-300 pt-1">
-                      → Next Milestone: {currentApp.nextMilestone}
+                      → Next: {currentApp.nextMilestone}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
 
@@ -467,6 +675,7 @@ export default function CandidatePortalPage() {
               </button>
             </div>
           </div>
+          ) : null}
         </div>
       )}
 

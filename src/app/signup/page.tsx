@@ -3,21 +3,31 @@
 import Logo from "@/components/Logo";
 import TopbarStatus from "@/components/TopbarStatus";
 import GoogleAuthNoticeModal from "@/components/GoogleAuthNoticeModal";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-// This page is for recruiters. Candidates never need it -- applying to a
-// job creates their account for them (see the optional "save your
-// application" step on the apply flow). Every recruiter account created
-// here is held for Owner approval before it can sign in for real, same as
-// before; the only change is there's no persona picker -- this page
-// always creates a recruiter account. Leaving "Company name" blank makes
-// it an independent/standalone recruiter, which is the primary path right
-// now (see build decision D7).
+// Recruiters land here directly. Candidates land here too now, via
+// ?persona=candidate -- Standard Apply and /login's "Create an account"
+// link both carry that through -- and get a lighter candidate signup
+// (no company field, no owner-approval wait) instead of the recruiter
+// flow below. Leaving "Company name" blank on the recruiter path makes
+// it an independent/standalone recruiter, which is the primary path
+// right now (see build decision D7).
 export default function SignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupForm />
+    </Suspense>
+  );
+}
+
+function SignupForm() {
   const router = useRouter();
+  const params = useSearchParams();
+  const isCandidate = params.get("persona") === "candidate";
+  const nextParam = params.get("next");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,6 +41,42 @@ export default function SignupPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    // Candidate path: active immediately, no owner-approval queue, no
+    // company field -- lands straight back in the candidate hub (or
+    // wherever ?next= says, e.g. the job they were applying to).
+    if (isCandidate) {
+      try {
+        const res = await fetch("/api/candidate/quick-signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: email.trim(),
+            password,
+            name: fullName.trim(),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to create account.");
+        }
+
+        const supabase = createClient();
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.trim().toLowerCase(),
+          password,
+        });
+        if (signInError) throw signInError;
+
+        setLoading(false);
+        router.push(nextParam || "/candidate");
+        router.refresh();
+      } catch (err: any) {
+        setLoading(false);
+        setError(err?.message || "Failed to create account.");
+      }
+      return;
+    }
 
     const supabase = createClient();
 
@@ -136,10 +182,12 @@ export default function SignupPage() {
       <div className="flex-1 flex items-center justify-center px-4 py-4 overflow-y-auto scrollbar-none">
         <div className="w-full max-w-md bg-surface border border-border rounded-2xl p-6 sm:p-7 shadow-soft flex flex-col">
           <h1 className="text-[19px] font-bold m-0 mb-1 font-display text-ink text-center">
-            Create your recruiter account
+            {isCandidate ? "Create your candidate account" : "Create your recruiter account"}
           </h1>
           <p className="text-[12px] text-ink-muted m-0 mb-4 text-center">
-            Post jobs and manage candidates. New accounts are reviewed by the platform owner before you can sign in.
+            {isCandidate
+              ? "Track your applications, see live stage updates, and apply to more roles -- all in one place."
+              : "Post jobs and manage candidates. New accounts are reviewed by the platform owner before you can sign in."}
           </p>
 
           {error && (
@@ -159,18 +207,22 @@ export default function SignupPage() {
               className="w-full border border-border rounded-lg px-3 py-2 text-[13px] mb-3 outline-none focus:border-brand bg-surface text-ink placeholder:text-ink-muted"
             />
 
-            <label className="block text-[11.5px] font-bold mb-1 text-ink">
-              Company name <span className="font-normal text-ink-muted">(optional -- leave blank if you&apos;re an independent recruiter)</span>
-            </label>
-            <input
-              type="text"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              placeholder="Acme Technologies Inc."
-              className="w-full border border-border rounded-lg px-3 py-2 text-[13px] mb-3 outline-none focus:border-brand bg-surface text-ink placeholder:text-ink-muted"
-            />
+            {!isCandidate && (
+              <>
+                <label className="block text-[11.5px] font-bold mb-1 text-ink">
+                  Company name <span className="font-normal text-ink-muted">(optional -- leave blank if you&apos;re an independent recruiter)</span>
+                </label>
+                <input
+                  type="text"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder="Acme Technologies Inc."
+                  className="w-full border border-border rounded-lg px-3 py-2 text-[13px] mb-3 outline-none focus:border-brand bg-surface text-ink placeholder:text-ink-muted"
+                />
+              </>
+            )}
 
-            <label className="block text-[11.5px] font-bold mb-1 text-ink">Work Email</label>
+            <label className="block text-[11.5px] font-bold mb-1 text-ink">{isCandidate ? "Email" : "Work Email"}</label>
             <input
               type="email"
               required
@@ -196,7 +248,7 @@ export default function SignupPage() {
               disabled={loading}
               className="w-full bg-brand text-white font-bold text-[13px] rounded-lg py-2.5 disabled:opacity-60 shadow-soft-sm cursor-pointer hover:bg-brand-dark transition-colors"
             >
-              {loading ? "Creating account…" : "Create account"}
+              {loading ? "Creating account…" : isCandidate ? "Create account & continue" : "Create account"}
             </button>
           </form>
 
@@ -232,16 +284,21 @@ export default function SignupPage() {
 
           <p className="text-[11.5px] text-ink-muted text-center mt-3 mb-0">
             Already have an account?{" "}
-            <Link href="/login" className="text-brand font-bold hover:underline">
+            <Link
+              href={isCandidate ? `/login?persona=candidate${nextParam ? `&next=${encodeURIComponent(nextParam)}` : ""}` : "/login"}
+              className="text-brand font-bold hover:underline"
+            >
               Sign in
             </Link>
           </p>
-          <p className="text-[11px] text-ink-muted text-center mt-2 mb-0">
-            Looking to apply for a job instead?{" "}
-            <Link href="/jobs" className="text-brand font-bold hover:underline">
-              Browse open roles
-            </Link>
-          </p>
+          {!isCandidate && (
+            <p className="text-[11px] text-ink-muted text-center mt-2 mb-0">
+              Looking to apply for a job instead?{" "}
+              <Link href="/jobs" className="text-brand font-bold hover:underline">
+                Browse open roles
+              </Link>
+            </p>
+          )}
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/Icon";
@@ -55,6 +56,19 @@ export default async function JobDetailPage({
 }) {
   const { id } = await params;
   const admin = createAdminClient();
+
+  // Auth-aware Standard Apply destination: signed-in candidates land
+  // straight in their real candidate hub with this job pre-loaded;
+  // everyone else goes through the ordinary sign-in page first (the
+  // same one the top-right "Sign in as Candidate" quick-switcher uses),
+  // which returns them here via ?next= once they are in.
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const isSignedIn = Boolean(user);
+  function standardApplyHrefFor(jobId: string) {
+    const target = `/candidate?job=${encodeURIComponent(jobId)}`;
+    return isSignedIn ? target : `/login?persona=candidate&next=${encodeURIComponent(target)}`;
+  }
 
   let posting: AtsPosting | null = null;
   let requisition: AtsRequisition | null = null;
@@ -115,7 +129,7 @@ export default async function JobDetailPage({
   if (!posting && !legacyJob) notFound();
 
   // Render legacy layout
-  if (legacyJob) return <LegacyJobDetail job={legacyJob} />;
+  if (legacyJob) return <LegacyJobDetail job={legacyJob} standardApplyHref={standardApplyHrefFor(legacyJob.id)} />;
   if (!posting || !requisition) notFound();
 
   // Build template data
@@ -255,7 +269,7 @@ export default async function JobDetailPage({
               label="Quick Apply (Drop CV)"
             />
             <Link
-              href={`/jobs/${encodeURIComponent(posting.id)}/apply`}
+              href={standardApplyHrefFor(posting.id)}
               className="border border-border text-ink hover:text-brand hover:border-brand/40 bg-page text-xs font-bold px-4 py-2 rounded-xl transition-all flex items-center gap-1"
             >
               Standard Apply
@@ -270,7 +284,7 @@ export default async function JobDetailPage({
 // ---------------------------------------------------------------------------
 // Legacy fallback (job_postings table — being retired in Phase 5)
 // ---------------------------------------------------------------------------
-function LegacyJobDetail({ job }: { job: LegacyJob }) {
+function LegacyJobDetail({ job, standardApplyHref }: { job: LegacyJob; standardApplyHref: string }) {
   const desc = job.ai_polished_description || job.description || "";
   return (
     <div className="min-h-screen bg-page text-ink flex flex-col">
@@ -303,7 +317,7 @@ function LegacyJobDetail({ job }: { job: LegacyJob }) {
               className="px-4 py-2 rounded-xl text-xs font-semibold border border-border hover:border-brand/40 text-ink hover:text-brand bg-page transition-all flex items-center gap-1.5">
               <Icon name="chat" size={13} /><span>Consult Shree</span>
             </Link>
-            <Link href={`/jobs/${encodeURIComponent(job.id)}/apply`}
+            <Link href={standardApplyHref}
               className="border border-border text-ink hover:text-brand hover:border-brand/40 bg-page text-xs font-bold px-4 py-2 rounded-xl transition-all">
               Standard Apply
             </Link>

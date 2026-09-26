@@ -32,6 +32,17 @@ function LoginForm() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showGoogleNotice, setShowGoogleNotice] = useState(false);
 
+  // Carry persona + next through to /signup so "New here? Create an
+  // account" lands a candidate arriving via Standard Apply on the
+  // candidate signup path, not the default recruiter one, and still
+  // returns them to the job/hub they came from afterward.
+  const signupParams = new URLSearchParams();
+  const personaParam = params.get("persona");
+  const nextParam = params.get("next");
+  if (personaParam) signupParams.set("persona", personaParam);
+  if (nextParam) signupParams.set("next", nextParam);
+  const signupHref = signupParams.toString() ? `/signup?${signupParams.toString()}` : "/signup";
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -245,7 +256,7 @@ function LoginForm() {
 
           <p className="text-[11.5px] text-ink-muted text-center mt-3 mb-0">
             New here?{" "}
-            <Link href="/signup" className="text-brand font-bold hover:underline">
+            <Link href={signupHref} className="text-brand font-bold hover:underline">
               Create an account
             </Link>
           </p>
