@@ -350,6 +350,7 @@ export default function RecruiterPage() {
   return (
     <UniversalPlatformShell
       portalTitle="Recruiter Hub"
+      navAsMenu
       leftTitle="Recruiter Hub"
       leftSubtitle="Requisitions, Applications & Postings"
       navItems={navItems}

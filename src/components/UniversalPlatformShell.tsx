@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Logo from "./Logo";
 import TopbarStatus from "./TopbarStatus";
@@ -38,6 +38,12 @@ export interface UniversalPlatformShellProps {
   // Custom Left Panel override (e.g. for Job Openings cards)
   customLeftContent?: React.ReactNode;
 
+  // When true, navItems are shown as a dropdown menu next to portalTitle
+  // instead of an always-visible left <aside> panel, and the main canvas
+  // takes the full width. Opt-in per consumer -- defaults to false so the
+  // existing aside behavior (e.g. AdminPlatformShell) is unaffected.
+  navAsMenu?: boolean;
+
   // Right Panel Props
   avatarConfig?: AiAvatarHeaderProps;
   children: React.ReactNode;
@@ -62,6 +68,7 @@ export default function UniversalPlatformShell({
   onSelectNav,
   leftFooter,
   customLeftContent,
+  navAsMenu = false,
   avatarConfig,
   children,
   searchPlaceholder = "Ask Shree anything, drop CV, or type command...",
@@ -76,6 +83,27 @@ export default function UniversalPlatformShell({
   const [isDraggingCv, setIsDraggingCv] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [navMenuOpen, setNavMenuOpen] = useState(false);
+  const navMenuRef = useRef<HTMLDivElement | null>(null);
+  const activeNavItem = navItems.find((item) => activeNavId === item.id || item.active);
+
+  useEffect(() => {
+    if (!navMenuOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (navMenuRef.current && !navMenuRef.current.contains(e.target as Node)) {
+        setNavMenuOpen(false);
+      }
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setNavMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [navMenuOpen]);
 
   // Suggested questions scroll without browser scrollbars
   const chipsRef = useRef<HTMLDivElement | null>(null);
@@ -156,9 +184,85 @@ export default function UniversalPlatformShell({
           {portalTitle && (
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-border mx-0.5 hidden sm:inline select-none">/</span>
-              <span className="text-[13px] sm:text-[14px] font-semibold text-ink-2 truncate">
-                {portalTitle}
-              </span>
+              {navAsMenu && navItems.length > 0 ? (
+                <div className="relative" ref={navMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setNavMenuOpen((v) => !v)}
+                    aria-expanded={navMenuOpen}
+                    aria-haspopup="menu"
+                    className="flex items-center gap-1.5 text-[13px] sm:text-[14px] font-semibold text-ink-2 hover:text-ink transition-colors cursor-pointer"
+                  >
+                    <span className="truncate">{activeNavItem?.label ?? portalTitle}</span>
+                    <span
+                      className={`text-[9px] transition-transform duration-200 ${
+                        navMenuOpen ? "rotate-180 opacity-100" : "opacity-60"
+                      }`}
+                    >
+                      ▾
+                    </span>
+                  </button>
+                  {navMenuOpen && (
+                    <div
+                      role="menu"
+                      aria-orientation="vertical"
+                      className="absolute left-0 top-[calc(100%+10px)] w-64 bg-surface border border-border rounded-xl shadow-soft z-50 p-2 flex flex-col gap-1 animate-in fade-in slide-in-from-top-1.5 duration-150"
+                    >
+                      {(leftTitle || leftSubtitle) && (
+                        <div className="px-2 pt-1 pb-1.5 border-b border-border mb-1">
+                          {leftTitle && <div className="text-[11px] font-bold text-ink">{leftTitle}</div>}
+                          {leftSubtitle && (
+                            <div className="text-[10px] text-ink-muted mt-0.5">{leftSubtitle}</div>
+                          )}
+                        </div>
+                      )}
+                      {navItems.map((item) => {
+                        const isActive = activeNavId === item.id || item.active;
+                        const badgeColor = item.badgeColor ? badgeColorMap[item.badgeColor] : badgeColorMap.amber;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            role="menuitem"
+                            disabled={item.disabled}
+                            onClick={() => {
+                              if (item.onClick) item.onClick();
+                              if (onSelectNav) onSelectNav(item.id);
+                              setNavMenuOpen(false);
+                            }}
+                            className={`w-full text-left px-2.5 py-2 rounded-lg text-[12.5px] font-medium transition-all flex items-center justify-between gap-2 cursor-pointer ${
+                              isActive
+                                ? "bg-brand-wash text-brand font-semibold"
+                                : "text-ink-2 hover:bg-page"
+                            } ${item.disabled ? "opacity-40 pointer-events-none" : ""}`}
+                          >
+                            <span className="flex items-center gap-2 min-w-0">
+                              {item.icon && (
+                                <Icon
+                                  name={item.icon}
+                                  className={`w-3.5 h-3.5 flex-shrink-0 ${isActive ? "text-brand" : "text-ink-muted"}`}
+                                />
+                              )}
+                              <span className="truncate">{item.label}</span>
+                            </span>
+                            {item.badge !== undefined && item.badge !== null && (
+                              <span
+                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border flex-shrink-0 ${badgeColor}`}
+                              >
+                                {item.badge}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <span className="text-[13px] sm:text-[14px] font-semibold text-ink-2 truncate">
+                  {portalTitle}
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -169,7 +273,11 @@ export default function UniversalPlatformShell({
 
       {/* ================= UNIVERSAL 2-PANEL SPLIT WORKSPACE ================= */}
       <div className="flex-1 min-h-0 grid grid-cols-12 gap-3 sm:gap-4 p-2 sm:p-4 overflow-hidden max-w-[1600px] w-full mx-auto">
-        {/* ----------------- LEFT PANEL: Feature Navigation / Actions ----------------- */}
+        {/* ----------------- LEFT PANEL: Feature Navigation / Actions -----------------
+            Hidden entirely when navAsMenu is true (nav items are shown via the
+            header dropdown instead). Consumers that don't opt in (e.g.
+            AdminPlatformShell) keep this panel exactly as before. */}
+        {!navAsMenu && (
         <aside className="col-span-12 md:col-span-4 lg:col-span-3.5 xl:col-span-3 bg-surface border border-border rounded-2xl shadow-soft flex flex-col overflow-hidden">
           {/* Optional Action Header (e.g. Create Requisition +) */}
           {leftAction && (
@@ -253,9 +361,14 @@ export default function UniversalPlatformShell({
             </div>
           )}
         </aside>
+        )}
 
         {/* ----------------- RIGHT PANEL: Active AI Canvas & Workspace ----------------- */}
-        <main className="col-span-12 md:col-span-8 lg:col-span-8.5 xl:col-span-9 bg-surface border border-border rounded-2xl shadow-soft flex flex-col overflow-hidden relative">
+        <main
+          className={`${
+            navAsMenu ? "col-span-12" : "col-span-12 md:col-span-8 lg:col-span-8.5 xl:col-span-9"
+          } bg-surface border border-border rounded-2xl shadow-soft flex flex-col overflow-hidden relative`}
+        >
           {/* Top Shree AI Avatar Header */}
           <AiAvatarHeader {...avatarConfig} />
 

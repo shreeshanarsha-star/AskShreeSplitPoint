@@ -400,6 +400,7 @@ function CandidatePortalInner() {
   return (
     <UniversalPlatformShell
       portalTitle="Candidate Hub"
+      navAsMenu
       leftTitle="Candidate Hub"
       leftSubtitle="Personalized Career & Application Space"
       navItems={[
