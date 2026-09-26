@@ -202,3 +202,105 @@ export async function PATCH(
 
   return NextResponse.json({ ok: true, requisition: updated });
 }
+// DELETE /api/ats/requisitions/[id]
+// Only allowed while the requisition is still a clean draft: never
+// published, and no candidates have applied. Once real work exists
+// against it (a live posting, an applicant), deleting would silently
+// cascade-delete that data (candidates.requisition_id is ON DELETE
+// CASCADE), so we refuse and point the caller at editing instead.
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id: reqId } = await params;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const admin = createAdminClient();
+  const ctx = await getOrgContext(admin, user.id);
+  const roles = await getUserRoles(admin, user.id);
+
+  const isOrgAdmin = ctx.orgRole === "org_admin";
+  const canEdit =
+    ctx.isPlatformOwner || isOrgAdmin || roles.some((r) => EDITOR_ROLES.includes(r));
+
+  if (!canEdit) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { data: existing, error: fetchErr } = await admin
+    .from("talent_requisitions")
+    .select("id, org_id, created_by, is_published, req_no")
+    .eq("id", reqId)
+    .maybeSingle();
+
+  if (fetchErr || !existing) {
+    return NextResponse.json({ error: "Requisition not found." }, { status: 404 });
+  }
+
+  if (!ctx.isPlatformOwner) {
+    if (existing.org_id !== ctx.orgId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (ctx.orgId === null && existing.created_by !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    // Only the creator, an org lead/admin, or platform owner may delete --
+    // a plain recruiter cannot delete someone else's requisition even
+    // inside the same org.
+    const isLeadOrAdmin =
+      isOrgAdmin ||
+      roles.some((r) =>
+        (["lead_recruiter", "ta_head", "hr_head", "hr_ops", "admin"] as TalentRole[]).includes(r)
+      );
+    if (!isLeadOrAdmin && existing.created_by !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
+  if (existing.is_published) {
+    return NextResponse.json(
+      { error: "This requisition has been published and can't be deleted. Unpublish it first if you need to take it down." },
+      { status: 409 }
+    );
+  }
+
+  const { count: candidateCount } = await admin
+    .from("talent_candidates")
+    .select("id", { count: "exact", head: true })
+    .eq("requisition_id", reqId);
+
+  if ((candidateCount ?? 0) > 0) {
+    return NextResponse.json(
+      { error: "This requisition already has candidates against it and can't be deleted." },
+      { status: 409 }
+    );
+  }
+
+  const { error: deleteErr } = await admin
+    .from("talent_requisitions")
+    .delete()
+    .eq("id", reqId);
+
+  if (deleteErr) {
+    return NextResponse.json({ error: deleteErr.message }, { status: 500 });
+  }
+
+  await logAudit({
+    entityType: "talent_requisitions",
+    entityId: reqId,
+    actorId: user.id,
+    action: "deleted",
+    detail: { req_no: existing.req_no },
+    orgId: ctx.orgId,
+  });
+
+  return NextResponse.json({ ok: true });
+}

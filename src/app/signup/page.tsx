@@ -8,11 +8,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-type PersonaType = "candidate" | "recruiter" | "organization";
-
+// This page is for recruiters. Candidates never need it -- applying to a
+// job creates their account for them (see the optional "save your
+// application" step on the apply flow). Every recruiter account created
+// here is held for Owner approval before it can sign in for real, same as
+// before; the only change is there's no persona picker -- this page
+// always creates a recruiter account. Leaving "Company name" blank makes
+// it an independent/standalone recruiter, which is the primary path right
+// now (see build decision D7).
 export default function SignupPage() {
   const router = useRouter();
-  const [persona, setPersona] = useState<PersonaType>("candidate");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,7 +42,7 @@ export default function SignupPage() {
         options: {
           data: {
             full_name: fullName.trim(),
-            persona,
+            persona: "recruiter",
             company_name: companyName.trim() || undefined,
           },
         },
@@ -51,25 +56,21 @@ export default function SignupPage() {
         throw new Error("Could not create user account.");
       }
 
-      // 2. Register persona details and telemetry via server route
-      const res = await fetch("/api/auth/register-persona", {
+      // 2. Register persona details and telemetry via server route --
+      //    this is what puts the account into the pending-approval queue
+      //    and emails the owner.
+      await fetch("/api/auth/register-persona", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          persona,
+          persona: "recruiter",
           fullName: fullName.trim(),
           companyName: companyName.trim() || undefined,
         }),
       });
 
-      const resData = await res.json().catch(() => ({}));
-
       setLoading(false);
-      if (persona === "candidate") {
-        router.push("/candidate");
-      } else {
-        router.push("/waiting-room");
-      }
+      router.push("/waiting-room");
       router.refresh();
     } catch (err: any) {
       setLoading(false);
@@ -82,11 +83,10 @@ export default function SignupPage() {
     setGoogleLoading(true);
     try {
       const supabase = createClient();
-      // Pass persona intent in state query param
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?persona=${persona}`,
+          redirectTo: `${window.location.origin}/auth/callback?persona=recruiter`,
           skipBrowserRedirect: true,
         },
       });
@@ -136,75 +136,11 @@ export default function SignupPage() {
       <div className="flex-1 flex items-center justify-center px-4 py-4 overflow-y-auto scrollbar-none">
         <div className="w-full max-w-md bg-surface border border-border rounded-2xl p-6 sm:p-7 shadow-soft flex flex-col">
           <h1 className="text-[19px] font-bold m-0 mb-1 font-display text-ink text-center">
-            Create your account
+            Create your recruiter account
           </h1>
           <p className="text-[12px] text-ink-muted m-0 mb-4 text-center">
-            Select how you will be using AskShree:
+            Post jobs and manage candidates. New accounts are reviewed by the platform owner before you can sign in.
           </p>
-
-          {/* 3-Persona Choice Selector */}
-          <div className="grid grid-cols-3 gap-1.5 p-1 bg-page border border-border rounded-xl mb-4">
-            <button
-              type="button"
-              onClick={() => setPersona("candidate")}
-              className={`py-2 px-1 text-center rounded-lg transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
-                persona === "candidate"
-                  ? "bg-surface shadow-soft-sm text-brand font-bold border border-brand/20"
-                  : "text-ink-muted hover:text-ink font-medium"
-              }`}
-            >
-              <span className="text-[16px]">👤</span>
-              <span className="text-[11px] leading-tight">Candidate</span>
-              <span className="text-[9.5px] opacity-75 font-normal">Instant</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setPersona("recruiter")}
-              className={`py-2 px-1 text-center rounded-lg transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
-                persona === "recruiter"
-                  ? "bg-surface shadow-soft-sm text-brand font-bold border border-brand/20"
-                  : "text-ink-muted hover:text-ink font-medium"
-              }`}
-            >
-              <span className="text-[16px]">💼</span>
-              <span className="text-[11px] leading-tight">Recruiter</span>
-              <span className="text-[9.5px] opacity-75 font-normal">Review</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setPersona("organization")}
-              className={`py-2 px-1 text-center rounded-lg transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
-                persona === "organization"
-                  ? "bg-surface shadow-soft-sm text-brand font-bold border border-brand/20"
-                  : "text-ink-muted hover:text-ink font-medium"
-              }`}
-            >
-              <span className="text-[16px]">🏢</span>
-              <span className="text-[11px] leading-tight">Organization</span>
-              <span className="text-[9.5px] opacity-75 font-normal">Review</span>
-            </button>
-          </div>
-
-          {/* Persona Explanation Banner */}
-          <div className="text-[11.5px] text-ink-muted bg-page/70 border border-border/70 rounded-lg p-2.5 mb-4 leading-relaxed">
-            {persona === "candidate" && (
-              <span>
-                <strong>Candidate Access:</strong> Instant self-service. Apply to jobs, manage interviews, and track offers immediately.
-              </span>
-            )}
-            {persona === "recruiter" && (
-              <span>
-                <strong>Recruiter Access:</strong> Access JD Studio.ai, Smart Sourcing, and candidate pipelines. Subject to Owner approval.
-              </span>
-            )}
-            {persona === "organization" && (
-              <span>
-                <strong>Employer Access:</strong> Full company talent suite and job publishing licenses. Subject to Owner approval.
-              </span>
-            )}
-          </div>
 
           {error && (
             <div className="bg-critical-wash text-critical text-[12px] rounded-lg px-3 py-2 mb-3 border border-critical/30">
@@ -223,31 +159,24 @@ export default function SignupPage() {
               className="w-full border border-border rounded-lg px-3 py-2 text-[13px] mb-3 outline-none focus:border-brand bg-surface text-ink placeholder:text-ink-muted"
             />
 
-            {(persona === "recruiter" || persona === "organization") && (
-              <>
-                <label className="block text-[11.5px] font-bold mb-1 text-ink">
-                  {persona === "recruiter" ? "Agency / Firm Name" : "Company / Organization Name"}
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder={persona === "recruiter" ? "Talent Solutions Corp" : "Acme Technologies Inc."}
-                  className="w-full border border-border rounded-lg px-3 py-2 text-[13px] mb-3 outline-none focus:border-brand bg-surface text-ink placeholder:text-ink-muted"
-                />
-              </>
-            )}
-
             <label className="block text-[11.5px] font-bold mb-1 text-ink">
-              {persona === "candidate" ? "Email address" : "Work Email"}
+              Company name <span className="font-normal text-ink-muted">(optional -- leave blank if you're an independent recruiter)</span>
             </label>
+            <input
+              type="text"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              placeholder="Acme Technologies Inc."
+              className="w-full border border-border rounded-lg px-3 py-2 text-[13px] mb-3 outline-none focus:border-brand bg-surface text-ink placeholder:text-ink-muted"
+            />
+
+            <label className="block text-[11.5px] font-bold mb-1 text-ink">Work Email</label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder={persona === "candidate" ? "alex@gmail.com" : "alex@company.com"}
+              placeholder="alex@company.com"
               className="w-full border border-border rounded-lg px-3 py-2 text-[13px] mb-3 outline-none focus:border-brand bg-surface text-ink placeholder:text-ink-muted"
             />
 
@@ -267,7 +196,7 @@ export default function SignupPage() {
               disabled={loading}
               className="w-full bg-brand text-white font-bold text-[13px] rounded-lg py-2.5 disabled:opacity-60 shadow-soft-sm cursor-pointer hover:bg-brand-dark transition-colors"
             >
-              {loading ? "Creating account…" : `Create ${persona.charAt(0).toUpperCase() + persona.slice(1)} Account`}
+              {loading ? "Creating account…" : "Create account"}
             </button>
           </form>
 
@@ -305,6 +234,12 @@ export default function SignupPage() {
             Already have an account?{" "}
             <Link href="/login" className="text-brand font-bold hover:underline">
               Sign in
+            </Link>
+          </p>
+          <p className="text-[11px] text-ink-muted text-center mt-2 mb-0">
+            Looking to apply for a job instead?{" "}
+            <Link href="/jobs" className="text-brand font-bold hover:underline">
+              Browse open roles
             </Link>
           </p>
         </div>

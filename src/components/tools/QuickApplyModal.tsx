@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import Icon from "@/components/Icon";
+import { createClient } from "@/lib/supabase/client";
 
 export interface QuickApplyJobInfo {
   id: string;
@@ -60,6 +61,15 @@ export default function QuickApplyModal({
   // Result state
   const [matchScore, setMatchScore] = useState<number>(0);
   const [matchedSkills, setMatchedSkills] = useState<string[]>([]);
+
+  // Optional post-apply account creation -- lets a candidate track this
+  // application later without any separate signup flow. Purely optional;
+  // skipping it just means they applied without a way to log back in.
+  const [submittedCandidateId, setSubmittedCandidateId] = useState<string>("");
+  const [accountPassword, setAccountPassword] = useState("");
+  const [accountSubmitting, setAccountSubmitting] = useState(false);
+  const [accountError, setAccountError] = useState<string | null>(null);
+  const [accountCreated, setAccountCreated] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -150,6 +160,7 @@ export default function QuickApplyModal({
 
       setMatchScore(data.matchScore || 80);
       setMatchedSkills(data.matchedSkills || []);
+      setSubmittedCandidateId(data.applicationId || "");
       setStep("success");
       if (job?.id && onAppliedSuccess) {
         onAppliedSuccess(job.id);
@@ -160,6 +171,46 @@ export default function QuickApplyModal({
     }
   }
 
+  async function handleCreateAccount(e: React.FormEvent) {
+    e.preventDefault();
+    if (!accountPassword || accountPassword.length < 6 || !fields.email) return;
+    setAccountSubmitting(true);
+    setAccountError(null);
+
+    try {
+      const res = await fetch("/api/candidate/quick-signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: fields.email,
+          password: accountPassword,
+          name: fields.fullName,
+          candidateId: submittedCandidateId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAccountError(data.error || "Failed to create your account.");
+        return;
+      }
+
+      const supabase = createClient();
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: fields.email.toLowerCase().trim(),
+        password: accountPassword,
+      });
+      if (signInError) {
+        setAccountError(signInError.message);
+        return;
+      }
+      setAccountCreated(true);
+    } catch (err) {
+      setAccountError(err instanceof Error ? err.message : "Failed to create your account.");
+    } finally {
+      setAccountSubmitting(false);
+    }
+  }
+
   function handleReset() {
     setStep("drop_cv");
     setFields(INITIAL_FIELDS);
@@ -167,6 +218,10 @@ export default function QuickApplyModal({
     setRawCvText("");
     setResumeBase64("");
     setError(null);
+    setSubmittedCandidateId("");
+    setAccountPassword("");
+    setAccountError(null);
+    setAccountCreated(false);
     onClose();
   }
 
@@ -489,10 +544,50 @@ export default function QuickApplyModal({
                 )}
               </div>
 
+              {/* Optional: track this application later. Skipping is fine --
+                  applying doesn't require an account. */}
+              {!accountCreated ? (
+                <form
+                  onSubmit={handleCreateAccount}
+                  className="mt-5 p-4 rounded-xl border border-border bg-subtle/20 w-full max-w-md text-left space-y-2"
+                >
+                  <span className="text-[12px] font-bold text-ink block">
+                    Want to track this application?
+                  </span>
+                  <p className="text-[11.5px] text-ink-muted m-0">
+                    Set a password for {fields.email} to check status anytime -- optional, you can skip this.
+                  </p>
+                  {accountError && (
+                    <p className="text-[11.5px] text-critical m-0">{accountError}</p>
+                  )}
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      value={accountPassword}
+                      onChange={(e) => setAccountPassword(e.target.value)}
+                      placeholder="Set a password"
+                      minLength={6}
+                      className="flex-1 text-[12.5px] px-3 py-2 rounded-lg border border-border bg-page text-ink focus:border-brand focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      disabled={accountSubmitting || accountPassword.length < 6}
+                      className="text-[12px] font-bold text-white bg-brand px-3 py-2 rounded-lg disabled:opacity-50 hover:opacity-95 transition-opacity"
+                    >
+                      {accountSubmitting ? "…" : "Save"}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="mt-5 p-3 rounded-xl border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-800 text-[12.5px] text-emerald-700 dark:text-emerald-300 w-full max-w-md">
+                  You&apos;re logged in -- you can check this application anytime from your candidate hub.
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={handleReset}
-                className="mt-6 bg-ink text-surface text-[12.5px] font-bold px-6 py-2.5 rounded-lg shadow-sm hover:opacity-90 transition-opacity"
+                className="mt-4 bg-ink text-surface text-[12.5px] font-bold px-6 py-2.5 rounded-lg shadow-sm hover:opacity-90 transition-opacity"
               >
                 Done
               </button>

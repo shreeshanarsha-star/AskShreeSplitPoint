@@ -3,7 +3,7 @@
 import Logo from "@/components/Logo";
 import TopbarStatus from "@/components/TopbarStatus";
 import GoogleAuthNoticeModal from "@/components/GoogleAuthNoticeModal";
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -16,21 +16,15 @@ export default function LoginPage() {
   );
 }
 
-type PersonaType = "candidate" | "recruiter" | "organization";
-
+// One login form for everyone. There is no persona picker here on purpose:
+// who you are (candidate / recruiter / hiring manager / org admin / owner)
+// is a fact stored on the account, not something you self-select at the
+// login screen. After a successful sign-in the server (quick-login route,
+// with a client-side fallback below) looks up the account's real role and
+// sends the browser to the right place automatically.
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const requestedPersona = params.get("persona");
-  const [persona, setPersona] = useState<PersonaType>(
-    requestedPersona === "recruiter" || requestedPersona === "organization" ? requestedPersona : "candidate"
-  );
-
-  useEffect(() => {
-    if (requestedPersona === "recruiter" || requestedPersona === "organization" || requestedPersona === "candidate") {
-      setPersona(requestedPersona);
-    }
-  }, [requestedPersona]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -38,35 +32,15 @@ function LoginForm() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showGoogleNotice, setShowGoogleNotice] = useState(false);
 
-  async function loginWithPersona(persona: "owner" | "recruiter" | "hm" | "candidate") {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/auth/quick-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ persona }),
-      });
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.error || "Login failed");
-      }
-      const destination = params.get("next") || data.redirectUrl || "/";
-      router.push(destination);
-      router.refresh();
-    } catch (err: any) {
-      setError(err?.message || "Failed to sign in");
-      setLoading(false);
-    }
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      // 1. Try fast server-side auth route first
+      // 1. Try fast server-side auth route first -- it resolves the
+      //    correct destination (owner / recruiter / hiring manager /
+      //    candidate / waiting room) from the account's stored role.
       const res = await fetch("/api/auth/quick-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -81,23 +55,12 @@ function LoginForm() {
         return;
       }
 
-      // 2. Client-side fallback if needed
+      // 2. Client-side fallback if the server route is unavailable.
       const supabase = createClient();
-      let { error: clientErr, data: clientData } = await supabase.auth.signInWithPassword({
+      const { error: clientErr, data: clientData } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
-
-      if (clientErr && (email.trim().toLowerCase().includes("shreesha") || clientErr.message.includes("schema"))) {
-        const fallback = await supabase.auth.signInWithPassword({
-          email: "shreesha.narsha+admin@gmail.com",
-          password,
-        });
-        if (!fallback.error && fallback.data) {
-          clientErr = null;
-          clientData = fallback.data;
-        }
-      }
 
       if (clientErr) {
         setLoading(false);
@@ -109,7 +72,7 @@ function LoginForm() {
       if (!params.get("next") && clientData.user) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("is_admin, org_role, status, persona")
+          .select("is_admin, status, persona")
           .eq("id", clientData.user.id)
           .maybeSingle();
 
@@ -145,7 +108,7 @@ function LoginForm() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?persona=${persona}`,
+          redirectTo: `${window.location.origin}/auth/callback`,
           skipBrowserRedirect: true,
         },
       });
@@ -193,55 +156,11 @@ function LoginForm() {
       </header>
       <div className="flex-1 flex items-center justify-center px-4 py-4 overflow-y-auto scrollbar-none">
         <div className="w-full max-w-sm bg-surface border border-border rounded-2xl p-6 sm:p-7 shadow-soft flex flex-col">
-          {/* 3-Persona Choice Selector */}
-          <div className="grid grid-cols-3 gap-1.5 p-1 bg-page border border-border rounded-xl mb-3.5">
-            <button
-              type="button"
-              onClick={() => setPersona("candidate")}
-              className={`py-1.5 px-1 text-center rounded-lg transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
-                persona === "candidate"
-                  ? "bg-surface shadow-soft-sm text-brand font-bold border border-brand/20"
-                  : "text-ink-muted hover:text-ink font-medium"
-              }`}
-            >
-              <span className="text-[14px]">👤</span>
-              <span className="text-[11px] leading-tight">Candidate</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setPersona("recruiter")}
-              className={`py-1.5 px-1 text-center rounded-lg transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
-                persona === "recruiter"
-                  ? "bg-surface shadow-soft-sm text-brand font-bold border border-brand/20"
-                  : "text-ink-muted hover:text-ink font-medium"
-              }`}
-            >
-              <span className="text-[14px]">💼</span>
-              <span className="text-[11px] leading-tight">Recruiter</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setPersona("organization")}
-              className={`py-1.5 px-1 text-center rounded-lg transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
-                persona === "organization"
-                  ? "bg-surface shadow-soft-sm text-brand font-bold border border-brand/20"
-                  : "text-ink-muted hover:text-ink font-medium"
-              }`}
-            >
-              <span className="text-[14px]">🏢</span>
-              <span className="text-[11px] leading-tight">Organization</span>
-            </button>
-          </div>
-
           <h1 className="text-[18px] font-bold m-0 mb-1 font-display text-ink">
-            Sign in as {persona.charAt(0).toUpperCase() + persona.slice(1)}
+            Sign in
           </h1>
           <p className="text-[11.5px] text-ink-muted m-0 mb-3.5">
-            {persona === "candidate" && "Access candidate hub, ATS resume review, and interview prep."}
-            {persona === "recruiter" && "Access JD Studio.ai, Smart Source.ai, and candidate pipeline."}
-            {persona === "organization" && "Access enterprise requisitions, team reviews, and licenses."}
+            One login for everyone -- you&apos;ll land on the screen for your role automatically.
           </p>
 
           {error && (
@@ -252,17 +171,10 @@ function LoginForm() {
 
           {showGoogleNotice && (
             <div className="bg-brand-wash/30 border border-brand/40 text-ink text-[12px] rounded-lg p-3 mb-3">
-              <div className="font-semibold text-brand mb-1">Google OAuth Notice</div>
-              <p className="m-0 text-ink-muted text-[11.5px] leading-relaxed mb-2">
-                Google OAuth requires client credentials enabled in Supabase. You can sign in immediately as Owner with 1 click below:
+              <div className="font-semibold text-brand mb-1">Google sign-in unavailable</div>
+              <p className="m-0 text-ink-muted text-[11.5px] leading-relaxed">
+                Google sign-in isn&apos;t enabled right now -- please sign in with your email and password instead.
               </p>
-              <button
-                type="button"
-                onClick={() => loginWithPersona("owner")}
-                className="w-full bg-brand text-white text-[11.5px] font-bold py-1.5 px-3 rounded shadow-soft-sm hover:bg-brand-dark transition-colors cursor-pointer"
-              >
-                Sign in as Owner (Shreesha)
-              </button>
             </div>
           )}
 
@@ -330,51 +242,6 @@ function LoginForm() {
               </>
             )}
           </button>
-
-          {/* 1-Click Fast Persona Switcher */}
-          <div className="mt-4 pt-3.5 border-t border-border">
-            <div className="text-[10.5px] font-bold text-ink-muted uppercase tracking-wider mb-2 text-center">
-              1-Click Fast Demo Logins
-            </div>
-            <div className="grid grid-cols-2 gap-1.5">
-              <button
-                type="button"
-                onClick={() => loginWithPersona("owner")}
-                className="text-[11px] font-semibold py-1.5 px-2 rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-brand text-left transition-colors flex items-center gap-1.5 cursor-pointer truncate"
-                title="Log in as Shreesha (Owner & Admin)"
-              >
-                <span>👑</span>
-                <span className="truncate">Owner / Admin</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => loginWithPersona("recruiter")}
-                className="text-[11px] font-semibold py-1.5 px-2 rounded-lg border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-left transition-colors flex items-center gap-1.5 cursor-pointer truncate"
-                title="Log in as Rhea (Recruiter)"
-              >
-                <span>💼</span>
-                <span className="truncate">Recruiter</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => loginWithPersona("hm")}
-                className="text-[11px] font-semibold py-1.5 px-2 rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 text-left transition-colors flex items-center gap-1.5 cursor-pointer truncate"
-                title="Log in as Vikram (Hiring Manager)"
-              >
-                <span>🎯</span>
-                <span className="truncate">Hiring Mgr</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => loginWithPersona("candidate")}
-                className="text-[11px] font-semibold py-1.5 px-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-left transition-colors flex items-center gap-1.5 cursor-pointer truncate"
-                title="Log in as Jane (Candidate)"
-              >
-                <span>👤</span>
-                <span className="truncate">Candidate</span>
-              </button>
-            </div>
-          </div>
 
           <p className="text-[11.5px] text-ink-muted text-center mt-3 mb-0">
             New here?{" "}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
@@ -28,6 +28,12 @@ interface RequisitionDetail {
   updated_at?: string;
 }
 
+interface Posting {
+  id: string;
+  board: string;
+  status: string;
+}
+
 function statusBadge(status: string) {
   const map: Record<string, string> = {
     open: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20",
@@ -43,12 +49,17 @@ function statusBadge(status: string) {
 
 export default function RequisitionDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params?.id as string;
 
   const [req, setReq] = useState<RequisitionDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showMore, setShowMore] = useState(false);
+  const [postings, setPostings] = useState<Posting[]>([]);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -66,13 +77,49 @@ export default function RequisitionDetailPage() {
         setLoading(false);
       }
     })();
+    (async () => {
+      try {
+        const res = await fetch(`/api/ats/requisitions/${id}/postings`);
+        const data = await res.json();
+        if (res.ok) setPostings(data.postings ?? []);
+      } catch {
+        // Non-fatal -- share block just won't show.
+      }
+    })();
   }, [id]);
+
+  async function handleDelete() {
+    if (!req) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/ats/requisitions/${req.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete requisition.");
+      router.push("/recruiter");
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete requisition.");
+      setDeleting(false);
+      setConfirmingDelete(false);
+    }
+  }
 
   const mustHave = req?.eligibility_criteria?.must_have_skills ?? [];
   const goodToHave = req?.eligibility_criteria?.good_to_have_skills ?? [];
   const hasMoreDetails = Boolean(
     req && (req.description || req.comp_min || req.comp_max || req.job_level || req.target_hire_date || mustHave.length || goodToHave.length)
   );
+
+  // Deletion is only realistic before the role has gone anywhere --
+  // once it's posted, the backend refuses anyway, so don't even offer
+  // the button once a live posting exists.
+  const canOfferDelete = Boolean(req) && postings.every((p) => p.status !== "posted") && (req?.status === "open" || req?.status === "pending_approval");
+
+  const askshreePosting = postings.find((p) => p.board === "askshree" && p.status === "posted");
+  const shareUrl = askshreePosting
+    ? `https://www.askshree.com/jobs/${askshreePosting.id}`
+    : null;
+  const shareMessage = req ? `We're hiring: ${req.title}${req.location ? ` (${req.location})` : ""}. Apply here: ${shareUrl}` : "";
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white flex flex-col">
@@ -105,6 +152,16 @@ export default function RequisitionDetailPage() {
             >
               Applications
             </Link>
+            {canOfferDelete && (
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(true)}
+                className="text-xs font-semibold text-rose-600 border border-rose-300 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:border-rose-800 dark:text-rose-300 px-3 py-1.5 rounded-lg transition-colors"
+                title="Delete this requisition"
+              >
+                Delete
+              </button>
+            )}
           </div>
         )}
       </header>
@@ -113,6 +170,33 @@ export default function RequisitionDetailPage() {
         {loading && <div className="py-16 text-center text-xs text-slate-500">Loading requisition...</div>}
         {error && (
           <div className="p-4 rounded-xl border border-rose-300 bg-rose-50 dark:bg-rose-950/20 text-xs text-rose-700 dark:text-rose-300">{error}</div>
+        )}
+
+        {confirmingDelete && (
+          <div className="p-4 rounded-xl border border-rose-300 bg-rose-50 dark:bg-rose-950/20 space-y-3">
+            <p className="text-xs text-rose-700 dark:text-rose-300 font-semibold">
+              Delete {req?.req_no} -- {req?.title}? This can't be undone.
+            </p>
+            {deleteError && <p className="text-xs text-rose-600 dark:text-rose-400">{deleteError}</p>}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-60 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                {deleting ? "Deleting…" : "Yes, delete it"}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setConfirmingDelete(false); setDeleteError(null); }}
+                disabled={deleting}
+                className="text-xs font-semibold text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         )}
 
         {req && (
@@ -152,6 +236,46 @@ export default function RequisitionDetailPage() {
                   ))}
               </div>
             </div>
+
+            {/* Share — only once there's a live askshree.com posting to point people at. */}
+            {shareUrl && (
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-soft space-y-2.5">
+                <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400">Share this role</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(shareMessage)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[12px] font-semibold px-3 py-1.5 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-800 dark:text-emerald-300 transition-colors"
+                  >
+                    WhatsApp
+                  </a>
+                  <a
+                    href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[12px] font-semibold px-3 py-1.5 rounded-lg border border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/20 dark:border-sky-800 dark:text-sky-300 transition-colors"
+                  >
+                    LinkedIn
+                  </a>
+                  <a
+                    href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMessage)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[12px] font-semibold px-3 py-1.5 rounded-lg border border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 transition-colors"
+                  >
+                    Twitter / X
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => navigator.clipboard?.writeText(shareUrl)}
+                    className="text-[12px] font-semibold px-3 py-1.5 rounded-lg border border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 transition-colors"
+                  >
+                    Copy link
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* More details — collapsed by default; down arrow reveals comp, skills, full JD. */}
             {hasMoreDetails && (

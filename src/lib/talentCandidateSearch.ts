@@ -14,9 +14,22 @@ export type ScoredTalentCandidate = Record<string, unknown> & {
 // across every keyword x every searchable field, then ranked by how many
 // keywords each candidate actually hits (plus the existing scorecard
 // boost) -- a resume matching 6 of 8 JD skills outranks one matching 2.
+// scope narrows results to what the calling recruiter is actually allowed
+// to see, mirroring the org/individual-licence scoping used everywhere
+// else in the ATS: an org member only searches within their own org's
+// candidates, and an individual (no-org) recruiter only searches
+// candidates on requisitions they themselves created. This filters via
+// the joined talent_requisitions row since talent_candidates itself does
+// not carry org_id directly.
+export interface TalentCandidateSearchScope {
+  orgId: string | null;
+  createdBy: string;
+}
+
 export async function searchTalentCandidates(
   supabase: SupabaseClient,
-  keywords: string[]
+  keywords: string[],
+  scope?: TalentCandidateSearchScope
 ): Promise<ScoredTalentCandidate[]> {
   const cleanKeywords = Array.from(
     new Set(
@@ -45,11 +58,19 @@ export async function searchTalentCandidates(
   const { data: candidates, error } = await supabase
     .from("talent_candidates")
     .select(
-      "*, talent_scorecards(rating, recommendation), talent_requisitions(req_no, title, location)"
+      "*, talent_scorecards(rating, recommendation), talent_requisitions(req_no, title, location, org_id, created_by)"
     )
     .or(orParts.join(","))
     .limit(300);
   if (error) throw new Error(error.message);
+
+  const scopedCandidates = (candidates || []).filter((c) => {
+    if (!scope) return true;
+    const req = c.talent_requisitions as { org_id: string | null; created_by: string } | null;
+    if (!req) return false;
+    if (scope.orgId) return req.org_id === scope.orgId;
+    return req.org_id === null && req.created_by === scope.createdBy;
+  });
 
   function snippetAround(text: string | null, needle: string): string | null {
     if (!text) return null;
@@ -60,7 +81,7 @@ export async function searchTalentCandidates(
     return `${start > 0 ? "…" : ""}${text.slice(start, end).trim()}${end < text.length ? "…" : ""}`;
   }
 
-  let scored: ScoredTalentCandidate[] = (candidates || []).map((c) => {
+  let scored: ScoredTalentCandidate[] = scopedCandidates.map((c) => {
     const cards = (c.talent_scorecards || []) as { rating: number | null; recommendation: string | null }[];
     const bestRating = cards.reduce((max, s) => Math.max(max, s.rating || 0), 0);
     const strongRec = cards.some((s) => s.recommendation === "strong_yes" || s.recommendation === "yes");

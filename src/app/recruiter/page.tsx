@@ -322,6 +322,7 @@ export default function RecruiterPage() {
     { id: "all_requisitions", label: "All Requisitions", icon: "briefcase", badge: kpis.totalReqs > 0 ? String(kpis.totalReqs) : undefined, badgeColor: "amber" as const, active: activeFeature === "all_requisitions", onClick: () => setActiveFeature("all_requisitions") },
     { id: "all_applications", label: "All Applications", icon: "users", active: activeFeature === "all_applications", onClick: () => setActiveFeature("all_applications") },
     { id: "post_to_boards", label: "Post to Boards", icon: "chart", active: activeFeature === "post_to_boards", onClick: () => setActiveFeature("post_to_boards") },
+    { id: "candidate_search", label: "Search Candidates", icon: "search", active: false, onClick: () => router.push("/recruiter/candidates") },
   ];
 
   const statusBadge = (status: string) => {
