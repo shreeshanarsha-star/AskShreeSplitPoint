@@ -166,6 +166,7 @@ export default function HomePage() {
   const [applyConsented, setApplyConsented] = useState(false);
   const [applySubmitting, setApplySubmitting] = useState(false);
   const [applySuccess, setApplySuccess] = useState(false);
+  const [applySubmitError, setApplySubmitError] = useState("");
   const [submittedCandidateId, setSubmittedCandidateId] = useState<string | null>(null);
   const [submittedInterviewToken, setSubmittedInterviewToken] = useState<string | null>(null);
 
@@ -585,12 +586,17 @@ export default function HomePage() {
     if (!selectedJob || !applyName || !applyEmail || !applyConsented || !hasCv) return;
 
     setApplySubmitting(true);
+    setApplySubmitError("");
     try {
       const res = await fetch("/api/public/quick-apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          requisitionId: selectedJob.id,
+          // selectedJob.id is a talent_job_postings id (see /api/public/jobs),
+          // not a requisition id -- must be sent as postingId so the API can
+          // resolve it. Sending it as requisitionId silently 410s every
+          // submission (it never matches a requisition_id column).
+          postingId: selectedJob.id,
           name: applyName,
           email: applyEmail,
           phone: applyPhone,
@@ -609,9 +615,14 @@ export default function HomePage() {
         if (data.interviewToken) {
           setSubmittedInterviewToken(data.interviewToken);
         }
+      } else {
+        setApplySubmitError(
+          data?.message || data?.error || "Could not submit your application. Please try again."
+        );
       }
     } catch (err) {
       console.error("Apply failed:", err);
+      setApplySubmitError("Network error -- please check your connection and try again.");
     } finally {
       setApplySubmitting(false);
     }
@@ -1309,6 +1320,7 @@ export default function HomePage() {
                   setAccountPassword("");
                   setAccountCreated(false);
                   setAccountError(null);
+                  setApplySubmitError("");
                   handleRemoveApplyCv();
                 }}
                 className="text-ink-muted hover:text-ink text-sm cursor-pointer"
@@ -1555,6 +1567,12 @@ export default function HomePage() {
                     I grant consent for statutory AI screening and privacy-preserving candidate evaluation (no demographic bias, deletion on request).
                   </span>
                 </label>
+
+                {applySubmitError && (
+                  <div className="text-[11.5px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    {applySubmitError}
+                  </div>
+                )}
 
                 <div className="pt-3 flex items-center justify-end gap-2">
                   <button
