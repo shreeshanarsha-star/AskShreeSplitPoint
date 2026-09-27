@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import MemberAccessEditor from "@/components/org/MemberAccessEditor";
 
 type Org = { id: string; name: string; status: string; plan: string; features: string[]; seat_limit?: number | null };
 type Member = {
@@ -23,6 +24,7 @@ export default function OrgSettingsPanel({ org, meId }: { org: Org; meId: string
   const [addEmail, setAddEmail] = useState("");
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [openAccessFor, setOpenAccessFor] = useState<string | null>(null);
 
   // Create-a-new-login flow (bulk onboarding path -- no self-signup needed).
   const [inviteEmail, setInviteEmail] = useState("");
@@ -281,7 +283,8 @@ export default function OrgSettingsPanel({ org, meId }: { org: Org; meId: string
         ) : (
           <div className="flex flex-col gap-1.5">
             {members.map((m) => (
-              <div key={m.id} className="flex items-center justify-between gap-2 border border-border rounded-sm px-3 py-2">
+              <div key={m.id} className="border border-border rounded-sm px-3 py-2">
+              <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[12.5px] font-medium truncate">{m.full_name || m.email}</span>
@@ -304,11 +307,23 @@ export default function OrgSettingsPanel({ org, meId }: { org: Org; meId: string
                     {m.org_role.replace("_", " ")} {m.email && m.full_name ? `• ${m.email}` : ""}
                   </div>
                 </div>
-                {m.id !== meId && (
-                  <button onClick={() => removeMember(m.id)} className="text-critical text-[11.5px] font-bold flex-shrink-0 cursor-pointer hover:underline">
-                    Remove
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <button
+                    onClick={() => setOpenAccessFor(openAccessFor === m.id ? null : m.id)}
+                    className="text-brand text-[11.5px] font-bold cursor-pointer hover:underline"
+                  >
+                    {openAccessFor === m.id ? "Close" : "Manage access"}
                   </button>
-                )}
+                  {m.id !== meId && (
+                    <button onClick={() => removeMember(m.id)} className="text-critical text-[11.5px] font-bold cursor-pointer hover:underline">
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+              {openAccessFor === m.id && (
+                <MemberAccessEditor userId={m.id} isSelf={m.id === meId} onSaved={loadMembers} />
+              )}
               </div>
             ))}
           </div>
@@ -316,8 +331,7 @@ export default function OrgSettingsPanel({ org, meId }: { org: Org; meId: string
       </div>
 
       <p className="m-0 text-[12px] text-ink-muted">
-        Managing Talent.ai roles (recruiter, TA head, hiring manager, HR approver) for your team? Open Talent.ai
-        and use its Admin tab.
+        Use &quot;Manage access&quot; on a member to set their roles and which of your organization&apos;s tools they can use.
       </p>
     </div>
   );
