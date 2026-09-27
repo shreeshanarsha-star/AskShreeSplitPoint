@@ -1,6 +1,7 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { DEPARTMENTS } from "@/lib/departments";
 import { getUserRoles, RECRUITER_READER_ROLES, type TalentRole } from "@/lib/talentRoles";
+import { getBlockedTools } from "@/lib/orgTools";
 
 // -----------------------------------------------------------------------
 // Single source of truth for "what can this signed-in account see and do."
@@ -82,7 +83,7 @@ export async function computeAccessContext(
     ? "/org/settings"
     : null;
 
-  const { deptIds: licensedDeptIds, toolNames: licensedToolNames } = await computeLicensing(admin, userId, isPlatformOwner, orgId);
+  const { deptIds: licensedDeptIds, toolNames: licensedToolNames } = await computeLicensing(admin, userId, isPlatformOwner, orgId, isOrgAdmin);
 
   return {
     userId,
@@ -114,7 +115,8 @@ async function computeLicensing(
   admin: SupabaseClient,
   userId: string,
   isPlatformOwner: boolean,
-  orgId: string | null
+  orgId: string | null,
+  isOrgAdmin = false
 ): Promise<{ deptIds: string[]; toolNames: string[] }> {
   if (isPlatformOwner) {
     return {
@@ -131,6 +133,9 @@ async function computeLicensing(
 
   let orgGrantedKeys = new Set<string>();
   let hasBulk = false;
+  // Tools this member's org admin switched off (never applies to the org
+  // admin themself). Direct owner grants to the user are not affected.
+  const blocked = new Set(orgId && !isOrgAdmin ? await getBlockedTools(admin, orgId, userId) : []);
 
   if (orgId) {
     const { data: org } = await admin
@@ -153,14 +158,17 @@ async function computeLicensing(
   }
 
   if (hasBulk) {
-    // Bulk gives every department except owner-exclusive ones (Gauri.ai).
+    // Bulk gives every department except owner-exclusive ones (Gauri.ai),
+    // minus anything the org admin switched off for this member.
+    const ok = (t: { n: string }) => !blocked.has(t.n) || userGrantedKeys.has(t.n);
     return {
-      deptIds: DEPARTMENTS.filter((d) => d.id !== "support").map((d) => d.id),
-      toolNames: DEPARTMENTS.filter((d) => d.id !== "support").flatMap((d) => d.tools).filter((t) => t.s === "live").map((t) => t.n),
+      deptIds: DEPARTMENTS.filter((d) => d.id !== "support" && d.tools.some(ok)).map((d) => d.id),
+      toolNames: DEPARTMENTS.filter((d) => d.id !== "support").flatMap((d) => d.tools).filter((t) => t.s === "live" && ok(t)).map((t) => t.n),
     };
   }
 
-  const allGranted = new Set([...Array.from(userGrantedKeys), ...Array.from(orgGrantedKeys)]);
+  const orgAllowed = Array.from(orgGrantedKeys).filter((k) => !blocked.has(k));
+  const allGranted = new Set([...Array.from(userGrantedKeys), ...orgAllowed]);
   const isToolLicensed = (t: { n: string; bundled?: boolean }, deptId: string) =>
     (t.bundled && deptId !== "support") || allGranted.has(t.n);
 
