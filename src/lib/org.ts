@@ -20,11 +20,24 @@ export async function getOrgContext(
     .eq("id", userId)
     .maybeSingle();
 
+  const orgId = (profile?.org_id as string | null) ?? null;
+  let orgRole = (profile?.org_role as "org_admin" | "member" | null) ?? null;
+
+  // Owner -> org admin -> users: an org admin's powers only exist inside an
+  // org the platform owner has approved. Until then they act as a plain
+  // member, so every route built on this context enforces it uniformly.
+  if (orgRole === "org_admin") {
+    const approved = orgId
+      ? (await admin.from("organizations").select("status").eq("id", orgId).maybeSingle()).data?.status === "approved"
+      : false;
+    if (!approved) orgRole = "member";
+  }
+
   return {
     userId,
     isPlatformOwner: !!profile?.is_admin,
-    orgId: profile?.org_id ?? null,
-    orgRole: (profile?.org_role as "org_admin" | "member" | null) ?? null,
+    orgId,
+    orgRole,
   };
 }
 
