@@ -8,13 +8,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-// Recruiters land here directly. Candidates land here too now, via
-// ?persona=candidate -- Standard Apply and /login's "Create an account"
-// link both carry that through -- and get a lighter candidate signup
-// (no company field, no owner-approval wait) instead of the recruiter
-// flow below. Leaving "Company name" blank on the recruiter path makes
-// it an independent/standalone recruiter, which is the primary path
-// right now (see build decision D7).
+// One sign-up for everyone. Every new account is a candidate (instant,
+// no approval). Ticking "I'm hiring" requests recruiter access instead:
+// the account waits in the owner's approval queue. ?persona=recruiter
+// pre-ticks the box. Leaving "Company name" blank on the hiring path
+// makes it an independent/standalone recruiter (build decision D7).
 export default function SignupPage() {
   return (
     <Suspense fallback={null}>
@@ -26,7 +24,8 @@ export default function SignupPage() {
 function SignupForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const isCandidate = params.get("persona") === "candidate";
+  const [isHiring, setIsHiring] = useState(params.get("persona") === "recruiter");
+  const isCandidate = !isHiring;
   const nextParam = params.get("next");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -69,7 +68,7 @@ function SignupForm() {
         if (signInError) throw signInError;
 
         setLoading(false);
-        router.push(nextParam || "/candidate");
+        router.push((nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : null) || "/candidate");
         router.refresh();
       } catch (err: any) {
         setLoading(false);
@@ -132,7 +131,7 @@ function SignupForm() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?persona=recruiter`,
+          redirectTo: `${window.location.origin}/auth/callback${isHiring ? "?persona=recruiter" : ""}`,
           skipBrowserRedirect: true,
         },
       });
@@ -182,7 +181,7 @@ function SignupForm() {
       <div className="flex-1 flex items-center justify-center px-4 py-4 overflow-y-auto scrollbar-none">
         <div className="w-full max-w-md bg-surface border border-border rounded-2xl p-6 sm:p-7 shadow-soft flex flex-col">
           <h1 className="text-[19px] font-bold m-0 mb-1 font-display text-ink text-center">
-            {isCandidate ? "Create your candidate account" : "Create your recruiter account"}
+            {isCandidate ? "Create your account" : "Create your recruiter account"}
           </h1>
           <p className="text-[12px] text-ink-muted m-0 mb-4 text-center">
             {isCandidate
@@ -206,6 +205,19 @@ function SignupForm() {
               placeholder="e.g. Alex Mercer"
               className="w-full border border-border rounded-lg px-3 py-2 text-[13px] mb-3 outline-none focus:border-brand bg-surface text-ink placeholder:text-ink-muted"
             />
+
+            <label className="flex items-start gap-2 mb-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={isHiring}
+                onChange={(e) => setIsHiring(e.target.checked)}
+                className="mt-0.5 accent-brand cursor-pointer"
+              />
+              <span className="text-[11.5px] text-ink">
+                <span className="font-bold">I&apos;m hiring</span>{" "}
+                <span className="text-ink-muted">-- request recruiter access (reviewed by the platform owner)</span>
+              </span>
+            </label>
 
             {!isCandidate && (
               <>
@@ -285,7 +297,7 @@ function SignupForm() {
           <p className="text-[11.5px] text-ink-muted text-center mt-3 mb-0">
             Already have an account?{" "}
             <Link
-              href={isCandidate ? `/login?persona=candidate${nextParam ? `&next=${encodeURIComponent(nextParam)}` : ""}` : "/login"}
+              href={nextParam ? `/login?next=${encodeURIComponent(nextParam)}` : "/login"}
               className="text-brand font-bold hover:underline"
             >
               Sign in

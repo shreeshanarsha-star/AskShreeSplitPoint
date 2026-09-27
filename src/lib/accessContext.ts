@@ -58,7 +58,13 @@ export async function computeAccessContext(
   const isPlatformOwner = !!profile?.is_admin;
   const orgId = (profile?.org_id as string | null) ?? null;
   const orgRole = (profile?.org_role as "org_admin" | "member" | null) ?? null;
-  const isOrgAdmin = orgRole === "org_admin";
+  // An org admin only counts as one once the owner has approved the org.
+  let orgApproved = false;
+  if (orgId) {
+    const { data: org } = await admin.from("organizations").select("status").eq("id", orgId).maybeSingle();
+    orgApproved = org?.status === "approved";
+  }
+  const isOrgAdmin = orgRole === "org_admin" && orgApproved;
 
   // getUserRoles() already returns the full TALENT_ROLES set for an
   // org_admin, so hasRecruiterAccess below could rely on that alone -- but

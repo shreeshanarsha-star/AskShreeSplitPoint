@@ -17,6 +17,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
+    // Sign-up step only: runs once, right after a brand-new account is
+    // created. It must never be able to change an existing account's
+    // status (e.g. lift a suspension, or re-open approval) after the fact.
+    const createdAt = user.created_at ? new Date(user.created_at).getTime() : 0;
+    if (Date.now() - createdAt > 10 * 60 * 1000) {
+      return NextResponse.json({ error: "Registration window has closed for this account." }, { status: 403 });
+    }
+    const { data: existing } = await supabase
+      .from("profiles")
+      .select("is_admin, status")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (existing?.is_admin || existing?.status === "suspended") {
+      return NextResponse.json({ error: "Not allowed for this account." }, { status: 403 });
+    }
+
     const body = await request.json().catch(() => ({}));
     const { persona, companyName, fullName } = body;
 

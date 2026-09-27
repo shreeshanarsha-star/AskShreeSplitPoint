@@ -43,9 +43,9 @@ export default function WaitingRoomPage() {
       }
 
       if (data?.status === "active" || data?.status === "approved") {
-        if (data?.persona === "candidate") router.push("/candidate");
-        else if (data?.persona === "recruiter") router.push("/recruiter");
-        else router.push("/");
+        const homeRes = await fetch("/api/auth/home-route");
+        const home = await homeRes.json().catch(() => ({}));
+        router.push(home?.route || "/");
         return;
       }
 

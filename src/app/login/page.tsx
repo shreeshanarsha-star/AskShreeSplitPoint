@@ -7,6 +7,7 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { safeNextPath } from "@/lib/safeNext";
 
 export default function LoginPage() {
   return (
@@ -60,9 +61,15 @@ function LoginForm() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        const destination = params.get("next") || data.redirectUrl || "/";
+        const destination = safeNextPath(params.get("next")) || data.redirectUrl || "/";
         router.push(destination);
         router.refresh();
+        return;
+      }
+
+      if (res.status === 403) {
+        setLoading(false);
+        setError(data?.error || "Your account has been suspended. Please contact the platform owner.");
         return;
       }
 
@@ -79,27 +86,19 @@ function LoginForm() {
         return;
       }
 
-      let destination = params.get("next") || "/";
-      if (!params.get("next") && clientData.user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("is_admin, status, persona")
-          .eq("id", clientData.user.id)
-          .maybeSingle();
-
-        if (profile?.is_admin) {
-          destination = "/admin";
-        } else if (profile?.status === "pending_approval") {
-          destination = "/waiting-room";
-        } else if (profile?.status === "suspended") {
+      let destination = safeNextPath(params.get("next")) || "/";
+      if (!safeNextPath(params.get("next")) && clientData.user) {
+        // Same shared resolver the server route uses -- never re-derive
+        // routing on the client.
+        const homeRes = await fetch("/api/auth/home-route");
+        const home = await homeRes.json().catch(() => ({}));
+        if (homeRes.status === 403) {
+          await supabase.auth.signOut();
           setLoading(false);
-          setError("Your account has been suspended. Please contact the platform owner.");
+          setError(home?.error || "Your account has been suspended. Please contact the platform owner.");
           return;
-        } else if (profile?.persona === "candidate") {
-          destination = "/candidate";
-        } else if (profile?.persona === "recruiter") {
-          destination = "/recruiter";
         }
+        if (home?.route) destination = home.route;
       }
 
       setLoading(false);

@@ -185,12 +185,31 @@ export async function buildApprovalChain(
 // handled separately (isPlatformOwner-style checks in individual API
 // routes), not by silently holding every operational role here.
 export async function getUserRoles(admin: SupabaseClient, userId: string): Promise<TalentRole[]> {
-  const { data: profile } = await admin.from("profiles").select("org_role").eq("id", userId).maybeSingle();
-  if (profile?.org_role === "org_admin") {
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("org_role, org_id")
+    .eq("id", userId)
+    .maybeSingle();
+  const orgId = (profile?.org_id as string | null) ?? null;
+
+  // Org admins act as every role -- but only inside an org the platform
+  // owner has APPROVED. A pending/suspended org's admin gets no work access
+  // until the owner approves it (owner -> org admin -> users hierarchy).
+  if (profile?.org_role === "org_admin" && orgId && (await isOrgApproved(admin, orgId))) {
     return [...TALENT_ROLES];
   }
-  const { data } = await admin.from("talent_user_roles").select("role").eq("user_id", userId);
+
+  // Org isolation: only role rows that belong to the account's own org
+  // count (rows with no org only count for accounts with no org).
+  let q = admin.from("talent_user_roles").select("role").eq("user_id", userId);
+  q = orgId ? q.eq("org_id", orgId) : q.is("org_id", null);
+  const { data } = await q;
   return (data || []).map((r) => r.role as TalentRole);
+}
+
+async function isOrgApproved(admin: SupabaseClient, orgId: string): Promise<boolean> {
+  const { data } = await admin.from("organizations").select("status").eq("id", orgId).maybeSingle();
+  return data?.status === "approved";
 }
 
 export async function hasTalentRole(
@@ -198,15 +217,9 @@ export async function hasTalentRole(
   userId: string,
   role: TalentRole
 ): Promise<boolean> {
-  const { data: profile } = await admin.from("profiles").select("org_role").eq("id", userId).maybeSingle();
-  if (profile?.org_role === "org_admin") return true;
-  const { data } = await admin
-    .from("talent_user_roles")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("role", role)
-    .maybeSingle();
-  return !!data;
+  // Same rules as getUserRoles (approved-org admins, org-scoped rows).
+  const roles = await getUserRoles(admin, userId);
+  return roles.includes(role);
 }
 
 // Append-only audit trail. Fire-and-forget is fine here -- an audit log

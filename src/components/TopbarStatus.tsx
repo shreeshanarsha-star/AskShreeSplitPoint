@@ -447,129 +447,14 @@ export default function TopbarStatus() {
       {authLoaded && (
         <div className="relative">
           {!userEmail ? (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => toggleMenu("signin")}
-                aria-expanded={activeMenu === "signin"}
-                aria-haspopup="menu"
-                className={`text-[11.5px] font-bold px-2.5 py-1 rounded-full border transition-all flex items-center gap-1.5 shadow-soft-sm whitespace-nowrap cursor-pointer select-none ${
-                  activeMenu === "signin"
-                    ? "bg-brand text-white border-brand shadow-soft"
-                    : "text-brand hover:text-brand-dark bg-brand-wash border-brand/20 hover:border-brand/40"
-                }`}
-              >
-                <span>Sign in</span>
-                <span
-                  className={`text-[8.5px] transition-transform duration-200 ${
-                    activeMenu === "signin" ? "rotate-180 opacity-100" : "opacity-70"
-                  }`}
-                >
-                  ▾
-                </span>
-              </button>
-
-              {activeMenu === "signin" && (
-                <div
-                  className="absolute right-0 top-[calc(100%+8px)] w-64 bg-surface border border-border rounded-xl shadow-xl z-50 p-2 flex flex-col gap-1 animate-in fade-in slide-in-from-top-1.5 duration-150 selection:bg-brand-wash selection:text-brand"
-                  role="menu"
-                  aria-orientation="vertical"
-                >
-                  <div className="px-2 pt-1 pb-1.5 border-b border-border flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
-                      Sign in as:
-                    </span>
-                    <Link
-                      href="/login"
-                      onClick={closeMenu}
-                      className="text-[10px] text-brand hover:underline font-bold"
-                    >
-                      All options →
-                    </Link>
-                  </div>
-
-                  <div className="flex flex-col gap-1 pt-1">
-                    {/* Candidate */}
-                    <Link
-                      href="/login?persona=candidate"
-                      onClick={closeMenu}
-                      className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-page border border-transparent hover:border-emerald-500/20 transition-all group/item"
-                    >
-                      <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 flex items-center justify-center text-sm flex-shrink-0 group-hover/item:scale-105 transition-transform">
-                        👤
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[12px] font-bold text-ink flex items-center justify-between">
-                          <span>Candidate</span>
-                          <span className="text-[9px] font-semibold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.2 rounded">Instant</span>
-                        </div>
-                        <div className="text-[10px] text-ink-muted truncate">
-                          Jobs, ATS optimizer & offers
-                        </div>
-                      </div>
-                    </Link>
-
-                    {/* Recruiter */}
-                    <Link
-                      href="/login?persona=recruiter"
-                      onClick={closeMenu}
-                      className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-page border border-transparent hover:border-blue-500/20 transition-all group/item"
-                    >
-                      <div className="w-7 h-7 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-500 flex items-center justify-center text-sm flex-shrink-0 group-hover/item:scale-105 transition-transform">
-                        💼
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[12px] font-bold text-ink flex items-center justify-between">
-                          <span>Recruiter</span>
-                          <span className="text-[9px] font-semibold text-blue-500 bg-blue-500/10 px-1.5 py-0.2 rounded">Console</span>
-                        </div>
-                        <div className="text-[10px] text-ink-muted truncate">
-                          Sourcing, JD Studio & pipeline
-                        </div>
-                      </div>
-                    </Link>
-
-                    {/* Organization */}
-                    <Link
-                      href="/login?persona=organization"
-                      onClick={closeMenu}
-                      className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-page border border-transparent hover:border-purple-500/20 transition-all group/item"
-                    >
-                      <div className="w-7 h-7 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-500 flex items-center justify-center text-sm flex-shrink-0 group-hover/item:scale-105 transition-transform">
-                        🏢
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[12px] font-bold text-ink flex items-center justify-between">
-                          <span>Organization</span>
-                          <span className="text-[9px] font-semibold text-purple-500 bg-purple-500/10 px-1.5 py-0.2 rounded">Suite</span>
-                        </div>
-                        <div className="text-[10px] text-ink-muted truncate">
-                          Team licenses & enterprise hiring
-                        </div>
-                      </div>
-                    </Link>
-                  </div>
-
-                  <div className="border-t border-border mt-1 pt-1.5 flex items-center justify-between px-1.5 text-[10.5px]">
-                    <Link
-                      href="/signup"
-                      onClick={closeMenu}
-                      className="text-brand hover:underline font-bold"
-                    >
-                      Create account →
-                    </Link>
-                    <Link
-                      href="/login?persona=owner"
-                      onClick={closeMenu}
-                      className="text-ink-muted hover:text-ink flex items-center gap-1"
-                    >
-                      <span>👑</span>
-                      <span>Owner</span>
-                    </Link>
-                  </div>
-                </div>
-              )}
-            </div>
+            // One login for everyone -- no "sign in as" picker. The account's
+            // stored role decides where it lands after sign-in.
+            <Link
+              href="/login"
+              className="text-[11.5px] font-bold px-2.5 py-1 rounded-full border transition-all flex items-center gap-1.5 shadow-soft-sm whitespace-nowrap cursor-pointer select-none text-brand hover:text-brand-dark bg-brand-wash border-brand/20 hover:border-brand/40"
+            >
+              <span>Sign in</span>
+            </Link>
           ) : (
             <>
               <button

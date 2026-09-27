@@ -230,6 +230,17 @@ export async function requireOrgAdmin() {
   if (!profile?.org_id && !isAdmin) {
     throw unauthorized("Your account isn't part of an organization yet.", 403);
   }
+  if (!isAdmin) {
+    // Org admin powers only exist once the platform owner approves the org.
+    const { data: org } = await supabase
+      .from("organizations")
+      .select("status")
+      .eq("id", profile!.org_id)
+      .maybeSingle();
+    if (org?.status !== "approved") {
+      throw unauthorized("Your organization is awaiting approval by the platform owner.", 403);
+    }
+  }
 
   return { user, supabase, isAdmin, orgId: (profile?.org_id as string | null) ?? null };
 }

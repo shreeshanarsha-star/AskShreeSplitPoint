@@ -206,32 +206,15 @@ export default function HomePage() {
           }
         }
 
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("is_admin, org_role")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        if (profile?.is_admin) {
-          router.replace("/admin");
-          return;
-        }
-
-        const { data: userRoles } = await supabase
-          .from("talent_user_roles")
-          .select("role")
-          .eq("user_id", user.id);
-
-        const roles = (userRoles || []).map((r: { role: string }) => r.role);
-        if (roles.some((r) => ["recruiter", "ta_head", "lead_recruiter"].includes(r))) {
-          router.replace("/recruiter");
-          return;
-        } else if (roles.some((r) => ["hiring_manager", "reporting_manager"].includes(r))) {
-          router.replace("/hm");
-          return;
-        } else if (profile?.org_role === "org_admin") {
-          router.replace("/org/settings");
-          return;
+        // Work-role accounts go to their own hub; candidates stay here.
+        // Destination comes from the one shared server resolver.
+        const homeRes = await fetch("/api/auth/home-route");
+        if (homeRes.ok) {
+          const home = await homeRes.json().catch(() => ({}));
+          if (home?.route && ["/admin", "/recruiter", "/org/settings"].includes(home.route)) {
+            router.replace(home.route);
+            return;
+          }
         }
       } catch (err) {
         console.warn("Auth check failed:", err);
