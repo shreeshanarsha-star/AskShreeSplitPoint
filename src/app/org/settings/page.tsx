@@ -67,6 +67,16 @@ export default async function OrgSettingsPage() {
     );
   }
 
+  if (org.status !== "approved" && !profile.is_admin) {
+    return (
+      <AppShell title="Organization Settings">
+        <div className="border border-dashed border-border rounded-md px-4 py-6 text-center text-[13px] text-ink-muted">
+          {org.name} is awaiting approval by the platform owner. You&apos;ll be able to manage members and access once it&apos;s approved.
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell title="Organization Settings">
       <div className="mb-6">

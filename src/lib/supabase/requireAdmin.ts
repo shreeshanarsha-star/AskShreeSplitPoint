@@ -1,3 +1,4 @@
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "./server";
 import { isToolPaused } from "@/lib/platformSettings";
 
@@ -161,6 +162,25 @@ export async function requireFeatureAccess(featureKey: string) {
     if (!grant) {
       throw unauthorized(
         `Your organization doesn't have access to "${featureKey}" yet. Ask the platform owner to grant it.`,
+        403
+      );
+    }
+  }
+
+  // Org admin may have switched this tool off for this member (never for
+  // themself). Service-role read: the blocks table has no client policies.
+  const { data: me } = await supabase.from("profiles").select("org_role").eq("id", user.id).maybeSingle();
+  if (me?.org_role !== "org_admin") {
+    const { data: block } = await createAdminClient()
+      .from("org_member_tool_blocks")
+      .select("feature_key")
+      .eq("org_id", profile.org_id)
+      .eq("user_id", user.id)
+      .eq("feature_key", featureKey)
+      .maybeSingle();
+    if (block) {
+      throw unauthorized(
+        `Your organization's admin hasn't enabled "${featureKey}" for your account.`,
         403
       );
     }
