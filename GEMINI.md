@@ -35,3 +35,13 @@
 - **Execution**: Eliminate all browser and container scrollbars across all pages, modals, tables, and views (enforcing `scrollbar-none`, `scrollbar-width: none`, and `::-webkit-scrollbar { display: none; }` globally).
 - **Clickable Navigation**: Instead of scrolling containers, implement **clickable arrows** (`‹` / `›`, `▲` / `▼`, or `Previous` / `Next` paging buttons) wherever navigation through overflow content is required.
 
+
+### 6. Build Safety Guardrails (Non-Negotiable)
+- **Branch only**: Never commit or push to `main`. Always work on a new feature branch; `main` is merged only after owner review. `main` deploys straight to askshree.com.
+- **Sync first**: Before any task, pull the latest `main`. Never push from an outdated copy.
+- **Home page and shell are locked**: Do not modify `src/app/page.tsx` or the shared shell/layout (`UniversalPlatformShell`, `TopbarStatus`, `AppShell`) unless the task explicitly names the file.
+- **Access control is locked**: Do not modify these unless the task explicitly names them: `src/lib/accessContext.ts`, `src/lib/homeRoute.ts`, `src/lib/talentRoles.ts`, `src/lib/org.ts`, `src/lib/orgTools.ts`, `src/lib/safeNext.ts`, `src/lib/supabase/requireAdmin.ts`, anything under `src/app/api/auth/`, `src/app/api/org/`, `src/app/api/admin/`, and `src/app/auth/`.
+- **No database changes**: Never run migrations, edit Supabase schema, policies, triggers, or data. Database changes are handled separately.
+- **Small changes**: One task per branch. Do not refactor, rename, reformat, or "clean up" code outside the task.
+- **Verify before pushing**: Run `npx tsc --noEmit` and `npx eslint <changed files>`; both must pass. Use LF line endings.
+- **Report**: End every task with the list of files changed and a one-line reason for each.
