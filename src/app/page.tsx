@@ -99,7 +99,7 @@ export default function HomePage() {
     {
       id: "initial-welcome",
       role: "assistant",
-      text: "Hello! I am Shree, your AI hiring partner. Drop your CV for instant feedback, explore open roles with zero ghosting, or select any job on the left for a free consultation.",
+      text: "Hello! I’m Shree, your AI hiring partner. 👋\nDrop your CV to discover relevant opportunities, ask anything about hiring, get expert guidance, book a consultation, and unlock much more.\nJust talk to me — let’s take your next step forward.",
     },
   ]);
   const [inputQuery, setInputQuery] = useState("");
@@ -1111,7 +1111,7 @@ export default function HomePage() {
                       className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
                     >
                       <div
-                        className={`max-w-[85%] rounded-2xl px-4 py-2.5 leading-relaxed text-[12.5px] ${
+                        className={`max-w-[85%] rounded-2xl px-4 py-2.5 leading-relaxed text-[12.5px] whitespace-pre-line ${
                           m.role === "user"
                             ? "bg-brand text-white rounded-br-xs shadow-soft-sm"
                             : "bg-surface border border-border text-ink rounded-bl-xs shadow-soft-sm"
