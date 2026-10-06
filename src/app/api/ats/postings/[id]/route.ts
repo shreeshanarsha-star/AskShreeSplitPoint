@@ -157,3 +157,74 @@ export async function PATCH(
 
   return NextResponse.json({ ok: true, posting: updated });
 }
+
+// DELETE /api/ats/postings/[id]
+// Removes a job posting (taking it off the public site). The requisition and
+// any candidates who already applied are untouched.
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id: postingId } = await params;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const admin = createAdminClient();
+  const ctx = await getOrgContext(admin, user.id);
+  const roles = await getUserRoles(admin, user.id);
+
+  const canDelete =
+    ctx.isPlatformOwner ||
+    ctx.orgRole === "org_admin" ||
+    roles.some((r) => POSTER_ROLES.includes(r));
+
+  if (!canDelete) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { data: existing, error: fetchErr } = await admin
+    .from("talent_job_postings")
+    .select("id, org_id, board, status, created_by, requisition_id")
+    .eq("id", postingId)
+    .maybeSingle();
+
+  if (fetchErr || !existing) {
+    return NextResponse.json({ error: "Posting not found." }, { status: 404 });
+  }
+
+  if (!ctx.isPlatformOwner) {
+    if (existing.org_id !== ctx.orgId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (ctx.orgId === null && existing.created_by !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
+  const { error: deleteErr } = await admin
+    .from("talent_job_postings")
+    .delete()
+    .eq("id", postingId);
+
+  if (deleteErr) {
+    return NextResponse.json({ error: deleteErr.message }, { status: 500 });
+  }
+
+  await logAudit({
+    entityType: "talent_job_postings",
+    entityId: postingId,
+    actorId: user.id,
+    action: "deleted",
+    detail: { board: existing.board, previous_status: existing.status, requisition_id: existing.requisition_id },
+    orgId: ctx.orgId,
+  });
+
+  return NextResponse.json({ ok: true });
+}

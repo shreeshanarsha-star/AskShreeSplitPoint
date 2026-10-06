@@ -58,6 +58,8 @@ export default function RequisitionDetailPage() {
   const [showMore, setShowMore] = useState(false);
   const [postings, setPostings] = useState<Posting[]>([]);
   const [deleting, setDeleting] = useState(false);
+  const [postingBusy, setPostingBusy] = useState<string | null>(null);
+  const [confirmPostingId, setConfirmPostingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
@@ -104,6 +106,22 @@ export default function RequisitionDetailPage() {
     }
   }
 
+  async function handleDeletePosting(postingId: string) {
+    setPostingBusy(postingId);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/ats/postings/${postingId}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to delete posting.");
+      setPostings((prev) => prev.filter((p) => p.id !== postingId));
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete posting.");
+    } finally {
+      setPostingBusy(null);
+      setConfirmPostingId(null);
+    }
+  }
+
   const mustHave = req?.eligibility_criteria?.must_have_skills ?? [];
   const goodToHave = req?.eligibility_criteria?.good_to_have_skills ?? [];
   const hasMoreDetails = Boolean(
@@ -111,11 +129,10 @@ export default function RequisitionDetailPage() {
   );
 
   // Deletion is only realistic before the role has gone anywhere --
-  // once it's posted, the backend refuses anyway, so don't even offer
-  // the button once a live posting exists.
-  const canOfferDelete = Boolean(req) && postings.every((p) => p.status !== "posted") && (req?.status === "open" || req?.status === "pending_approval");
+  // once a live posting exists, take the posting down first.
+  const canOfferDelete = Boolean(req) && postings.every((p) => p.status !== "published") && (req?.status === "open" || req?.status === "pending_approval");
 
-  const askshreePosting = postings.find((p) => p.board === "askshree" && p.status === "posted");
+  const askshreePosting = postings.find((p) => p.board === "askshree" && p.status === "published");
   const shareUrl = askshreePosting
     ? `https://www.askshree.com/jobs/${askshreePosting.id}`
     : null;
@@ -274,6 +291,42 @@ export default function RequisitionDetailPage() {
                     Copy link
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* Job postings -- each can be taken down (deleted) individually. */}
+            {postings.length > 0 && (
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-soft space-y-2.5">
+                <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400">Job postings</span>
+                {deleteError && !confirmingDelete && <p className="text-xs text-rose-600 dark:text-rose-400">{deleteError}</p>}
+                <ul className="space-y-2">
+                  {postings.map((p) => (
+                    <li key={p.id} className="flex items-center justify-between gap-3 text-xs p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/50">
+                      <span className="font-semibold capitalize">
+                        {p.board} <span className="font-normal text-slate-500">· {p.status}</span>
+                      </span>
+                      <span className="flex items-center gap-2">
+                        {p.board === "askshree" && p.status === "published" && (
+                          <a href={`/jobs/${p.id}`} target="_blank" rel="noreferrer" className="font-semibold text-brand hover:underline">View ↗</a>
+                        )}
+                        {confirmPostingId === p.id ? (
+                          <>
+                            <button type="button" disabled={postingBusy === p.id} onClick={() => handleDeletePosting(p.id)} className="font-bold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-60 px-2.5 py-1 rounded-lg">
+                              {postingBusy === p.id ? "Deleting…" : "Yes, delete"}
+                            </button>
+                            <button type="button" disabled={postingBusy === p.id} onClick={() => setConfirmPostingId(null)} className="font-semibold text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700 px-2.5 py-1 rounded-lg">
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <button type="button" onClick={() => setConfirmPostingId(p.id)} className="font-semibold text-rose-600 border border-rose-300 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:border-rose-800 dark:text-rose-300 px-2.5 py-1 rounded-lg">
+                            Delete posting
+                          </button>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
 
